@@ -16,7 +16,7 @@ const updateCartTotals = async (cartId) => {
   let totalPayable = 0;
   let totalItem = 0;
 
-  item.forEach((item) => {
+  items.forEach((item) => {
     totalPrice += item.price;
     totalPayable += item.discountedPrice;
     total += item.quantity;
