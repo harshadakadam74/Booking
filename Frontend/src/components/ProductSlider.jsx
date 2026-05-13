@@ -1,273 +1,202 @@
-
 import React, { useEffect, useRef } from 'react';
-import { Flame, Clock, ShoppingCart, Star, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLocation } from "react-router-dom";
-import { PropertyTypes } from '../Data/Property';
+import { Star, MapPin, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link } from "react-router-dom";
 
-
-
-const DEALS = [
+const FEATURED_PROPERTIES = [
   {
-    id: 101,
-    name: "Organic Dragon Fruit (Red)",
-    discount: 30,
-    price: 8.50,
-    originalPrice: 12.00,
-    image: "https://images.unsplash.com/photo-1527324688151-0e627063f2b1?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "04:22:15",
-    soldCount: 45,
-    totalStock: 60
+    id: 1,
+    name: "Grand Plaza Hotel",
+    location: "New York, USA",
+    rating: 4.5,
+    reviews: 1250,
+    price: 150,
+    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Hotel"
   },
   {
-    id: 102,
-    name: "Pure Manuka Honey MGO 400+",
-    discount: 25,
-    price: 34.99,
-    originalPrice: 46.50,
-    image: "https://images.unsplash.com/photo-1589184411108-724398320987?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "02:10:45",
-    soldCount: 12,
-    totalStock: 20
+    id: 2,
+    name: "Ocean View Resort",
+    location: "Miami, USA",
+    rating: 4.8,
+    reviews: 890,
+    price: 220,
+    image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Resort"
   },
   {
-    id: 103,
-    name: "Extra Virgin Olive Oil (500ml)",
-    discount: 40,
-    price: 14.20,
-    originalPrice: 24.00,
-    image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "08:45:00",
-    soldCount: 88,
-    totalStock: 100
+    id: 3,
+    name: "Luxury Beach Villa",
+    location: "Malibu, USA",
+    rating: 4.9,
+    reviews: 650,
+    price: 500,
+    image: "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Villa"
   },
   {
-    id: 104,
-    name: "Japanese Wagyu Ribeye A5",
-    discount: 15,
-    price: 120.00,
-    originalPrice: 145.00,
-    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "01:05:30",
-    soldCount: 5,
-    totalStock: 8
+    id: 4,
+    name: "City Center Apartment",
+    location: "Los Angeles, USA",
+    rating: 4.6,
+    reviews: 980,
+    price: 120,
+    image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Apartment"
   },
   {
-    id: 105,
-    name: "Organic Blueberries Bulk",
-    discount: 50,
-    price: 9.99,
-    originalPrice: 19.99,
-    image: "https://images.unsplash.com/photo-1497534446932-c946e7316ba1?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "05:30:10",
-    soldCount: 150,
-    totalStock: 200
-  },
-   {
-    id: 101,
-    name: "Organic Dragon Fruit (Red)",
-    discount: 30,
-    price: 8.50,
-    originalPrice: 12.00,
-    image: "https://images.unsplash.com/photo-1527324688151-0e627063f2b1?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "04:22:15",
-    soldCount: 45,
-    totalStock: 60
+    id: 5,
+    name: "Cozy Forest Cabin",
+    location: "Oregon, USA",
+    rating: 4.5,
+    reviews: 480,
+    price: 120,
+    image: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Cabin"
   },
   {
-    id: 102,
-    name: "Pure Manuka Honey MGO 400+",
-    discount: 25,
-    price: 34.99,
-    originalPrice: 46.50,
-    image: "https://images.unsplash.com/photo-1589184411108-724398320987?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "02:10:45",
-    soldCount: 12,
-    totalStock: 20
-  },
-  {
-    id: 103,
-    name: "Extra Virgin Olive Oil (500ml)",
-    discount: 40,
-    price: 14.20,
-    originalPrice: 24.00,
-    image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "08:45:00",
-    soldCount: 88,
-    totalStock: 100
-  },
-  {
-    id: 104,
-    name: "Japanese Wagyu Ribeye A5",
-    discount: 15,
-    price: 120.00,
-    originalPrice: 145.00,
-    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "01:05:30",
-    soldCount: 5,
-    totalStock: 8
-  },
-  {
-    id: 105,
-    name: "Organic Blueberries Bulk",
-    discount: 50,
-    price: 9.99,
-    originalPrice: 19.99,
-    image: "https://images.unsplash.com/photo-1497534446932-c946e7316ba1?auto=format&fit=crop&q=80&w=400&h=400",
-    timeLeft: "05:30:10",
-    soldCount: 150,
-    totalStock: 200
+    id: 6,
+    name: "Tropical Paradise Resort",
+    location: "Hawaii, USA",
+    rating: 4.9,
+    reviews: 2100,
+    price: 350,
+    image: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=400&h=400",
+    type: "Resort"
   }
 ];
 
- const ProductSlider  = () => {
-
+const ProductSlider = () => {
   const scrollRef = useRef(null);
-const location = useLocation();
-const isHotDeals = location.pathname === "/hot-deals";
 
-useEffect(() => {
-  if (!scrollRef.current) return;
+  useEffect(() => {
+    if (!scrollRef.current) return;
 
-  const container = scrollRef.current;
-  const firstCard = container.children[0];
-  if (!firstCard) return;
+    const container = scrollRef.current;
+    const firstCard = container.children[0];
+    if (!firstCard) return;
 
-  const gap = 24; // gap-6
-  const cardWidth = firstCard.getBoundingClientRect().width + gap;
-  let index = 0;
+    const gap = 24; // gap-6
+    const cardWidth = firstCard.getBoundingClientRect().width + gap;
+    let index = 0;
 
-  const autoSlide = setInterval(() => {
-    const maxScroll = container.scrollWidth - container.clientWidth;
+    const autoSlide = setInterval(() => {
+      const maxScroll = container.scrollWidth - container.clientWidth;
 
-    container.scrollTo({
-      left: index * cardWidth,
-      behavior: "smooth",
+      container.scrollTo({
+        left: index * cardWidth,
+        behavior: "smooth",
+      });
+
+      index++;
+
+      if (index * cardWidth > maxScroll) {
+        index = 0;
+      }
+    }, 4000); // Auto slide every 4 seconds
+
+    return () => clearInterval(autoSlide);
+  }, []);
+
+  const scroll = (direction) => {
+    if (!scrollRef.current) return;
+
+    const container = scrollRef.current;
+    const scrollAmount = 320; // Approximate card width + gap
+
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
     });
-
-    index++;
-
-    if (index * cardWidth > maxScroll) {
-      index = 0;
-      setTimeout(() => {
-        container.scrollTo({ left: 0, behavior: "smooth" });
-      }, 500);
-    }
-  }, 3000); // 3s per slide
-
-  return () => clearInterval(autoSlide);
-}, []);
-
+  };
 
   return (
-    <div className={`${isHotDeals ? "px-6 max-w-6xl  mx-auto lg:px-20 py-10" : "py-10 overflow-hidden"}`}>
-      {/* Refined Header */}
-      {/* <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-8">
-        <div className="reveal-1">
-          <h2 className="text-4xl  font-black text-gray-900 tracking-tight leading-none">
-            Hot <span className="text-rose-600 italic">Deals</span>
-          </h2>
-          <div className="flex items-center rounded-xl gap-3 mt-4 text-[10px] font-black uppercase tracking-widest text-slate-600 tabular-nums">
-             <Clock className="h-3 w-3 text-rose-500" />
-             Time Remaining: <p className="text-slate-600">04:22:15</p>
-          </div>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 md:py-14">
+      <div className="mb-6">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
+          Featured Properties
+        </h2>
+        <p className="text-gray-500 text-sm sm:text-base">
+          Discover our handpicked selection of amazing stays
+        </p>
+      </div>
 
-        <div className="flex gap-4">
-                <button 
-                  onClick={() => scroll('left')}
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white  text-slate-600 hover:text-emerald-600 active:scale-90 transition-all"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button 
-                  onClick={() => scroll('right')}
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white  text-slate-600 hover:text-emerald-600 active:scale-90 transition-all"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                  
-                </button>
-              </div>
-      </div> */}
+      <div className="relative">
+        {/* Left Arrow */}
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
+        >
+          <ChevronLeft size={24} />
+        </button>
 
-      {/* Responsive Carousel Grid */}
-      <div 
-        ref={scrollRef}
-        className="flex gap-6 overflow-x-auto pb-12 scrollbar-hide snap-x px-2 scroll-smooth"
-        
-      >
-        {PropertyTypes.map((deal,index) => {
-          return (
-            <div 
-              key={index}
-              className={`
-                group relative shrink-0 snap-start rounded-[2.5rem] bg-white border border-slate-200 p-3
-                transition-all duration-500 hover:shadow-xl hover:border-rose-100 hover:-translate-y-1
-                w-full 
-                md:w-[calc(33.33%-1rem)] 
-                lg:w-[calc(25%-1.125rem)]
-                flex flex-col
-                
-              `}
-              
-              style={{ minHeight: '500px' }}
+        {/* Right Arrow */}
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors"
+        >
+          <ChevronRight size={24} />
+        </button>
+
+        {/* Slider Container */}
+        <div
+          ref={scrollRef}
+          className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {FEATURED_PROPERTIES.map((property) => (
+            <div
+              key={property.id}
+              className="flex-shrink-0 w-80 bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 group"
             >
-              <div className="relative aspect-4/4 overflow-hidden rounded-4xl bg-gray-50 shrink-0">
-                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                  <div className="rounded-full bg-rose-600 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
-                    -20% OFF
-                  </div>
-                </div>
-                
-                <img 
-                  src={deal.image} 
-                  alt={deal.title}
-                  className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              <div className="relative">
+                <img
+                  src={property.image}
+                  alt={property.name}
+                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-
-                {/* <button className="absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-600 text-white shadow-lg translate-y-20 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 hover:bg-rose-700 active:scale-90">
-                  <ShoppingCart className="h-5 w-5" />
-                </button> */}
+                <button className="absolute top-3 right-3 bg-white/80 p-2 rounded-full hover:bg-white transition-colors">
+                  <Heart size={16} className="text-gray-600" />
+                </button>
+                <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                  {property.type}
+                </div>
               </div>
 
-              <div className="mt-5 px-3 grow flex flex-col ">
-                <div>
-                  <div className="flex items-center justify-between w-full gap-1.5 mb-2.5">
-                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 mb-0.5 fill-orange-400 text-orange-400" />
-                    <span className="text-[15px] font-black text-gray-900">4.9</span>
-                     </div>
-                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Limited</span>
-                  </div>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-600 transition-colors">
+                  {property.name}
+                </h3>
 
-                  <h3 className="text-xl font-semibold text-slate-900 group-hover:text-rose-600 transition-colors tracking-tight leading-tight mb-3">
-                    {deal.title}
-                  </h3>
-
-                  {/* <div className="flex items-center gap-3">
-                    <span className="text-2xl font-black text-gray-900 tracking-tighter">${deal.price.toFixed(2)}</span>
-                    <span className="text-xs font-bold text-slate-600 line-through tracking-tight">${deal.originalPrice.toFixed(2)}</span>
-                  </div> */}
+                <div className="flex items-center mb-2">
+                  <MapPin size={14} className="text-gray-500 mr-1" />
+                  <span className="text-gray-600 text-sm">{property.location}</span>
                 </div>
 
-                {/* <div className="mt-6 pb-2">
-                  <div className="flex justify-between text-[9px] font-black uppercase tracking-widest mb-2">
-                    <span className="text-rose-600">{deal.totalStock - deal.soldCount} left</span>
-                    <span className="text-gray-400">{Math.round(progress)}% sold</span>
+                <div className="flex items-center mb-3">
+                  <Star className="text-yellow-400 fill-current" size={14} />
+                  <span className="ml-1 text-sm">{property.rating}</span>
+                  <span className="text-gray-500 text-sm ml-1">({property.reviews})</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xl font-bold text-blue-600">${property.price}</span>
+                    <span className="text-gray-500 text-sm"> / night</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-sate-200">
-                    <div 
-                      className="h-full bg-rose-600 transition-all duration-1000 ease-out" 
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div> */}
+                  <Link
+                    to={`/${property.type.toLowerCase()}s`}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm font-medium"
+                  >
+                    View Details
+                  </Link>
+                </div>
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-export default ProductSlider
+export default ProductSlider;

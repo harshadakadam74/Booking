@@ -1,75 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MapPin, Wifi, Car, Utensils, Dumbbell, Heart } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Star, MapPin, Wifi, Car, Utensils, Dumbbell } from 'lucide-react';
 
-const Apartments = () => {
-  const [apartments, setApartments] = useState([]);
+const ServicedApartments = () => {
+  const [servicedApartments, setServicedApartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [likedProperties, setLikedProperties] = useState(new Set());
-  const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock data for apartments
-    const mockApartments = [
+    // Mock data for serviced apartments
+    const mockServicedApartments = [
       {
         id: 1,
-        name: "City Center Apartment",
-        location: "Los Angeles, USA",
-        rating: 4.6,
-        reviews: 980,
-        price: 120,
-        originalPrice: 150,
+        name: "Executive City Apartments",
+        location: "London, UK",
+        rating: 4.5,
+        reviews: 680,
+        price: 200,
+        originalPrice: 250,
         image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=400&h=300",
-        amenities: ["wifi", "parking", "kitchen"],
+        amenities: ["wifi", "parking", "gym", "kitchen"],
         discount: 20
       },
       {
         id: 2,
-        name: "Downtown Loft",
-        location: "Chicago, USA",
-        rating: 4.4,
-        reviews: 720,
-        price: 140,
-        originalPrice: 175,
+        name: "Business District Suites",
+        location: "New York, USA",
+        rating: 4.7,
+        reviews: 520,
+        price: 180,
+        originalPrice: 225,
         image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=400&h=300",
-        amenities: ["wifi", "parking", "gym"],
+        amenities: ["wifi", "parking", "gym", "restaurant"],
         discount: 20
       },
       {
         id: 3,
-        name: "Beachfront Studio",
-        location: "San Diego, USA",
-        rating: 4.7,
-        reviews: 1100,
+        name: "Downtown Serviced Living",
+        location: "Singapore",
+        rating: 4.6,
+        reviews: 410,
         price: 160,
         originalPrice: 200,
         image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=400&h=300",
-        amenities: ["wifi", "parking", "pool"],
+        amenities: ["wifi", "parking", "gym", "kitchen"],
         discount: 20
       }
     ];
-    setApartments(mockApartments);
+    setServicedApartments(mockServicedApartments);
     setLoading(false);
   }, []);
-
-  // Load liked properties from localStorage
-  useEffect(() => {
-    const liked = localStorage.getItem('likedProperties');
-    if (liked) {
-      setLikedProperties(new Set(JSON.parse(liked)));
-    }
-  }, []);
-
-  const toggleLike = (propertyId) => {
-    const newLiked = new Set(likedProperties);
-    if (newLiked.has(propertyId)) {
-      newLiked.delete(propertyId);
-    } else {
-      newLiked.add(propertyId);
-    }
-    setLikedProperties(newLiked);
-    localStorage.setItem('likedProperties', JSON.stringify([...newLiked]));
-  };
 
   const getAmenityIcon = (amenity) => {
     switch (amenity) {
@@ -77,33 +55,9 @@ const Apartments = () => {
       case 'parking': return <Car size={16} />;
       case 'kitchen': return <Utensils size={16} />;
       case 'gym': return <Dumbbell size={16} />;
-      case 'pool': return <div className="w-4 h-4 bg-blue-500 rounded"></div>; // Simple pool icon
+      case 'restaurant': return <div className="w-4 h-4 bg-orange-500 rounded"></div>;
       default: return null;
     }
-  };
-
-  const handleBookNow = (apartment) => {
-    // Navigate to payment page with apartment details
-    navigate('/payment', {
-      state: {
-        property: {
-          ...apartment,
-          type: 'Apartment'
-        },
-        searchParams: {
-          location: apartment.location,
-          dates: {
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
-          },
-          guests: {
-            adults: 2,
-            children: 0,
-            rooms: 1
-          }
-        }
-      }
-    });
   };
 
   if (loading) {
@@ -117,12 +71,12 @@ const Apartments = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Apartments</h1>
-        <p className="text-gray-600">Comfortable apartments for your stay</p>
+        <h1 className="text-3xl font-bold mb-2">Serviced Apartments</h1>
+        <p className="text-gray-600">Fully serviced apartments with hotel amenities</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {apartments.map((apartment) => (
+        {servicedApartments.map((apartment) => (
           <div key={apartment.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative">
               <img
@@ -135,19 +89,6 @@ const Apartments = () => {
                   {apartment.discount}% OFF
                 </div>
               )}
-              <button
-                onClick={() => toggleLike(apartment.id)}
-                className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white transition-colors"
-              >
-                <Heart
-                  size={20}
-                  className={`${
-                    likedProperties.has(apartment.id)
-                      ? 'fill-red-500 text-red-500'
-                      : 'text-gray-600'
-                  }`}
-                />
-              </button>
             </div>
 
             <div className="p-4">
@@ -183,10 +124,7 @@ const Apartments = () => {
                   )}
                   <span className="text-gray-500 text-sm"> / night</span>
                 </div>
-                <button 
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-                  onClick={() => handleBookNow(apartment)}
-                >
+                <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
                   Book Now
                 </button>
               </div>
@@ -198,4 +136,4 @@ const Apartments = () => {
   );
 };
 
-export default Apartments;
+export default ServicedApartments;

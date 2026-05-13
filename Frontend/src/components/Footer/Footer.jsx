@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import footerSections from './footerLinks';
 
 const Footer = () => {
   return (
@@ -6,68 +7,23 @@ const Footer = () => {
 
       {/* Footer columns */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 text-center md:text-left">
-
-        {/* Support */}
-        <div>
-          <h4 className="font-bold mb-3 text-black">Support</h4>
-          <ul className="space-y-2">
-            <li><Link to="/trips" className="hover:underline">Manage your trips</Link></li>
-            <li><Link to="/support" className="hover:underline">Contact Customer Service</Link></li>
-            <li><Link to="/safety" className="hover:underline">Safety resource centre</Link></li>
-          </ul>
-        </div>
-
-        {/* Discover */}
-        <div>
-          <h4 className="font-bold mb-3 text-black">Discover</h4>
-          <ul className="space-y-2">
-            <li><Link to="/genius" className="hover:underline">Genius loyalty programme</Link></li>
-            <li><Link to="/deals" className="hover:underline">Seasonal and holiday deals</Link></li>
-            <li><Link to="/articles" className="hover:underline">Travel articles</Link></li>
-            <li><Link to="/business" className="hover:underline">Booking.com for Business</Link></li>
-            <li><Link to="/awards" className="hover:underline">Traveller Review Awards</Link></li>
-            <li><Link to="/agents" className="hover:underline">Booking.com for Travel Agents</Link></li>
-          </ul>
-        </div>
-
-        {/* Terms */}
-        <div>
-          <h4 className="font-bold mb-3 text-black">Terms and settings</h4>
-          <ul className="space-y-2">
-            <li><Link to="/privacy" className="hover:underline">Privacy Notice</Link></li>
-            <li><Link to="/terms" className="hover:underline">Terms of Service</Link></li>
-            <li><Link to="/accessibility" className="hover:underline">Accessibility Statement</Link></li>
-            <li><Link to="/grievance" className="hover:underline">Grievance officer</Link></li>
-            <li><Link to="/slavery" className="hover:underline">Modern Slavery Statement</Link></li>
-            <li><Link to="/human-rights" className="hover:underline">Human Rights Statement</Link></li>
-          </ul>
-        </div>
-
-        {/* Partners */}
-        <div>
-          <h4 className="font-bold mb-3 text-black">Partners</h4>
-          <ul className="space-y-2">
-            <li><Link to="/extranet" className="hover:underline">Extranet login</Link></li>
-            <li><Link to="/partner-help" className="hover:underline">Partner help</Link></li>
-            <li><Link to="/list-property" className="hover:underline">List your property</Link></li>
-            <li><Link to="/affiliate" className="hover:underline">Become an affiliate</Link></li>
-          </ul>
-        </div>
-
-        {/* About */}
-        <div>
-          <h4 className="font-bold mb-3 text-black">About</h4>
-          <ul className="space-y-2">
-            <li><Link to="/about" className="hover:underline">About FastBooking</Link></li>
-            <li><Link to="/how-we-work" className="hover:underline">How we work</Link></li>
-            <li><Link to="/sustainability" className="hover:underline">Sustainability</Link></li>
-            <li><Link to="/press" className="hover:underline">Press centre</Link></li>
-            <li><Link to="/careers" className="hover:underline">Careers</Link></li>
-            <li><Link to="/investors" className="hover:underline">Investor relations</Link></li>
-            <li><Link to="/contact" className="hover:underline">Corporate contact</Link></li>
-            <li><Link to="/content-guidelines" className="hover:underline">Content guidelines and reporting</Link></li>
-          </ul>
-        </div>
+        {footerSections.map((section) => (
+          <div key={section.title}>
+            <h4 className="font-bold mb-3 text-black">{section.title}</h4>
+            <ul className="space-y-2">
+              {section.links.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="block text-gray-700 transition hover:text-blue-700 hover:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
       {/* Bottom bar */}

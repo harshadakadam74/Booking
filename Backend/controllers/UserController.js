@@ -14,20 +14,13 @@ const getAllUser = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
     try {
-        const jwt = req.headers.authorization?.split(" ")[1];
-
-        if(!jwt) {
-            return res.status(401).send({message:'Token Not Found'});
+        if (!req.user) {
+            return res.status(401).send({ message: 'User not authenticated' });
         }
 
-        const user = await UserService.getUserProfile(jwt);
-
-        return res.status(200).send(user);
-
+        return res.status(200).send(req.user);
     } catch (error) {
-
         return res.status(500).send(error.message);
-        
     }
 };
 

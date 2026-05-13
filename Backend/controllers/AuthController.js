@@ -31,7 +31,7 @@ const register = async (req,res) => {
         //Remove sensitive data
         user.password = undefined;
 
-        return res.status(500).json({
+        return res.status(201).json({
             message:'User registered successfully',
             jwt,
             user
@@ -57,10 +57,12 @@ const login = async (req,res) => {
         if(!isPasswordValid) return res.status(401).send({message:'Invalid Passeord'});
 
         const jwt = JWT_PROVIDER.generateToken(user._id);
+        user.password = undefined;
 
         return res.status(200).send({
             jwt,
             message:'Login successful',
+            user
         });
     } 
     catch (error) 

@@ -22,7 +22,7 @@ const createUser = async (userData) => {
     //hash password
     const hashedpassword = await bcrypt.hash(password, 10);
 
-    const user = new User.create({
+    const user = await User.create({
       name,
       mobile,
       email,
@@ -100,6 +100,8 @@ const updateUserProfile = async (userId, updateData) => {
     if(!updatedUser){
         throw new Error('User Not Found'); 
     }
+
+    return updatedUser;
   } catch (error) {
     throw new Error (error.message)
   }

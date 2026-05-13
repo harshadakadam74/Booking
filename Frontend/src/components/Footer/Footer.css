@@ -1,0 +1,9 @@
+.footer-link:hover {
+  text-decoration: underline;
+}
+.footer-bottom {
+  border-top: 1px solid rgba(209, 213, 219, 1);
+}
+.footer-logo {
+  font-weight: 700;
+}
