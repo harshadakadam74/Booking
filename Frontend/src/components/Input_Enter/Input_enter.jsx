@@ -51,7 +51,7 @@ const Input_enter = () => {
     return (
 
 
-        <div className="bg-linear-to-b from-blue-900 to-blue-700 h-80 pt-20">
+        <div className="bg-gradient-to-b from-blue-900  to-blue-700 h-80 pt-20">
             {/* HERO */}
             <main className="max-w-6xl  mx-auto px-4 sm:mb-55 sm:px-6 pt-10 sm:pt-16">
                 <h1 className="text-3xl text-white sm:text-5xl lg:text-6xl font-bold mb-3">

@@ -29,24 +29,6 @@ code {
   background: #555;
 }
 
-/* Hide scrollbar for webkit browsers (Chrome, Safari, Edge) */
-*::-webkit-scrollbar {
-  width: 8px;
-}
-
-*::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
 /* Hide scrollbar for Firefox */
 * {
   scrollbar-width: thin;

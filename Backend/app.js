@@ -11,9 +11,7 @@ app.use('/api/v1/auth', Auth_Route);
 const User_Route = require('./routes/UserRoutes')
 app.use('/api/v1/user', User_Route);
 
-
-//routes
-
-
+const Booking_Route = require('./routes/BookingRoutes')
+app.use('/api/v1/bookings', Booking_Route);
 
 module.exports = app;

@@ -57,7 +57,7 @@ const PaymentSuccess = () => {
   const bookingId = `BK${Date.now().toString().slice(-8)}`;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Success Header */}
         <div className="text-center mb-12">
