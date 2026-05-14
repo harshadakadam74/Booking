@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import { DateRange } from "react-date-range";
 import { format } from "date-fns";
 import { BedDouble, CalendarDays, Users } from "lucide-react";
@@ -8,10 +9,12 @@ import "react-date-range/dist/theme/default.css";
 
 
 const Input_enter = () => {
+  const navigate = useNavigate();
 
     const [location, setLocation] = useState("");
     const [openDate, setOpenDate] = useState(false);
     const [openGuests, setOpenGuests] = useState(false);
+    const [isWorkTrip, setIsWorkTrip] = useState(false);
 
     const [date, setDate] = useState([
         {
@@ -26,6 +29,25 @@ const Input_enter = () => {
         children: 0,
         rooms: 1,
     });
+
+    const handleSearch = () => {
+        const trimmedLocation = location.trim();
+        if (!trimmedLocation) {
+            alert("Please enter a destination to search.");
+            return;
+        }
+
+        const searchData = {
+            location: trimmedLocation,
+            dates: date[0],
+            guests,
+            workTrip: isWorkTrip,
+        };
+
+        navigate('/book-place', {
+            state: searchData,
+        });
+    };
     return (
 
 
@@ -95,8 +117,30 @@ const Input_enter = () => {
                     >
                         <Users className="text-gray-500" size={20} />
                         <span>
-                            {`${guests.adults} adults · ${guests.children} children · ${guests.rooms} room`}
+                            {`${guests.adults} adults · ${guests.children} children · ${guests.rooms} ${guests.rooms === 1 ? "room" : "rooms"}`}
                         </span>
+                    </div>
+
+                    {/* SEARCH BUTTON */}
+                    <button
+                        type="button"
+                        className="bg-blue-900 text-white rounded px-6 py-3 font-semibold hover:bg-blue-800 transition-colors"
+                        onClick={handleSearch}
+                    >
+                        Search
+                    </button>
+
+                    {/* WORK TRIP */}
+                    <div className="w-full md:w-auto flex items-center gap-2 px-4 py-3 bg-white rounded justify-center">
+                        <label className="flex items-center gap-2 cursor-pointer text-gray-700">
+                            <input
+                                type="checkbox"
+                                checked={isWorkTrip}
+                                onChange={(e) => setIsWorkTrip(e.target.checked)}
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            />
+                            Travelling for work
+                        </label>
                     </div>
 
                     {openGuests && (
@@ -141,24 +185,9 @@ const Input_enter = () => {
                             ))}
                         </div>
                     )}
-
-                    {/* SEARCH BUTTON */}
-                    <button className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 text-lg sm:text-2xl rounded font-semibold">
-                        Search
-                    </button>
-                </div>
-
-                {/* WORK CHECKBOX */}
-                <div className="mt-4 flex items-center gap-2">
-                    <input class="accent-yellow-500 size-5" type="checkbox" />
-                    <span className="text-sm text-gray-500">
-                        I'm travelling for work
-                    </span>
                 </div>
             </main>
-            
         </div>
-        
     );
 };
 
