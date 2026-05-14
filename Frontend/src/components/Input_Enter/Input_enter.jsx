@@ -152,7 +152,7 @@ const Input_enter = () => {
                         <div
                             className="
                               absolute top-full mt-2 z-50
-                              left-1/2 -translate-x-1/2 w-full
+                              left-1/2 -translate-x-1/2 w-auto max-w-xs sm:max-w-sm
                               md:left-0 md:translate-x-0 md:w-auto
                              bg-white rounded-xl shadow-xl p-4
   "
