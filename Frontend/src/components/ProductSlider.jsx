@@ -146,7 +146,7 @@ const ProductSlider = () => {
           {FEATURED_PROPERTIES.map((property) => (
             <div
               key={property.id}
-              className="flex-shrink-0 w-80 bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 group"
+              className="shrink-0 w-80 bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 group"
             >
               <div className="relative">
                 <img

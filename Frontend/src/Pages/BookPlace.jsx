@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Star, MapPin, Wifi, Car, Utensils, Heart, Filter, ArrowLeft, Calendar, Users } from 'lucide-react';
 
 const BookPlace = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const searchParams = location.state || {};
+  const searchParams = useMemo(() => location.state || {}, [location.state]);
 
   const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     priceRange: [0, 1000],
@@ -17,9 +16,16 @@ const BookPlace = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
 
+  const filteredProperties = useMemo(() => {
+    return properties.filter(property => {
+      const priceMatch = property.price >= filters.priceRange[0] && property.price <= filters.priceRange[1];
+      const ratingMatch = property.rating >= filters.rating;
+      return priceMatch && ratingMatch;
+    });
+  }, [properties, filters]);
+
   useEffect(() => {
     // Simulate loading delay
-    setLoading(true);
 
     setTimeout(() => {
       // Mock data for properties based on search location
@@ -123,7 +129,6 @@ const BookPlace = () => {
       }
 
       setProperties(filteredByLocation);
-      setFilteredProperties(filteredByLocation);
       setLoading(false);
     }, 800); // Simulate API delay
   }, [searchParams]);
@@ -149,19 +154,6 @@ const BookPlace = () => {
       }
     });
   };
-
-  const applyFilters = () => {
-    let filtered = properties.filter(property => {
-      const priceMatch = property.price >= filters.priceRange[0] && property.price <= filters.priceRange[1];
-      const ratingMatch = property.rating >= filters.rating;
-      return priceMatch && ratingMatch;
-    });
-    setFilteredProperties(filtered);
-  };
-
-  useEffect(() => {
-    applyFilters();
-  }, [filters]);
 
   if (loading) {
     return (
