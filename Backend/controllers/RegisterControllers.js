@@ -1,0 +1,3 @@
+const cartRoutes = require('./routes/cartRoutes');
+// ... existing app setup ...
+app.use('/api/cart', cartRoutes);

@@ -3,7 +3,7 @@ export const indianDestinations = [
     id: 1,
     name: "Hyderabad",
     distance: 227,
-    image: "https://images.unsplash.com/photo-1606664515524-2682dc4c4c7f?w=500&h=300",
+    image: "https://tse1.mm.bing.net/th/id/OIP.7IrJMGZmyQZaalL-laIdNwHaE5?r=0&cb=thfc1&rs=1&pid=ImgDetMain&o=7&rm=3",
     vibe: "Tech City & History",
     description: "Historic pearls and modern tech hub"
   },
@@ -19,7 +19,7 @@ export const indianDestinations = [
     id: 3,
     name: "Mumbai",
     distance: 473,
-    image: "https://images.unsplash.com/photo-1518684029980-cf91eb586891?w=500&h=300",
+    image: "https://tse4.mm.bing.net/th/id/OIP.A1kjTWvrFiCPC9EQqPAvIAHaEu?r=0&cb=thfc1&rs=1&pid=ImgDetMain&o=7&rm=3",
     vibe: "Coastal City",
     description: "Bollywood, beaches and vibrant nightlife"
   },
@@ -51,7 +51,7 @@ export const indianDestinations = [
     id: 7,
     name: "Varanasi",
     distance: 903,
-    image: "https://images.unsplash.com/photo-1548013146-72c89b44ef0d?w=500&h=300",
+    image: "https://thf.bing.com/th/id/OIP.e1CZfd9n1nYcy191apsszQHaEj?w=288&h=180&c=7&r=0&o=7&cb=thfc1&dpr=1.5&pid=1.7&rm=3",
     vibe: "Spiritual Journey",
     description: "Sacred Ganges and ancient temples"
   },
@@ -75,7 +75,7 @@ export const indianDestinations = [
     id: 10,
     name: "Kolkata",
     distance: 1209,
-    image: "https://images.unsplash.com/photo-1503069156519-51a6da7feaa7?w=500&h=300",
+    image: "https://thf.bing.com/th/id/OIP.xU52pa_Ruq6POnnlIlOLRQHaEu?w=222&h=180&c=7&r=0&o=7&cb=thfc1&dpr=1.5&pid=1.7&rm=3",
     vibe: "Cultural Hub",
     description: "Literature, art, and intellectual heritage"
   }

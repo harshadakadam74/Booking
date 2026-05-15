@@ -28,7 +28,7 @@ const TripPlanner = () => {
   };
 
   return (
-    <div className="bg-white py-16 px-4">
+    <div className="bg-white py-16 px-4 sm:px-8 lg:px-16">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12 text-center">

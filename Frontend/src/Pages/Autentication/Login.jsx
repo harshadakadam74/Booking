@@ -77,8 +77,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 sm:px-6">
-      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+  <div className="min-h-screen bg-gray-100">
+
+    {/* Add spacing for fixed header */}
+    <div className="pt-28 flex justify-center px-4 sm:px-6">
+
+      {/* Main Container */}
+      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
 
         {/* Title */}
         <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center">
@@ -91,9 +96,10 @@ const Login = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+
           {/* Email Field */}
           <div>
-            <label className="block text-sm sm:text-base font-medium mb-1">
+            <label className="block text-sm font-medium mb-1">
               Email address
             </label>
             <div className="relative">
@@ -101,27 +107,24 @@ const Login = () => {
                 type="email"
                 name="email"
                 placeholder="Enter your email address"
-                className={`w-full px-4 py-2.5 sm:py-3 border rounded-lg outline-none text-sm sm:text-base pl-10 ${
-                  errors.email ? "border-red-500" : "border-gray-300 focus:border-blue-500"
+                className={`w-full px-4 py-2.5 border rounded-lg outline-none text-sm pl-10 ${
+                  errors.email
+                    ? "border-red-500"
+                    : "border-gray-300 focus:border-blue-500"
                 }`}
                 value={formData.email}
                 onChange={handleChange}
               />
-              <Mail
-                size={18}
-                className="absolute left-3 top-2.5 sm:top-3 text-gray-400"
-              />
+              <Mail className="absolute left-3 top-2.5 text-gray-400" size={18} />
             </div>
             {errors.email && (
-              <p className="text-red-500 text-xs sm:text-sm mt-1">
-                {errors.email}
-              </p>
+              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
             )}
           </div>
 
           {/* Password Field */}
           <div>
-            <label className="block text-sm sm:text-base font-medium mb-1">
+            <label className="block text-sm font-medium mb-1">
               Password
             </label>
             <div className="relative">
@@ -129,111 +132,72 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Enter your password"
-                className={`w-full px-4 py-2.5 sm:py-3 border rounded-lg outline-none text-sm sm:text-base pl-10 pr-10 ${
-                  errors.password ? "border-red-500" : "border-gray-300 focus:border-blue-500"
+                className={`w-full px-4 py-2.5 border rounded-lg outline-none text-sm pl-10 pr-10 ${
+                  errors.password
+                    ? "border-red-500"
+                    : "border-gray-300 focus:border-blue-500"
                 }`}
                 value={formData.password}
                 onChange={handleChange}
               />
-              <Lock
-                size={18}
-                className="absolute left-3 top-2.5 sm:top-3 text-gray-400"
-              />
+              <Lock className="absolute left-3 top-2.5 text-gray-400" size={18} />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 sm:top-3 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-2.5 text-gray-400"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+
             {errors.password && (
-              <p className="text-red-500 text-xs sm:text-sm mt-1">
+              <p className="text-red-500 text-xs mt-1">
                 {errors.password}
               </p>
             )}
           </div>
 
-          {/* General Error */}
+          {/* Error */}
           {errors.general && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-red-600 text-sm">{errors.general}</p>
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Button */}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2.5 sm:py-3 mt-6 rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-700 flex justify-center items-center gap-2"
           >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Signing in...
-              </>
-            ) : (
-              "Sign In"
-            )}
+            {isLoading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        {/* Forgot Password */}
+        {/* Footer */}
         <div className="text-center mt-4">
-          <button className="text-blue-600 hover:text-blue-800 text-sm">
+          <button className="text-blue-600 text-sm">
             Forgot your password?
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center my-5 sm:my-6">
-          <div className="flex-1 h-px bg-gray-300"></div>
-          <span className="px-3 text-xs sm:text-sm text-gray-500">
-            or continue with
-          </span>
-          <div className="flex-1 h-px bg-gray-300"></div>
-        </div>
-
-        {/* Social Buttons */}
-        <div className="flex justify-center gap-4 sm:gap-6">
-          <button className="border p-3 rounded-lg w-12 sm:w-14 text-sm hover:bg-gray-50 transition">
-            G
-          </button>
-          <button className="border p-3 rounded-lg w-12 sm:w-14 text-sm hover:bg-gray-50 transition">
-            A
-          </button>
-          <button className="border p-3 rounded-lg w-12 sm:w-14 text-sm hover:bg-gray-50 transition">
-            F
-          </button>
-        </div>
-
-        {/* Sign Up Link */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-5">
           <p className="text-sm text-gray-600">
             Don't have an account?{" "}
-            <button
-              onClick={() => navigate('/register')}
-              className="text-blue-600 hover:text-blue-800 font-medium"
+            <span
+              onClick={() => navigate("/register")}
+              className="text-blue-600 cursor-pointer"
             >
               Sign up
-            </button>
+            </span>
           </p>
         </div>
 
-        {/* Footer */}
-        <p className="text-[11px] sm:text-xs text-gray-500 text-center mt-6">
-          By signing in, you agree with our{" "}
-          <span className="text-blue-600 cursor-pointer">
-            Terms & Conditions
-          </span>{" "}
-          and{" "}
-          <span className="text-blue-600 cursor-pointer">
-            Privacy Statement
-          </span>.
-        </p>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Login;
