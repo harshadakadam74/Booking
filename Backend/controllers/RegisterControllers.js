@@ -1,3 +1,7 @@
-const cartRoutes = require('./routes/cartRoutes');
-// ... existing app setup ...
-app.use('/api/cart', cartRoutes);
+﻿const AuthController = require('./AuthController');
+
+const registerUser = async (req, res) => {
+  return AuthController.register(req, res);
+};
+
+module.exports = { registerUser };

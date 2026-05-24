@@ -39,7 +39,9 @@ const createUser = async (userData) => {
 
 const findUserByEmail = async (email) => {
   try {
-    const user = await User.findOne({ email });
+    if (!email) return null;
+    const normalizedEmail = email.toString().trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     return user || null;
   } catch (error) {
     console.error("Error finding user by email: ", error.message);

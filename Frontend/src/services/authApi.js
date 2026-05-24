@@ -9,7 +9,8 @@ export const registerUser = async (userData) => {
     }
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    const message = error.response?.data?.message || error.message || "Registration failed";
+    throw new Error(message);
   }
 };
 
@@ -25,7 +26,8 @@ export const loginUser = async (email, password) => {
     }
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    const message = error.response?.data?.message || error.message || "Login failed";
+    throw new Error(message);
   }
 };
 
@@ -41,7 +43,8 @@ export const getCurrentUser = async () => {
     const response = await apiClient.get("/api/v1/user/profile");
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    const message = error.response?.data?.message || error.message || "Failed to fetch user";
+    throw new Error(message);
   }
 };
 

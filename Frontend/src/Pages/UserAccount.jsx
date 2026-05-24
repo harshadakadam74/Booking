@@ -1,38 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Settings, Heart, Calendar, CreditCard, LogOut, LogIn, UserPlus } from 'lucide-react';import { fetchUserProfile } from '../services/authService';
+import { User, Settings, Heart, Calendar, CreditCard, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { fetchUserProfile } from '../services/authService';
+
 const UserAccount = () => {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [bookings, setBookings] = useState([]);
-  const [likedProperties, setLikedProperties] = useState(new Set());
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('authToken'));
+  const [isLoading, setIsLoading] = useState(() => {
+    const token = localStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('user');
+    return !!token && !savedUser;
+  });
+  const [bookings, setBookings] = useState(() => {
+    const savedBookings = localStorage.getItem('userBookings');
+    return savedBookings ? JSON.parse(savedBookings) : [];
+  });
+  const [likedProperties] = useState(() => {
+    const liked = localStorage.getItem('likedProperties');
+    return liked ? new Set(JSON.parse(liked)) : new Set();
+  });
 
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
-    setToken(authToken);
-
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsLoggedIn(true);
-    }
-
-    const savedBookings = localStorage.getItem('userBookings');
-    if (savedBookings) {
-      setBookings(JSON.parse(savedBookings));
-    } else {
-      setBookings([]);
-    }
-
-    const liked = localStorage.getItem('likedProperties');
-    if (liked) {
-      setLikedProperties(new Set(JSON.parse(liked)));
-    }
+    if (!authToken) return;
 
     const loadProfile = async () => {
-      if (!authToken) return;
+      setIsLoading(true);
       try {
         const profile = await fetchUserProfile(authToken);
         setUser(profile);
@@ -40,11 +37,18 @@ const UserAccount = () => {
         localStorage.setItem('user', JSON.stringify(profile));
       } catch (error) {
         console.error('Failed to load profile', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        setIsLoggedIn(false);
+        setUser(null);
+        navigate('/login');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadProfile();
-  }, []);
+  }, [navigate]);
 
   const handleLogin = () => {
     navigate('/login');
@@ -61,6 +65,16 @@ const UserAccount = () => {
     setUser(null);
     setBookings([]);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-xl shadow-md">
+          <p className="text-lg font-medium text-gray-700">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

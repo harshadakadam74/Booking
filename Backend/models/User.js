@@ -1,29 +1,33 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    name:{
+    name: {
         type: String,
-        required:[true,"Enter your name"]
+        required: [true, "Enter your name"]
     },
-    mobile:{
-        type:Number,
-        required:[true,"Enter your mobile number"]
+    firstname:{
+        type: String,
     },
-    email:{
+    lastname:{
+        type: String,
+    },
+     email:{
         type:String,
         required:[true,"Enter your email"]
+    },
+    mobile:{
+        type:String,
+        required:[true,"Enter your mobile number"]
     },
     password:{
         type:String,
         required:[true,"Enter your password"]
     },
+    // removed duplicate/typo field 'conformpassword'
     role:{
         type:String,
         enum:['CUSTOMER','ADMIN'],
         default:'CUSTOMER'
-    },
-    photo:{
-        type:String
     },
    resetPasswordToken:{
     type:String

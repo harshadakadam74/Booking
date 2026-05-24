@@ -1,24 +1,48 @@
-import { apiFetch } from './api';
+import apiClient, { API_BASE_URL } from './apiClient';
+
+const getApiErrorMessage = (error, fallbackMessage) => {
+  const responseData = error?.response?.data;
+
+  if (responseData?.message) return responseData.message;
+  if (responseData?.error) return responseData.error;
+  if (typeof responseData === 'string') return responseData;
+  if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
+    return `Unable to connect to the backend at ${API_BASE_URL}. Make sure the server is running.`;
+  }
+  if (error?.message) return error.message;
+  return fallbackMessage;
+};
 
 export const registerUser = async (payload) => {
-  return apiFetch('/api/v1/auth/register', {
-    method: 'POST',
-    body: payload,
-  });
+  try {
+    const response = await apiClient.post('/api/v1/auth/register', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Registration failed. Please try again.'));
+  }
 };
 
 export const loginUser = async (payload) => {
-  return apiFetch('/api/v1/auth/login', {
-    method: 'POST',
-    body: payload,
-  });
+  try {
+    const response = await apiClient.post('/api/v1/auth/login', payload);
+    if (response.data?.jwt) {
+      localStorage.setItem('authToken', response.data.jwt);
+    }
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Login failed. Please try again.'));
+  }
 };
 
 export const fetchUserProfile = async (token) => {
-  return apiFetch('/api/v1/user/profile', {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const response = await apiClient.get('/api/v1/user/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to fetch user profile.'));
+  }
 };

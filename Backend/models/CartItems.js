@@ -22,7 +22,7 @@ const cartItemSchema = new mongoose.Schema(
 
          quantity:{
             type:Number,
-            default:true,
+            default:1,
         },
 
           price:{
@@ -30,7 +30,7 @@ const cartItemSchema = new mongoose.Schema(
             required:true,
         },
 
-          discountPrice:{
+          discountedPrice:{
             type:Number,
             required:true,
         },
@@ -38,6 +38,10 @@ const cartItemSchema = new mongoose.Schema(
           discount:{
             type:Number,
             required:true,
+        },
+
+        productSku:{
+            type:String,
         },
 
         image:{

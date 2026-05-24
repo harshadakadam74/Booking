@@ -19,7 +19,7 @@ const updateCartTotals = async (cartId) => {
   items.forEach((item) => {
     totalPrice += item.price;
     totalPayable += item.discountedPrice;
-    total += item.quantity;
+    totalItem += item.quantity;
   });
 
   await Cart.findByIdAndUpdate(cartId, {
@@ -35,7 +35,7 @@ const findUserCart = async (userId) => {
   const cart = await createCart(userId);
   const items = await CartItem.find({ cart: cart._id }).populate(
     "product",
-    "title brand image",
+    "title brand image"
   );
   return { cart, items };
 };
@@ -44,10 +44,10 @@ const findUserCart = async (userId) => {
 const addCartItem = async (userId, productId) => {
   const cart = await createCart(userId);
 
-  const product = await product.findById(productId);
-  if (!product) throw new Error("productId");
+  const product = await Product.findById(productId);
+  if (!product) throw new Error("Product not found");
 
-  //Find exising cart item (no SKU variants)
+  // Find existing cart item (no SKU variants)
   const existingItem = await CartItem.findOne({
     cart: cart._id,
     product: product._id,
@@ -65,7 +65,7 @@ const addCartItem = async (userId, productId) => {
       cart: cart._id,
       user: userId,
       product: product._id,
-      productsku: product.productsku,
+      productSku: product.productSku,
       quantity: 1,
       price: product.price,
       discountedPrice: product.discountedPrice,

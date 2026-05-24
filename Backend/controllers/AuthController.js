@@ -3,45 +3,43 @@ const JWT_PROVIDER = require('../config/JWT');
 const bcrypt = require('bcrypt');
 const { sendEmail } = require('../config/email');
 
-const register = async (req,res) => {
+const register = async (req, res) => {
     try {
-        const {name,mobile,email,password,photo} = req.body;
+        const { firstname, lastname, email, mobile, password, confirmPassword } = req.body;
 
-        //validate required fields
-        if(!name || !mobile || !email || !password){
+        // validate required fields
+        if (!firstname || !lastname || !email || !mobile || !password || !confirmPassword) {
             return res.status(400).json({
-                message:'All fields are required'
+                message: 'All fields are required',
             });
         }
 
-        const userData ={
-            name,
+        // Prepare user data for UserService (it expects `name`, `mobile`, `email`, `password`)
+        const userData = {
+            name: `${firstname} ${lastname}`.trim(),
             mobile,
             email: email.toLowerCase(),
             password,
-            photo
-        }
+        };
 
-        //create user
+        // create user
         const user = await UserService.createUser(userData);
 
-        //Generate Token
+        // Generate Token
         const jwt = JWT_PROVIDER.generateToken(user._id);
 
-        //Remove sensitive data
-        user.password = undefined;
+        // Remove sensitive data
+        if (user && user.password) user.password = undefined;
 
         return res.status(201).json({
-            message:'User registered successfully',
+            message: 'User registered successfully',
             jwt,
-            user
+            user,
         });
-
     } catch (error) {
         return res.status(500).json({
-            message:error.message
+            message: error.message,
         });
-        
     }
 };
 
@@ -90,7 +88,7 @@ const forgotPassword = async(req, res) => {
         const resetToken = await UserService.setResetPasswordToken(email);
         
         // send email with reset link
-        const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+        const resetUrl = `http://localhost:4545/reset-password/${resetToken}`;
         const html = `<p>You requested a password reset </p>
                       <p>Click this link to reset your password:<a href="${resetUrl}">${resetUrl}</a></p>`;
 
@@ -105,14 +103,14 @@ const forgotPassword = async(req, res) => {
 
 // reset password
 const resetPassword = async(req, res) => {
-    const { token, newPassword, conformPassword } = req.body;
+    const { token, newPassword, confirmPassword } = req.body;
 
     try {
-        if(!token || !newPassword || !conformPassword) {
+        if(!token || !newPassword || !confirmPassword) {
             return res.status(400).send({message:"Token and password id required"});
         }
 
-        const user = await UserService.resetPassword(token,newPassword,conformPassword);
+        const user = await UserService.resetPassword(token, newPassword, confirmPassword);
 
         return res.status(200).send({ message: "Password reset successfully ", user});
 

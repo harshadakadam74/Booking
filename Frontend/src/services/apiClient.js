@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Set API base URL from environment or fallback
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4545";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4545";
 
 // Create axios instance
 const apiClient = axios.create({
@@ -30,9 +30,19 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login on unauthorized
-      localStorage.removeItem("authToken");
-      window.location.href = "/login";
+      const requestUrl = error.config?.url || "";
+      const authPaths = [
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+      ];
+      const shouldSkipRedirect = authPaths.some((path) => requestUrl.includes(path));
+
+      if (!shouldSkipRedirect) {
+        localStorage.removeItem("authToken");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

@@ -5,22 +5,17 @@ import { Hotel, Menu, X, User, LogOut } from 'lucide-react'
 const Header = () => {
   const [open, setOpen] = useState(false)
 
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const loggedInUser = localStorage.getItem('user')
-    return !!loggedInUser
-  })
-
-  const [user, setUser] = useState(() => {
-    const loggedInUser = localStorage.getItem('user')
-    return loggedInUser ? JSON.parse(loggedInUser) : null
-  })
-
   const navigate = useNavigate()
+
+  const authToken = localStorage.getItem('authToken')
+  const storedUser = localStorage.getItem('user')
+  const isLoggedIn = !!authToken
+  const user = storedUser ? JSON.parse(storedUser) : null
+
 
   const handleLogout = () => {
     localStorage.removeItem('user')
-    setIsLoggedIn(false)
-    setUser(null)
+    localStorage.removeItem('authToken')
     navigate('/')
   }
 
@@ -54,7 +49,7 @@ const Header = () => {
                 className="flex items-center gap-2 text-gray-700 hover:text-blue-600"
               >
                 <User size={18} />
-                {user?.name || 'Account'}
+                {user?.name || `${user?.firstname || ''} ${user?.lastname || ''}`.trim() || 'Account'}
               </Link>
 
               <button

@@ -3,6 +3,7 @@ import './App.css'
 import Header from './components/Header/Header'
 import Footer from './components/Footer/Footer'
 import NotFound from './components/NotFound'
+import ProtectedRoute from './components/ProtectedRoute'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './Pages/Home'
 import Login from './Pages/Autentication/Login'
@@ -52,13 +53,62 @@ const App = () => {
           <Route path='/deals' element={<Deals />}></Route>
           <Route path='/book' element={<BookPage />}></Route>
           <Route path='/book-place' element={<BookPlace />}></Route>
-          <Route path='/payment' element={<Payment />}></Route>
-          <Route path='/payment-success' element={<PaymentSuccess />}></Route>
-          <Route path='/account' element={<UserAccount />}></Route>
-          <Route path='/account/bookings' element={<AccountBookings />}></Route>
-          <Route path='/account/favorites' element={<AccountFavorites />}></Route>
-          <Route path='/account/payments' element={<AccountPayments />}></Route>
-          <Route path='/account/settings' element={<AccountSettings />}></Route>
+          <Route
+            path='/account'
+            element={
+              <ProtectedRoute>
+                <UserAccount />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/account/bookings'
+            element={
+              <ProtectedRoute>
+                <AccountBookings />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/account/favorites'
+            element={
+              <ProtectedRoute>
+                <AccountFavorites />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/account/payments'
+            element={
+              <ProtectedRoute>
+                <AccountPayments />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/account/settings'
+            element={
+              <ProtectedRoute>
+                <AccountSettings />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/payment'
+            element={
+              <ProtectedRoute>
+                <Payment />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/payment-success'
+            element={
+              <ProtectedRoute>
+                <PaymentSuccess />
+              </ProtectedRoute>
+            }
+          ></Route>
           <Route path='/list-property' element={<ListProperty />}></Route>
 
           {/* Support Routes */}

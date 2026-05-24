@@ -6,6 +6,8 @@ const BookPlace = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = location.state || {};
+  const authToken = localStorage.getItem('authToken');
+  const isLoggedIn = !!authToken;
 
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
@@ -142,6 +144,18 @@ const BookPlace = () => {
   };
 
   const handleBookNow = (property) => {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) {
+      navigate('/login', {
+        state: {
+          from: '/payment',
+          property,
+          searchParams
+        }
+      });
+      return;
+    }
+
     navigate('/payment', {
       state: {
         property,
@@ -173,6 +187,30 @@ const BookPlace = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Login prompt for guests */}
+      {!isLoggedIn && (
+        <div className="mb-8 rounded-3xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900 shadow-sm">
+          <h2 className="text-2xl font-semibold mb-2">Create your account to book</h2>
+          <p className="text-sm text-yellow-800 mb-4">
+            You can browse available places without signing in, but you must create an account or log in before booking a property.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate('/login', { state: { from: '/book-place', searchParams } })}
+              className="rounded-full bg-yellow-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-yellow-700"
+            >
+              Log in to book
+            </button>
+            <button
+              onClick={() => navigate('/register', { state: { from: '/book-place', searchParams } })}
+              className="rounded-full border border-yellow-600 bg-white px-6 py-3 text-sm font-semibold text-yellow-900 hover:bg-yellow-100"
+            >
+              Create account
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header with Back Button */}
       <div className="mb-8">
         <button

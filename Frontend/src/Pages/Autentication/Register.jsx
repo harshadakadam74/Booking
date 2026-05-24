@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { registerUser } from '../../services/authService';
+import { registerUser, fetchUserProfile } from '../../services/authService';
+
 
 const Register = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (localStorage.getItem('authToken')) {
+      navigate('/account');
+    }
+  }, [navigate]);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -53,7 +60,7 @@ const Register = () => {
 
     if (!formData.phone) {
       newErrors.phone = "Phone number is required";
-    } else if (!/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
+    } else if (!/^\+?[\d\s-()]+$/.test(formData.phone)) {
       newErrors.phone = "Please enter a valid phone number";
     }
 
@@ -86,16 +93,22 @@ const Register = () => {
 
     try {
       const payload = {
-        name: `${formData.firstName} ${formData.lastName}`,
+        firstname: formData.firstName,
+        lastname: formData.lastName,
         mobile: formData.phone,
         email: formData.email,
         password: formData.password,
+        confirmPassword: formData.confirmPassword,
       };
 
       const data = await registerUser(payload);
       localStorage.setItem('authToken', data.jwt);
+
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));
+      } else {
+        const profile = await fetchUserProfile(data.jwt);
+        localStorage.setItem('user', JSON.stringify(profile));
       }
 
       navigate('/account');

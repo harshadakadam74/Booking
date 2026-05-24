@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CreditCard, Lock, Shield, ArrowLeft, Star } from 'lucide-react';
+import { createBooking } from '../services/bookingService';
 
 const Payment = () => {
   const location = useLocation();
@@ -22,6 +23,9 @@ const Payment = () => {
   });
   const [errors, setErrors] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+
+  const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
 
   const calculateTotal = () => {
     if (!property || !searchParams?.dates) return 0;
@@ -53,17 +57,40 @@ const Payment = () => {
     if (!validateForm()) return;
 
     setIsProcessing(true);
+    setBookingError(null);
 
     // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      navigate('/payment-success', {
-        state: {
-          property,
-          searchParams,
-          total: calculateTotal()
-        }
-      });
+    setTimeout(async () => {
+      try {
+        const bookingPayload = {
+          property: property.name,
+          checkInDate: searchParams.dates.startDate,
+          checkOutDate: searchParams.dates.endDate,
+          numberOfGuests: (searchParams.guests?.adults || 1) + (searchParams.guests?.children || 0),
+          numberOfRooms: searchParams.guests?.rooms || 1,
+          pricePerNight: property.price,
+          specialRequests: '',
+          guestName: user?.name || '',
+          guestEmail: user?.email || '',
+          guestPhone: user?.mobile || ''
+        };
+
+        const response = await createBooking(bookingPayload);
+        const booking = response.booking || null;
+
+        setIsProcessing(false);
+        navigate('/payment-success', {
+          state: {
+            property,
+            searchParams,
+            total: calculateTotal(),
+            booking,
+          }
+        });
+      } catch (error) {
+        setIsProcessing(false);
+        setBookingError(error.message || 'Booking creation failed. Please try again.');
+      }
     }, 2000);
   };
 
@@ -273,6 +300,11 @@ const Payment = () => {
                     </div>
                   </div>
 
+                  {bookingError && (
+                    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {bookingError}
+                    </div>
+                  )}
                   <button
                     type="submit"
                     disabled={isProcessing}

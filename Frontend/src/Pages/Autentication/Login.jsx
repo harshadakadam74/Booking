@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, fetchUserProfile } from '../../services/authService';
 
 const Login = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (localStorage.getItem('authToken')) {
+      navigate('/account');
+    }
+  }, [navigate]);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -70,7 +76,14 @@ const Login = () => {
 
       navigate('/account');
     } catch (error) {
-      setErrors({ general: error.message || "Login failed. Please try again." });
+      // Normalize various error shapes and surface a readable message
+      console.error('Login error:', error);
+      const message =
+        (error && error.message) ||
+        (error && error.response && (error.response.data?.message || error.response.data)) ||
+        'Login failed. Please try again.';
+
+      setErrors({ general: typeof message === 'string' ? message : JSON.stringify(message) });
     } finally {
       setIsLoading(false);
     }
