@@ -251,6 +251,66 @@ const getAllBookings = async (req, res) => {
   }
 };
 
+// Update booking status or payment status (ADMIN only)
+const adminUpdateBookingStatus = async (req, res) => {
+  try {
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        message: "Only admins can update booking status",
+      });
+    }
+
+    const { bookingId } = req.params;
+    const { bookingStatus, paymentStatus, paymentDetails } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking not found",
+      });
+    }
+
+    const validBookingStatuses = ["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "CANCELLED"];
+    const validPaymentStatuses = ["PENDING", "SUCCESS", "FAILED", "REFUNDED"];
+
+    if (bookingStatus) {
+      if (!validBookingStatuses.includes(bookingStatus)) {
+        return res.status(400).json({
+          message: "Invalid booking status",
+        });
+      }
+      booking.bookingStatus = bookingStatus;
+    }
+
+    if (paymentStatus) {
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({
+          message: "Invalid payment status",
+        });
+      }
+      booking.paymentStatus = paymentStatus;
+    }
+
+    if (paymentDetails) {
+      booking.paymentDetails = {
+        ...booking.paymentDetails,
+        ...paymentDetails,
+      };
+    }
+
+    await booking.save();
+
+    return res.status(200).json({
+      message: "Booking updated successfully",
+      booking,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
@@ -258,4 +318,5 @@ module.exports = {
   updateBooking,
   cancelBooking,
   getAllBookings,
+  adminUpdateBookingStatus,
 };

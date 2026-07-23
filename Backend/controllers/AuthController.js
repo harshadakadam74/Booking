@@ -119,5 +119,35 @@ const resetPassword = async(req, res) => {
     };
 };
 
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
 
-module.exports = { register , login , logout , forgotPassword , resetPassword};
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: 'currentPassword, newPassword and confirmPassword are required' });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: 'New passwords do not match' });
+        }
+
+        const user = await UserService.findUserById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Current password is incorrect' });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        return res.status(200).json({ message: 'Password changed successfully' });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { register , login , logout , forgotPassword , resetPassword, changePassword};

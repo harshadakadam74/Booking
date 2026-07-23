@@ -10,6 +10,12 @@ router.post("/create", authenticate, BookingController.createBooking);
 // Get user's bookings
 router.get("/my-bookings", authenticate, BookingController.getUserBookings);
 
+// Update booking status/payment status (admin only)
+router.put("/admin/:bookingId/status", authenticate, BookingController.adminUpdateBookingStatus);
+
+// Get all bookings (admin only)
+router.get("/admin/all-bookings", authenticate, BookingController.getAllBookings);
+
 // Get booking by ID
 router.get("/:bookingId", authenticate, BookingController.getBookingById);
 
@@ -18,8 +24,5 @@ router.put("/:bookingId", authenticate, BookingController.updateBooking);
 
 // Cancel booking
 router.post("/:bookingId/cancel", authenticate, BookingController.cancelBooking);
-
-// Get all bookings (admin only)
-router.get("/admin/all-bookings", authenticate, BookingController.getAllBookings);
 
 module.exports = router;

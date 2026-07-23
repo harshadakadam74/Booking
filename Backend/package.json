@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js",
@@ -15,16 +14,18 @@
   "type": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "cloudinary": "^2.9.0",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "cloudinary": "^2.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.1.5",
-    "multer": "^2.0.2",
-    "nodemailer": "^7.0.12",
-    "razorpay": "^2.9.6",
-    "validator": "^13.15.26"
+    "mongoose": "^9.8.0",
+    "multer": "^2.2.0",
+    "nodemailer": "^7.0.13",
+    "razorpay": "^2.9.8",
+    "stripe": "^22.3.2",
+    "validator": "^13.15.35"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
