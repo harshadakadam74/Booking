@@ -25,30 +25,40 @@ const UserAccount = () => {
   });
 
   useEffect(() => {
-    const authToken = localStorage.getItem('authToken');
-    if (!authToken) return;
+  const authToken = localStorage.getItem("authToken");
 
-    const loadProfile = async () => {
-      setIsLoading(true);
-      try {
-        const profile = await fetchUserProfile(authToken);
-        setUser(profile);
-        setIsLoggedIn(true);
-        localStorage.setItem('user', JSON.stringify(profile));
-      } catch (error) {
-        console.error('Failed to load profile', error);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        setIsLoggedIn(false);
-        setUser(null);
-        navigate('/login');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  if (!authToken) {
+    setIsLoggedIn(false);
+    setIsLoading(false);
+    return;
+  }
 
-    loadProfile();
-  }, [navigate]);
+  const loadProfile = async () => {
+    setIsLoading(true);
+
+    try {
+      const profile = await fetchUserProfile();
+
+      setUser(profile);
+      setIsLoggedIn(true);
+      localStorage.setItem("user", JSON.stringify(profile));
+    } catch (error) {
+      console.error(error);
+
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
+
+      setIsLoggedIn(false);
+      setUser(null);
+
+      navigate("/login");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  loadProfile();
+}, [navigate]);
 
   const handleLogin = () => {
     navigate('/login');
@@ -221,8 +231,8 @@ const UserAccount = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {bookings.map((booking) => (
-                    <div key={booking.id} className="border rounded-lg p-6 hover:shadow-md transition bg-gray-50">
+                 {bookings.map((booking, index) => (
+  <div key={booking._id || `${booking.id}-${index}`} className="border rounded-lg p-6 hover:shadow-md transition bg-gray-50">
                       <div className="flex gap-4 mb-4">
                         {booking.image && (
                           <img

@@ -119,6 +119,7 @@ const Login = () => {
               <input
                 type="email"
                 name="email"
+                 autoComplete="email"
                 placeholder="Enter your email address"
                 className={`w-full px-4 py-2.5 border rounded-lg outline-none text-sm pl-10 ${
                   errors.email
@@ -145,6 +146,7 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Enter your password"
+                  autoComplete="current-password"
                 className={`w-full px-4 py-2.5 border rounded-lg outline-none text-sm pl-10 pr-10 ${
                   errors.password
                     ? "border-red-500"

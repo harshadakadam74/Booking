@@ -1,11 +1,15 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const ReviewController = require('../controllers/ReviewController');
-const { authenticate } = require('../middlewares/Authenticate');
 
-router.post('/', authenticate, ReviewController.createReview);
-router.get('/:productId', ReviewController.getReviewsByProduct);
-router.put('/:id', authenticate, ReviewController.updateReview);
-router.delete('/:id', authenticate, ReviewController.deleteReview);
+const ReviewController = require("../controllers/ReviewController");
+const { authenticate } = require("../middlewares/Authenticate");
+
+// Public
+router.get("/product/:productId", ReviewController.getReviewsByProduct);
+
+// Authenticated User
+router.post("/", authenticate, ReviewController.createReview);
+router.put("/:id", authenticate, ReviewController.updateReview);
+router.delete("/:id", authenticate, ReviewController.deleteReview);
 
 module.exports = router;

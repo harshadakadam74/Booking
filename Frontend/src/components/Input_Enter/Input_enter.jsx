@@ -87,7 +87,7 @@ const Input_enter = () => {
     });
   };
   return (
-    <div className="relative h-[420px] sm:h-[500px]  w-full">
+    <div className="relative h-[510px] sm:h-[500px]  w-full">
       {/* Background Image */}
       <img
         src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e"
@@ -141,7 +141,7 @@ const Input_enter = () => {
         </div>
 
         {/* SEARCH BAR (MODERN) */}
-        <div className="bg-white rounded-full  shadow-2xl flex flex-row p-1.5  items-center border border-gray-200  ">
+        <div className="bg-white rounded-full gap-6  shadow-2xl flex flex-row p-1.5  items-center border border-gray-200  ">
           {/* LOCATION */}
           <div className="flex items-center gap-2 px-3 py-3 flex-1 min-w-40 border-r">
             <MapPin size={20} className="text-gray-500 flex-shrink-0" />
@@ -221,7 +221,7 @@ const Input_enter = () => {
                 type="checkbox"
                 checked={isWorkTrip}
                 onChange={(e) => setIsWorkTrip(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 ml-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               Work trip
             </label>
@@ -230,7 +230,7 @@ const Input_enter = () => {
           {/* BUTTON */}
           <button
             onClick={handleSearch}
-            className="bg-blue-700 text-white px-3 py-2 sm:px-6 sm:py-3 rounded-full font-semibold hover:bg-blue-800 transition-colors
+            className="bg-blue-700 text-white px-3 py-2 sm:px-3 sm:py-3 rounded-full font-semibold hover:bg-blue-800 transition-colors
      text-[11px] sm:text-sm flex-shrink-0"
           >
             {/* MOBILE ICON */}
@@ -239,7 +239,7 @@ const Input_enter = () => {
             </span>
 
             {/* DESKTOP TEXT */}
-            <span className="hidden sm:inline">Search</span>
+            <span className="hidden sm:inline"><Search /></span>
           </button>
         </div>
         {/* DATE PICKER */}

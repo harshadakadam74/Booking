@@ -24,25 +24,42 @@ export const registerUser = async (payload) => {
 
 export const loginUser = async (payload) => {
   try {
-    const response = await apiClient.post('/api/v1/auth/login', payload);
+    const response = await apiClient.post("/api/v1/auth/login", payload);
+
     if (response.data?.jwt) {
-      localStorage.setItem('authToken', response.data.jwt);
+      localStorage.setItem("authToken", response.data.jwt);
     }
+
+    if (response.data?.user) {
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+    }
+
     return response.data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Login failed. Please try again.'));
+    throw new Error(getApiErrorMessage(error, "Login failed."));
   }
 };
 
-export const fetchUserProfile = async (token) => {
+export const fetchUserProfile = async () => {
   try {
-    const response = await apiClient.get('/api/v1/user/profile', {
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+      throw new Error("User is not logged in");
+    }
+
+    const response = await apiClient.get("/api/v1/user/profile", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+
+    localStorage.setItem("user", JSON.stringify(response.data));
+
     return response.data;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Failed to fetch user profile.'));
+    throw new Error(
+      getApiErrorMessage(error, "Failed to fetch profile")
+    );
   }
 };

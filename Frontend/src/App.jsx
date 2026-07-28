@@ -36,6 +36,7 @@ const App = () => {
     <div >
 
       <BrowserRouter>
+      
         <Header />
 
         <Routes>

@@ -1,10 +1,62 @@
-const express = require('express');
-const router = express.Router();
-const UserController = require('../controllers/UserController');
-const { authenticate } = require('../middlewares/Authenticate');
+const mongoose = require("mongoose");
 
-router.get('/all-users', UserController.getAllUser);
-router.get('/profile', authenticate, UserController.getUserProfile);
-router.put('/profile', authenticate, UserController.updateProfile);
+const orderItemSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
 
-module.exports = router;
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "products",
+      required: true,
+    },
+
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1,
+    },
+
+    price: {
+      type: Number,
+      required: true,
+    },
+
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
+
+    booking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "bookings",
+      default: null,
+    },
+
+    payment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "payments",
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "PENDING",
+        "CONFIRMED",
+        "CANCELLED",
+        "DELIVERED"
+      ],
+      default: "PENDING",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("orderitems", orderItemSchema);

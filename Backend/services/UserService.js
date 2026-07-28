@@ -8,7 +8,7 @@ const createUser = async (userData) => {
     let { name, mobile, email, password, role, photo } = userData;
 
     if (role && !["CUSTOMER", "ADMIN"].includes(role)) {
-      throw new Error("Invalis role");
+      throw new Error("Invalid role");
     }
 
     role = role || "CUSTOMER";
@@ -84,7 +84,7 @@ const getUserProfile = async (token) => {
 
 const updateUserProfile = async (userId, updateData) => {
   try {
-    const allowedFields = ["name", "mobile", "email", "photo", "role"];
+    const allowedFields = ["name", "mobile", "email", "photo"];
     const updates = {};
 
     for (const key of allowedFields) {
@@ -111,7 +111,7 @@ const updateUserProfile = async (userId, updateData) => {
 
 const logoutUser = async() => {
     try {
-        return {message:'Login successful'};
+        return {message:'Logout successful'};
     } catch (error) {
         throw new Error(error.message);
         
@@ -143,7 +143,7 @@ const resetPassword = async (token, newPassword, confirmPassword) => {
     if (newPassword !== confirmPassword) throw new Error("Passwords do not match");
 
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-    if (!passwordRegex.text(newPassword)) throw new Error("Password must have uppercase,number and symbol");
+    if (!passwordRegex.test(newPassword)) throw new Error("Password must have uppercase,number and symbol");
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetPasswordToken = null;
@@ -153,4 +153,15 @@ const resetPassword = async (token, newPassword, confirmPassword) => {
     return user;
 }
 
-module.exports = { createUser, findUserByEmail,getAllUsers,getUserProfile,updateUserProfile,logoutUser,setResetPasswordToken,resetPassword };
+module.exports = {
+  createUser,
+  findUserByEmail,
+  getAllUsers,
+  findUserById,
+  getUserProfile,
+  updateUserProfile,
+  logoutUser,
+  setResetPasswordToken,
+  resetPassword,
+  updateUserProfile,
+};

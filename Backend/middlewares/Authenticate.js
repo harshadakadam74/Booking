@@ -3,7 +3,11 @@ const UserService = require('../services/UserService')
 
 const authenticate = async (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(" ")[1];
+        const authHeader = req.headers.authorization || "";
+
+const token = authHeader.startsWith("Bearer ")
+  ? authHeader.split(" ")[1]
+  : null;
 
         // If User Not Pass Generated Token Throw Error
         if(!token) return res.status(401).json({ message: "Token Not Found" });
