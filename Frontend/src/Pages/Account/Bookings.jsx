@@ -82,7 +82,15 @@ const AccountBookings = () => {
 
                   <div className="mt-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                     <p className="text-gray-700">Booking ID: <span className="font-mono text-sm">{booking.id}</span></p>
-                    <p className="text-2xl font-bold text-blue-600">${booking.total}</p>
+                    <div className="flex gap-3 items-center">
+                      <button
+                        onClick={() => navigate(`/account/bookings/${booking.id || booking._id}`)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition"
+                      >
+                        View Details
+                      </button>
+                      <p className="text-2xl font-bold text-blue-600">${booking.total}</p>
+                    </div>
                   </div>
                 </div>
               ))}

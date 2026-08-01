@@ -54,12 +54,38 @@ export const fetchUserProfile = async () => {
       },
     });
 
-    localStorage.setItem("user", JSON.stringify(response.data));
+    const profile = response.data?.user || response.data;
+    localStorage.setItem("user", JSON.stringify(profile));
 
-    return response.data;
+    return profile;
   } catch (error) {
     throw new Error(
       getApiErrorMessage(error, "Failed to fetch profile")
+    );
+  }
+};
+
+export const updateUserProfile = async (payload) => {
+  try {
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+      throw new Error("User is not logged in");
+    }
+
+    const response = await apiClient.put("/api/v1/user/profile", payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const profile = response.data?.user || response.data;
+    localStorage.setItem("user", JSON.stringify(profile));
+
+    return profile;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Failed to update profile")
     );
   }
 };

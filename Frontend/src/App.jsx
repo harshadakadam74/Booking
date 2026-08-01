@@ -24,6 +24,7 @@ import PaymentSuccess from './Pages/PaymentSuccess'
 import UserAccount from './Pages/UserAccount'
 import ListProperty from './Pages/ListProperty'
 import AccountBookings from './Pages/Account/Bookings'
+import BookingDetails from './Pages/Account/BookingDetails'
 import AccountFavorites from './Pages/Account/Favorites'
 import AccountPayments from './Pages/Account/Payments'
 import AccountSettings from './Pages/Account/Settings'
@@ -67,6 +68,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <AccountBookings />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path='/account/bookings/:id'
+            element={
+              <ProtectedRoute>
+                <BookingDetails />
               </ProtectedRoute>
             }
           ></Route>

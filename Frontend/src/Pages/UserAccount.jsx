@@ -6,8 +6,13 @@ import { fetchUserProfile } from '../services/authService';
 const UserAccount = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      localStorage.removeItem('user');
+      return null;
+    }
   });
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('authToken'));
   const [isLoading, setIsLoading] = useState(() => {
@@ -162,18 +167,20 @@ const UserAccount = () => {
     );
   }
 
+  const profileName = user?.name || `${user?.firstname || ''} ${user?.lastname || ''}`.trim() || 'Traveler';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                 <User size={32} className="text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Welcome back, {user?.name || 'User'}!</h1>
+                <h1 className="text-2xl font-bold">Welcome back, {profileName}!</h1>
                 <p className="text-gray-600">{user?.email}</p>
               </div>
             </div>
@@ -184,6 +191,24 @@ const UserAccount = () => {
               <LogOut size={20} />
               Sign Out
             </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl shadow-md p-5">
+            <p className="text-blue-100 text-sm">Profile status</p>
+            <h3 className="text-2xl font-bold mt-2">Active</h3>
+            <p className="text-blue-100 mt-2">Your account is ready for bookings.</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <p className="text-gray-500 text-sm">Trips saved</p>
+            <h3 className="text-2xl font-bold mt-2">{bookings.length}</h3>
+            <p className="text-gray-600 mt-2">Upcoming and recent stays</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-5">
+            <p className="text-gray-500 text-sm">Favorites</p>
+            <h3 className="text-2xl font-bold mt-2">{likedProperties.size}</h3>
+            <p className="text-gray-600 mt-2">Saved property picks</p>
           </div>
         </div>
 
@@ -305,7 +330,10 @@ const UserAccount = () => {
                               )}
                             </div>
                             <div className="flex gap-2">
-                              <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm">
+                              <button
+                                onClick={() => navigate(`/account/bookings/${booking.id || booking._id}`)}
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm"
+                              >
                                 View Details
                               </button>
                               <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition text-sm">
@@ -354,21 +382,30 @@ const UserAccount = () => {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-md p-6 text-center">
+              <button
+                onClick={() => navigate('/book')}
+                className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition"
+              >
                 <Calendar size={32} className="mx-auto text-blue-600 mb-2" />
                 <h3 className="text-2xl font-bold">{bookings.length}</h3>
                 <p className="text-gray-600">Total Bookings</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-6 text-center">
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition"
+              >
                 <Heart size={32} className="mx-auto text-red-600 mb-2" />
                 <h3 className="text-2xl font-bold">{likedProperties.size}</h3>
                 <p className="text-gray-600">Favorite Properties</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-6 text-center">
+              </button>
+              <button
+                onClick={() => navigate('/account/settings')}
+                className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition"
+              >
                 <CreditCard size={32} className="mx-auto text-green-600 mb-2" />
-                <h3 className="text-2xl font-bold">0</h3>
-                <p className="text-gray-600">Saved Cards</p>
-              </div>
+                <h3 className="text-2xl font-bold">Profile</h3>
+                <p className="text-gray-600">Account Settings</p>
+              </button>
             </div>
           </div>
         </div>
