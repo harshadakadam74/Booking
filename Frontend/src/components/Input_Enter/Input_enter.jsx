@@ -280,15 +280,16 @@ const Input_enter = () => {
         <div className="mb-6">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E3AE32]/40 bg-[#082B5C]/80 px-4 py-2 text-sm font-semibold text-[#E3AE32] backdrop-blur">
             <Sparkles size={16} />
-            FastBooking
+            Travel Made Simple
           </div>
 
           <h1 className="mb-4 text-3xl font-bold text-white sm:text-5xl lg:text-6xl">
-            Find your <span className="text-[#E3AE32]">next stay</span>
+            Explore more, <span className="text-[#E3AE32]">travel better</span>
           </h1>
 
           <p className="text-base text-blue-100 sm:text-xl">
-            Search low prices on hotels, homes and much more...
+            Find amazing stays, compare prices and book your next adventure with
+            ease.
           </p>
         </div>
 
