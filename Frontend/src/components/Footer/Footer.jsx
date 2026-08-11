@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import footerSections from "./footerLinks";
+import Logo from "../Logo/Logo";
 
 const Footer = () => {
   return (
@@ -22,9 +23,9 @@ const Footer = () => {
         <div className="md:col-span-1">
           <Link
             to="/"
-            className="text-2xl font-bold text-[#082B5C]"
+            className="flex items-center"
           >
-            Fast<span className="text-[#C58A18]">Booking</span>
+           <Logo />
           </Link>
 
           <p className="mt-4 text-sm leading-6 text-slate-500">
