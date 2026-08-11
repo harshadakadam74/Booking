@@ -5,6 +5,7 @@ import Offers_Deals from "../components/Offers_Deals/Offers_Deals";
 import PropertyType from "../components/PropertyType/PropertyType";
 import TripPlanner from "../components/TripPlanner/TripPlanner";
 import TravelInsights from '../components/TravelInsights';
+import NearbyProperties from '../components/NearbyProperties/NearbyProperties';
 
 export function Home() {
  
@@ -17,7 +18,7 @@ export function Home() {
     <TripPlanner />
     <TravelInsights />
     <ProductSlider />
-
+    <NearbyProperties />
     </>
   );
 }
