@@ -317,7 +317,7 @@ const Input_enter = () => {
             SEARCH BOX
         ================================================= */}
 
-        <div className="relative flex flex-col top-16 gap-2 rounded-[2rem] border border-[#E3AE32]/50 bg-white p-2 shadow-2xl lg:flex-row">
+        <div className="relative flex flex-col gap-2 rounded-[2rem] border border-[#E3AE32]/50 bg-white p-2 shadow-2xl lg:flex-row">
           {/* LOCATION */}
 
           <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 px-4 py-3 focus-within:border-[#C58A18]">
@@ -450,7 +450,7 @@ const Input_enter = () => {
     RECENT SEARCHES
 ================================================= */}
 
-        <div className="relative top-16 mt-4 flex flex-wrap items-center gap-2">
+        <div className="relative mt-4 flex flex-wrap items-center gap-2">
           {/* Title */}
           <div className="flex items-center gap-2 text-sm font-semibold text-[#E3AE32]">
             <Clock3 size={15} />
