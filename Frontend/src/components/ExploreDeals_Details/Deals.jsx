@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Star, MapPin, Clock, Flame } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import {
+  Star,
+  MapPin,
+  Clock,
+  Flame,
+  ArrowRight,
+} from "lucide-react";
 
-const Deals = () => {
+const Deals = ({ onBookDeal }) => {
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for deals
+    // Demo deals data
     const mockDeals = [
       {
         id: 1,
@@ -16,9 +22,10 @@ const Deals = () => {
         reviews: 2100,
         price: 180,
         originalPrice: 250,
-        image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=800",
         discount: 28,
-        timeLeft: "2 days left"
+        timeLeft: "2 days left",
       },
       {
         id: 2,
@@ -28,9 +35,10 @@ const Deals = () => {
         reviews: 1800,
         price: 120,
         originalPrice: 160,
-        image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800",
         discount: 25,
-        timeLeft: "5 days left"
+        timeLeft: "5 days left",
       },
       {
         id: 3,
@@ -40,9 +48,10 @@ const Deals = () => {
         reviews: 950,
         price: 200,
         originalPrice: 280,
-        image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800",
         discount: 29,
-        timeLeft: "1 day left"
+        timeLeft: "1 day left",
       },
       {
         id: 4,
@@ -52,78 +61,172 @@ const Deals = () => {
         reviews: 1200,
         price: 150,
         originalPrice: 200,
-        image: "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&q=80&w=800",
         discount: 25,
-        timeLeft: "3 days left"
-      }
+        timeLeft: "3 days left",
+      },
     ];
-    setDeals(mockDeals);
-    setLoading(false);
+
+    const timer = setTimeout(() => {
+      setDeals(mockDeals);
+      setLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
+  // Loading
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <section className="rounded-3xl border border-blue-100 bg-white p-6 shadow-md">
+        <div className="flex items-center justify-center py-16">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-[#C58A18]" />
+        </div>
+      </section>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Exclusive Deals</h1>
-        <p className="text-gray-600">Limited-time offers on amazing properties</p>
+    <section className="rounded-3xl border border-blue-100 bg-white p-6 shadow-md">
+
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <div className="mb-2 flex items-center justify-center gap-2">
+          <Flame
+            size={20}
+            className="text-[#C58A18]"
+          />
+
+          <span className="text-sm font-bold uppercase tracking-[0.2em] text-[#C58A18]">
+            Exclusive Deals
+          </span>
+        </div>
+
+        <h2 className="text-3xl font-bold text-[#082B5C]">
+          Limited-Time Hotel Offers
+        </h2>
+
+        <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
+          Save more on amazing stays with our latest FastBooking deals.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Deals Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+
         {deals.map((deal) => (
-          <div key={deal.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative">
+          <div
+            key={deal.id}
+            className="group overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#C58A18] hover:shadow-xl"
+          >
+
+            {/* Image */}
+            <div className="relative h-52 overflow-hidden">
+
               <img
                 src={deal.image}
                 alt={deal.name}
-                className="w-full h-48 object-cover"
+                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
               />
-              <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold flex items-center gap-1">
-                <Flame size={14} />
+
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+              {/* Discount */}
+              <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-[#082B5C] px-3 py-1.5 text-sm font-bold text-white shadow">
+                <Flame
+                  size={14}
+                  className="text-[#E3AE32]"
+                />
                 {deal.discount}% OFF
               </div>
-              <div className="absolute top-2 right-2 bg-yellow-500 text-black px-2 py-1 rounded text-sm font-semibold flex items-center gap-1">
+
+              {/* Time */}
+              <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-[#E3AE32] px-3 py-1.5 text-sm font-bold text-[#082B5C] shadow">
                 <Clock size={14} />
                 {deal.timeLeft}
               </div>
+
+              {/* Rating */}
+              <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-[#082B5C]">
+                <Star
+                  size={15}
+                  fill="#C58A18"
+                  className="text-[#C58A18]"
+                />
+                {deal.rating}
+              </div>
+
             </div>
 
-            <div className="p-4">
-              <h3 className="text-xl font-semibold mb-2">{deal.name}</h3>
+            {/* Content */}
+            <div className="p-5">
 
-              <div className="flex items-center mb-2">
-                <MapPin size={16} className="text-gray-500 mr-1" />
-                <span className="text-gray-600 text-sm">{deal.location}</span>
+              <h3 className="text-xl font-bold text-[#082B5C]">
+                {deal.name}
+              </h3>
+
+              {/* Location */}
+              <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                <MapPin
+                  size={16}
+                  className="text-[#C58A18]"
+                />
+                {deal.location}
               </div>
 
-              <div className="flex items-center mb-3">
-                <Star className="text-yellow-400 fill-current" size={16} />
-                <span className="ml-1 text-sm">{deal.rating}</span>
-                <span className="text-gray-500 text-sm ml-1">({deal.reviews} reviews)</span>
+              {/* Reviews */}
+              <div className="mt-2 text-sm text-slate-500">
+                <span className="font-semibold text-[#082B5C]">
+                  {deal.rating}
+                </span>{" "}
+                · {deal.reviews.toLocaleString()} reviews
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* Divider */}
+              <div className="my-4 h-px bg-blue-100" />
+
+              {/* Price + Button */}
+              <div className="flex items-center justify-between gap-4">
+
                 <div>
-                  <span className="text-2xl font-bold text-green-600">${deal.price}</span>
-                  <span className="text-gray-500 line-through ml-2">${deal.originalPrice}</span>
-                  <span className="text-gray-500 text-sm"> / night</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-[#082B5C]">
+                      ${deal.price}
+                    </span>
+
+                    <span className="text-sm text-slate-400 line-through">
+                      ${deal.originalPrice}
+                    </span>
+                  </div>
+
+                  <span className="text-xs text-slate-500">
+                    per night
+                  </span>
                 </div>
-                <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
+
+                <button
+                  type="button"
+                  onClick={() => onBookDeal?.(deal)}
+                  className="flex items-center gap-2 rounded-xl bg-[#082B5C] px-4 py-3 text-sm font-bold text-white shadow-sm transition duration-300 hover:bg-[#C58A18] hover:shadow-lg"
+                >
                   Book Deal
+                  <ArrowRight size={16} />
                 </button>
+
               </div>
+
             </div>
           </div>
         ))}
+
       </div>
-    </div>
+
+      {/* Bottom Accent */}
+      <div className="mt-8 h-px bg-gradient-to-r from-transparent via-[#C58A18] to-transparent" />
+
+    </section>
   );
 };
 

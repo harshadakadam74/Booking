@@ -1,415 +1,1053 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Star, MapPin, Wifi, Car, Utensils, Heart, Filter, ArrowLeft, Calendar, Users } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Heart,
+  MapPin,
+  Sparkles,
+  Star,
+  SlidersHorizontal,
+  Utensils,
+  Wifi,
+  Car,
+  Waves,
+  Dumbbell,
+  Flame,
+  CookingPot,
+  Bath,
+} from "lucide-react";
+
+/* =========================================================
+   PROPERTY DATA
+========================================================= */
+
+const baseProperties = [
+  {
+    id: 1,
+    name: "Luxury Downtown Hotel",
+    location: "New York, USA",
+    rating: 4.8,
+    reviews: 1250,
+    price: 250,
+    originalPrice: 320,
+    image:
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
+    amenities: ["wifi", "parking", "restaurant", "pool", "gym"],
+    type: "Hotel",
+    description:
+      "Modern luxury hotel in the heart of downtown with beautiful skyline views.",
+    highlight: "Free cancellation and breakfast included",
+    perks: [
+      "Free cancellation",
+      "Breakfast included",
+      "Airport shuttle",
+    ],
+  },
+
+  {
+    id: 2,
+    name: "Cozy Boutique Hotel",
+    location: "New York, USA",
+    rating: 4.6,
+    reviews: 890,
+    price: 180,
+    originalPrice: 230,
+    image:
+      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&h=600&fit=crop",
+    amenities: ["wifi", "restaurant", "spa"],
+    type: "Hotel",
+    description:
+      "Charming boutique hotel with personalized service and local charm.",
+    highlight: "Best for romantic weekend escapes",
+    perks: ["Late checkout", "Wellness access", "City guide"],
+  },
+
+  {
+    id: 3,
+    name: "City Center Apartment",
+    location: "New York, USA",
+    rating: 4.4,
+    reviews: 650,
+    price: 150,
+    originalPrice: 190,
+    image:
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop",
+    amenities: ["wifi", "parking", "kitchen"],
+    type: "Apartment",
+    description:
+      "Spacious apartment with boutique interiors and a fully equipped kitchen.",
+    highlight: "Great for longer stays and families",
+    perks: ["Laundry access", "Full kitchen", "Self check-in"],
+  },
+
+  {
+    id: 4,
+    name: "Executive Suite",
+    location: "New York, USA",
+    rating: 4.7,
+    reviews: 420,
+    price: 300,
+    originalPrice: 380,
+    image:
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop",
+    amenities: ["wifi", "parking", "restaurant", "gym", "spa"],
+    type: "Hotel",
+    description:
+      "Executive suite with premium amenities and a business-friendly setup.",
+    highlight: "Ideal for business trips and premium comfort",
+    perks: ["Workspace", "Concierge", "Priority check-in"],
+  },
+
+  {
+    id: 5,
+    name: "Beachfront Resort",
+    location: "Miami, USA",
+    rating: 4.9,
+    reviews: 2100,
+    price: 350,
+    originalPrice: 450,
+    image:
+      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop",
+    amenities: ["wifi", "parking", "restaurant", "pool", "beach"],
+    type: "Resort",
+    description:
+      "Luxurious beachfront resort with ocean views and full-service amenities.",
+    highlight: "Top-rated escape with oceanfront lounging",
+    perks: ["Beach access", "Spa pass", "Ocean views"],
+  },
+
+  {
+    id: 6,
+    name: "Mountain View Cabin",
+    location: "Aspen, USA",
+    rating: 4.5,
+    reviews: 380,
+    price: 220,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    type: "Cabin",
+    description:
+      "Cozy mountain cabin with stunning views and fireplace evenings.",
+    highlight: "Perfect for ski weekends and nature retreats",
+    perks: ["Fireplace", "Mountain views", "Pet friendly"],
+  },
+];
+
+const amenityOptions = [
+  "wifi",
+  "parking",
+  "restaurant",
+  "pool",
+  "gym",
+  "spa",
+  "kitchen",
+  "beach",
+  "fireplace",
+];
+
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 const BookPlace = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
   const searchParams = location.state || {};
-  const authToken = localStorage.getItem('authToken');
-  const isLoggedIn = !!authToken;
 
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
   const [filters, setFilters] = useState({
     priceRange: [0, 1000],
     rating: 0,
-    amenities: []
+    amenities: [],
   });
+
   const [showFilters, setShowFilters] = useState(false);
 
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("fastBookingFavorites") || "[]"
+      );
+    } catch {
+      return [];
+    }
+  });
+
+  const [sortBy, setSortBy] = useState("recommended");
+  const [activeDetailsId, setActiveDetailsId] = useState(null);
+
+  /* =========================================================
+     SAVE FAVORITES
+  ========================================================= */
+
   useEffect(() => {
-    // Simulate loading delay
+    localStorage.setItem(
+      "fastBookingFavorites",
+      JSON.stringify(favorites)
+    );
+  }, [favorites]);
+
+  /* =========================================================
+     LOAD PROPERTIES
+  ========================================================= */
+
+  useEffect(() => {
     setLoading(true);
 
-    setTimeout(() => {
-      // Mock data for properties based on search location
-      const baseProperties = [
-        {
-          id: 1,
-          name: "Luxury Downtown Hotel",
-          location: searchParams.location || "New York, USA",
-          rating: 4.8,
-          reviews: 1250,
-          price: 250,
-          originalPrice: 320,
-          image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300",
-          amenities: ["wifi", "parking", "restaurant", "pool", "gym"],
-          type: "Hotel",
-          description: "Modern luxury hotel in the heart of downtown"
-        },
-        {
-          id: 2,
-          name: "Cozy Boutique Hotel",
-          location: searchParams.location || "New York, USA",
-          rating: 4.6,
-          reviews: 890,
-          price: 180,
-          originalPrice: 230,
-          image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400&h=300",
-          amenities: ["wifi", "restaurant", "spa"],
-          type: "Hotel",
-          description: "Charming boutique hotel with personalized service"
-        },
-        {
-          id: 3,
-          name: "City Center Apartment",
-          location: searchParams.location || "New York, USA",
-          rating: 4.4,
-          reviews: 650,
-          price: 150,
-          originalPrice: 190,
-          image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300",
-          amenities: ["wifi", "parking", "kitchen"],
-          type: "Apartment",
-          description: "Spacious apartment with city views"
-        },
-        {
-          id: 4,
-          name: "Executive Suite",
-          location: searchParams.location || "New York, USA",
-          rating: 4.7,
-          reviews: 420,
-          price: 300,
-          originalPrice: 380,
-          image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300",
-          amenities: ["wifi", "parking", "restaurant", "gym", "spa"],
-          type: "Hotel",
-          description: "Executive suite with premium amenities"
-        },
-        {
-          id: 5,
-          name: "Beachfront Resort",
-          location: searchParams.location || "Miami, USA",
-          rating: 4.9,
-          reviews: 2100,
-          price: 350,
-          originalPrice: 450,
-          image: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&h=300",
-          amenities: ["wifi", "parking", "restaurant", "pool", "beach"],
-          type: "Resort",
-          description: "Luxurious beachfront resort with ocean views"
-        },
-        {
-          id: 6,
-          name: "Mountain View Cabin",
-          location: searchParams.location || "Aspen, USA",
-          rating: 4.5,
-          reviews: 380,
-          price: 220,
-          originalPrice: 280,
-          image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300",
-          amenities: ["wifi", "parking", "kitchen", "fireplace"],
-          type: "Cabin",
-          description: "Cozy mountain cabin with stunning views"
-        }
-      ];
+    const searchLocation =
+      searchParams.location?.trim() || "New York, USA";
 
-      // Filter properties based on location if specified
-      let filteredByLocation = baseProperties;
-      if (searchParams.location) {
-        const searchLocation = searchParams.location.toLowerCase();
-        filteredByLocation = baseProperties.filter(property =>
-          property.location.toLowerCase().includes(searchLocation) ||
-          searchLocation.includes(property.location.toLowerCase().split(',')[0])
+    const timer = window.setTimeout(() => {
+      const normalizedSearch = searchLocation.toLowerCase();
+
+      const matchedProperties = baseProperties.filter((property) => {
+        const propertyLocation = property.location.toLowerCase();
+
+        const city = propertyLocation
+          .split(",")[0]
+          .trim();
+
+        return (
+          propertyLocation.includes(normalizedSearch) ||
+          normalizedSearch.includes(city)
         );
+      });
 
-        // If no exact matches, show all properties but update their location to match search
-        if (filteredByLocation.length === 0) {
-          filteredByLocation = baseProperties.map(property => ({
-            ...property,
-            location: searchParams.location
-          }));
+      setProperties(matchedProperties);
+
+      setLoading(false);
+
+      /* Save recent search */
+      if (searchParams.location) {
+        try {
+          const stored = JSON.parse(
+            localStorage.getItem(
+              "fastBookingRecentSearches"
+            ) || "[]"
+          );
+
+          const nextSearches = [
+            {
+              destination: searchParams.location,
+              savedAt: new Date().toISOString(),
+            },
+            ...stored.filter(
+              (item) =>
+                item.destination !== searchParams.location
+            ),
+          ].slice(0, 6);
+
+          localStorage.setItem(
+            "fastBookingRecentSearches",
+            JSON.stringify(nextSearches)
+          );
+        } catch (error) {
+          console.error(
+            "Unable to save recent search:",
+            error
+          );
         }
       }
+    }, 500);
 
-      setProperties(filteredByLocation);
-      setFilteredProperties(filteredByLocation);
-      setLoading(false);
-    }, 800); // Simulate API delay
-  }, [searchParams]);
+    return () => window.clearTimeout(timer);
+  }, [searchParams.location]);
+
+  /* =========================================================
+     FILTER + SORT
+  ========================================================= */
+
+  useEffect(() => {
+    const filtered = [...properties]
+      .filter((property) => {
+        const priceMatch =
+          property.price >= filters.priceRange[0] &&
+          property.price <= filters.priceRange[1];
+
+        const ratingMatch =
+          property.rating >= filters.rating;
+
+        const amenitiesMatch =
+          filters.amenities.length === 0 ||
+          filters.amenities.every((amenity) =>
+            property.amenities.includes(amenity)
+          );
+
+        return (
+          priceMatch &&
+          ratingMatch &&
+          amenitiesMatch
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === "price") {
+          return a.price - b.price;
+        }
+
+        if (sortBy === "rating") {
+          return b.rating - a.rating;
+        }
+
+        return b.rating - a.rating;
+      });
+
+    setFilteredProperties(filtered);
+  }, [filters, properties, sortBy]);
+
+  /* =========================================================
+     AMENITY ICON
+  ========================================================= */
 
   const getAmenityIcon = (amenity) => {
+    const iconClass = "h-3.5 w-3.5";
+
     switch (amenity) {
-      case 'wifi': return <Wifi size={16} />;
-      case 'parking': return <Car size={16} />;
-      case 'restaurant': return <Utensils size={16} />;
-      case 'pool': return <div className="w-4 h-4 bg-blue-500 rounded"></div>;
-      case 'gym': return <div className="w-4 h-4 bg-green-500 rounded"></div>;
-      case 'spa': return <div className="w-4 h-4 bg-purple-500 rounded"></div>;
-      case 'kitchen': return <div className="w-4 h-4 bg-orange-500 rounded"></div>;
-      default: return null;
+      case "wifi":
+        return <Wifi className={iconClass} />;
+
+      case "parking":
+        return <Car className={iconClass} />;
+
+      case "restaurant":
+        return <Utensils className={iconClass} />;
+
+      case "pool":
+        return <Waves className={iconClass} />;
+
+      case "gym":
+        return <Dumbbell className={iconClass} />;
+
+      case "spa":
+        return <Bath className={iconClass} />;
+
+      case "kitchen":
+        return <CookingPot className={iconClass} />;
+
+      case "beach":
+        return <Waves className={iconClass} />;
+
+      case "fireplace":
+        return <Flame className={iconClass} />;
+
+      default:
+        return null;
     }
   };
 
+  /* =========================================================
+     FAVORITE
+  ========================================================= */
+
+  const toggleFavorite = (propertyId, event) => {
+    event.stopPropagation();
+
+    setFavorites((prev) =>
+      prev.includes(propertyId)
+        ? prev.filter((id) => id !== propertyId)
+        : [...prev, propertyId]
+    );
+  };
+
+  /* =========================================================
+     BOOK NOW
+  ========================================================= */
+
   const handleBookNow = (property) => {
-    const authToken = localStorage.getItem('authToken');
+    const authToken =
+      localStorage.getItem("authToken");
+
     if (!authToken) {
-      navigate('/login', {
+      navigate("/login", {
         state: {
-          from: '/payment',
+          from: "/payment",
           property,
-          searchParams
-        }
+          searchParams,
+        },
       });
+
       return;
     }
 
-    navigate('/payment', {
+    navigate("/payment", {
       state: {
         property,
-        searchParams
-      }
+        searchParams,
+      },
     });
   };
 
-  const applyFilters = () => {
-    let filtered = properties.filter(property => {
-      const priceMatch = property.price >= filters.priceRange[0] && property.price <= filters.priceRange[1];
-      const ratingMatch = property.rating >= filters.rating;
-      return priceMatch && ratingMatch;
-    });
-    setFilteredProperties(filtered);
+  /* =========================================================
+     AMENITY FILTER
+  ========================================================= */
+
+  const toggleAmenity = (amenity) => {
+    setFilters((prev) => ({
+      ...prev,
+
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(
+            (item) => item !== amenity
+          )
+        : [...prev.amenities, amenity],
+    }));
   };
 
-  useEffect(() => {
-    applyFilters();
-  }, [filters]);
+  /* =========================================================
+     DETAILS
+  ========================================================= */
+
+  const toggleDetails = (propertyId, event) => {
+    event.stopPropagation();
+
+    setActiveDetailsId((prev) =>
+      prev === propertyId ? null : propertyId
+    );
+  };
+
+  /* =========================================================
+     LOADING
+  ========================================================= */
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-slate-50 px-4 pt-28">
+        <div className="mx-auto max-w-7xl">
+
+          <div className="mb-8 h-52 animate-pulse rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-800" />
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="overflow-hidden rounded-3xl bg-white shadow-sm"
+              >
+                <div className="h-48 animate-pulse bg-slate-200" />
+
+                <div className="space-y-4 p-6">
+                  <div className="h-6 w-2/3 animate-pulse rounded bg-slate-200" />
+                  <div className="h-4 w-1/3 animate-pulse rounded bg-slate-200" />
+                  <div className="h-12 animate-pulse rounded bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </div>
       </div>
     );
   }
 
+  /* =========================================================
+     MAIN UI
+  ========================================================= */
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Login prompt for guests */}
-      {!isLoggedIn && (
-        <div className="mb-8 rounded-3xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900 shadow-sm">
-          <h2 className="text-2xl font-semibold mb-2">Create your account to book</h2>
-          <p className="text-sm text-yellow-800 mb-4">
-            You can browse available places without signing in, but you must create an account or log in before booking a property.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate('/login', { state: { from: '/book-place', searchParams } })}
-              className="rounded-full bg-yellow-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-yellow-700"
-            >
-              Log in to book
-            </button>
-            <button
-              onClick={() => navigate('/register', { state: { from: '/book-place', searchParams } })}
-              className="rounded-full border border-yellow-600 bg-white px-6 py-3 text-sm font-semibold text-yellow-900 hover:bg-yellow-100"
-            >
-              Create account
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50 px-4 pb-12 pt-28 sm:px-6 lg:px-8">
 
-      {/* Header with Back Button */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate('/book')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
-        >
-          <ArrowLeft size={20} />
-          Back to Search
-        </button>
+      <div className="mx-auto max-w-7xl">
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h1 className="text-3xl font-bold mb-2">
-            {searchParams.location ? `Stays in ${searchParams.location}` : 'Available Properties'}
-          </h1>
+        {/* =====================================================
+            LOGIN / REGISTER NOTICE
+        ===================================================== */}
 
-          {/* Search Summary */}
-          <div className="flex flex-wrap gap-6 mt-4 text-gray-600">
-            {searchParams.dates && (
-              <div className="flex items-center gap-2">
-                <Calendar size={16} />
-                <span>
-                  {new Date(searchParams.dates.startDate).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })} - {new Date(searchParams.dates.endDate).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </span>
-              </div>
-            )}
+        {!localStorage.getItem("authToken") && (
+          <div className="mb-6 overflow-hidden rounded-3xl border border-yellow-200 bg-gradient-to-r from-yellow-50 via-white to-blue-50 shadow-sm">
 
-            {searchParams.guests && (
-              <div className="flex items-center gap-2">
-                <Users size={16} />
-                <span>
-                  {searchParams.guests.adults + searchParams.guests.children} guest{searchParams.guests.adults + searchParams.guests.children !== 1 ? 's' : ''}, {searchParams.guests.rooms} room{searchParams.guests.rooms !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )}
+            <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
 
-            <div className="text-sm">
-              {filteredProperties.length} propert{filteredProperties.length !== 1 ? 'ies' : 'y'} found
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-6">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-        >
-          <Filter size={20} />
-          Filters
-        </button>
-
-        {showFilters && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Min Rating</label>
-                <select
-                  value={filters.rating}
-                  onChange={(e) => setFilters(prev => ({ ...prev, rating: Number(e.target.value) }))}
-                  className="w-full p-2 border rounded"
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-800">
+                  <Sparkles size={14} />
+                  FastBooking
+                </div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  Create your account to book
+                </h2>
+
+                <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                  Browse available properties freely.
+                  Sign in or create an account when
+                  you're ready to book.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+
+                <button
+                  onClick={() =>
+                    navigate("/login", {
+                      state: {
+                        from: "/book-place",
+                        searchParams,
+                      },
+                    })
+                  }
+                  className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-800"
                 >
-                  <option value={0}>Any Rating</option>
-                  <option value={3}>3+ Stars</option>
-                  <option value={4}>4+ Stars</option>
-                  <option value={4.5}>4.5+ Stars</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Max Price: ${filters.priceRange[1]}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1000"
-                  value={filters.priceRange[1]}
-                  onChange={(e) => setFilters(prev => ({ ...prev, priceRange: [0, Number(e.target.value)] }))}
-                  className="w-full"
-                />
+                  Log in
+                </button>
+
+                <button
+                  onClick={() =>
+                    navigate("/register", {
+                      state: {
+                        from: "/book-place",
+                        searchParams,
+                      },
+                    })
+                  }
+                  className="rounded-full border-2 border-yellow-500 bg-white px-6 py-3 text-sm font-semibold text-yellow-700 transition hover:bg-yellow-50"
+                >
+                  Create account
+                </button>
+
               </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Results */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredProperties.map((property) => (
-          <div
-            key={property.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
-            onClick={() => handleBookNow(property)}
-          >
-            <div className="relative">
-              <img
-                src={property.image}
-                alt={property.name}
-                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+        {/* =====================================================
+            HERO
+        ===================================================== */}
+
+        <div className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-800 via-blue-700 to-indigo-800 p-6 text-white shadow-xl sm:p-8">
+
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+
+            <div>
+
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Handle favorite toggle
-                }}
-                className="absolute top-3 right-3 bg-white/80 p-2 rounded-full hover:bg-white transition-colors"
+                onClick={() => navigate("/book")}
+                className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-blue-100 transition hover:text-white"
               >
-                <Heart size={16} className="text-gray-600 hover:text-red-500" />
+                <ArrowLeft size={18} />
+                Back to Search
               </button>
-              <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                {property.type}
+
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-300/30 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-200">
+                <Sparkles size={14} />
+                Premium stays
               </div>
-              {property.originalPrice && (
-                <div className="absolute bottom-3 right-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                  Save ${(property.originalPrice - property.price).toLocaleString()}
-                </div>
-              )}
+
+              <h1 className="text-3xl font-bold sm:text-4xl">
+                {searchParams.location
+                  ? `Stays in ${searchParams.location}`
+                  : "Available Properties"}
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+                Discover handpicked stays with flexible
+                booking, premium amenities and special
+                perks for your trip.
+              </p>
+
             </div>
 
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold group-hover:text-blue-600 transition-colors">
-                  {property.name}
-                </h3>
-                <div className="flex items-center bg-green-50 px-2 py-1 rounded">
-                  <Star className="text-green-600 fill-current" size={14} />
-                  <span className="ml-1 text-sm font-medium text-green-700">{property.rating}</span>
-                  <span className="ml-1 text-xs text-green-600">({property.reviews})</span>
-                </div>
-              </div>
+            <div className="w-fit rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur">
 
-              <div className="flex items-center mb-2">
-                <MapPin size={14} className="text-gray-500 mr-1" />
-                <span className="text-gray-600 text-sm">{property.location}</span>
-              </div>
+              <p className="text-sm text-blue-100">
+                Showing
+              </p>
 
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{property.description}</p>
+              <p className="text-2xl font-bold">
+                {filteredProperties.length}
+                <span className="ml-1 text-sm font-medium text-blue-100">
+                  stays
+                </span>
+              </p>
 
-              <div className="flex items-center gap-2 mb-4">
-                {property.amenities.slice(0, 4).map((amenity, index) => (
-                  <div key={index} className="text-gray-500 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded">
-                    {getAmenityIcon(amenity)}
-                    <span className="text-xs capitalize">{amenity}</span>
-                  </div>
-                ))}
-                {property.amenities.length > 4 && (
-                  <span className="text-gray-500 text-xs bg-gray-50 px-2 py-1 rounded">
-                    +{property.amenities.length - 4} more
-                  </span>
-                )}
-              </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-blue-600">${property.price}</span>
-                    <span className="text-gray-500 text-sm">/ night</span>
-                  </div>
-                  {property.originalPrice && (
-                    <span className="text-gray-500 line-through text-sm">${property.originalPrice}</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Handle view details
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    View Details
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBookNow(property);
-                    }}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Book Now
-                  </button>
-                </div>
-              </div>
+          </div>
+        </div>
+
+        {/* =====================================================
+            FILTER BAR
+        ===================================================== */}
+
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+            <button
+              onClick={() =>
+                setShowFilters((prev) => !prev)
+              }
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <SlidersHorizontal size={17} />
+
+              {showFilters
+                ? "Hide filters"
+                : "Filters & sorting"}
+            </button>
+
+            <div className="flex items-center gap-3">
+
+              <span className="hidden text-sm text-slate-500 sm:block">
+                Sort by
+              </span>
+
+              <select
+                value={sortBy}
+                onChange={(event) =>
+                  setSortBy(event.target.value)
+                }
+                className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500"
+              >
+                <option value="recommended">
+                  Recommended
+                </option>
+
+                <option value="price">
+                  Price: low to high
+                </option>
+
+                <option value="rating">
+                  Top rated
+                </option>
+              </select>
+
             </div>
           </div>
-        ))}
-      </div>
 
-      {filteredProperties.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No properties found matching your criteria.</p>
+          {/* FILTER PANEL */}
+
+          {showFilters && (
+            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+
+              <div className="grid gap-6 md:grid-cols-3">
+
+                {/* Rating */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Minimum rating
+                  </label>
+
+                  <select
+                    value={filters.rating}
+                    onChange={(event) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        rating: Number(
+                          event.target.value
+                        ),
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-blue-500"
+                  >
+                    <option value={0}>
+                      Any rating
+                    </option>
+
+                    <option value={3}>
+                      3+ stars
+                    </option>
+
+                    <option value={4}>
+                      4+ stars
+                    </option>
+
+                    <option value={4.5}>
+                      4.5+ stars
+                    </option>
+                  </select>
+                </div>
+
+                {/* Price */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Maximum price: $
+                    {filters.priceRange[1]}
+                  </label>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="1000"
+                    step="10"
+                    value={filters.priceRange[1]}
+                    onChange={(event) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        priceRange: [
+                          0,
+                          Number(event.target.value),
+                        ],
+                      }))
+                    }
+                    className="w-full accent-blue-600"
+                  />
+
+                  <div className="mt-1 flex justify-between text-xs text-slate-500">
+                    <span>$0</span>
+                    <span>$1000+</span>
+                  </div>
+                </div>
+
+                {/* Amenities */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Amenities
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+
+                    {amenityOptions.map((amenity) => {
+
+                      const selected =
+                        filters.amenities.includes(
+                          amenity
+                        );
+
+                      return (
+                        <button
+                          key={amenity}
+                          type="button"
+                          onClick={() =>
+                            toggleAmenity(amenity)
+                          }
+                          className={`rounded-full px-3 py-2 text-xs font-semibold capitalize transition ${
+                            selected
+                              ? "bg-blue-700 text-white shadow-sm"
+                              : "bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                          }`}
+                        >
+                          {amenity}
+                        </button>
+                      );
+                    })}
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* =====================================================
+            PROPERTY GRID
+        ===================================================== */}
+
+        {filteredProperties.length > 0 ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+
+            {filteredProperties.map((property) => {
+
+              const isFavorite =
+                favorites.includes(property.id);
+
+              const isExpanded =
+                activeDetailsId === property.id;
+
+              return (
+                <div
+                  key={property.id}
+                  className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+
+                  {/* IMAGE */}
+
+                  <div className="relative">
+
+                    <img
+                      src={property.image}
+                      alt={property.name}
+                      className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                    />
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
+
+                    {/* TYPE */}
+
+                    <div className="absolute left-4 top-4 rounded-full bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow">
+                      {property.type}
+                    </div>
+
+                    {/* FAVORITE */}
+
+                    <button
+                      onClick={(event) =>
+                        toggleFavorite(
+                          property.id,
+                          event
+                        )
+                      }
+                      aria-label="Add to favorites"
+                      className={`absolute right-4 top-4 rounded-full p-2.5 shadow-md backdrop-blur transition ${
+                        isFavorite
+                          ? "bg-red-500 text-white"
+                          : "bg-white/90 text-slate-700 hover:bg-white"
+                      }`}
+                    >
+                      <Heart
+                        size={18}
+                        fill={
+                          isFavorite
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    </button>
+
+                    {/* SAVING */}
+
+                    {property.originalPrice && (
+                      <div className="absolute bottom-4 left-4 rounded-full bg-yellow-500 px-3 py-1.5 text-xs font-bold text-slate-950 shadow">
+                        Save $
+                        {(
+                          property.originalPrice -
+                          property.price
+                        ).toLocaleString()}
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* CONTENT */}
+
+                  <div className="p-6">
+
+                    <div className="flex items-start justify-between gap-4">
+
+                      <div>
+
+                        <h3 className="text-xl font-bold text-slate-900">
+                          {property.name}
+                        </h3>
+
+                        <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
+                          <MapPin
+                            size={15}
+                            className="text-red-500"
+                          />
+
+                          {property.location}
+                        </div>
+
+                      </div>
+
+                      {/* RATING */}
+
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-3 py-1.5 text-sm font-bold text-green-700">
+                        <Star
+                          size={14}
+                          className="fill-current"
+                        />
+                        {property.rating}
+                      </div>
+
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-600">
+                      {property.description}
+                    </p>
+
+                    {/* HIGHLIGHT */}
+
+                    <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-3">
+                      <div className="flex items-start gap-2 text-sm font-semibold text-blue-700">
+                        <Sparkles
+                          size={17}
+                          className="mt-0.5 shrink-0"
+                        />
+
+                        <span>
+                          {property.highlight}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* AMENITIES */}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+
+                      {property.amenities
+                        .slice(0, 4)
+                        .map((amenity) => (
+                          <div
+                            key={`${property.id}-${amenity}`}
+                            className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600"
+                          >
+                            {getAmenityIcon(amenity)}
+
+                            <span className="capitalize">
+                              {amenity}
+                            </span>
+                          </div>
+                        ))}
+
+                      {property.amenities.length > 4 && (
+                        <span className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-500">
+                          +
+                          {property.amenities.length -
+                            4}{" "}
+                          more
+                        </span>
+                      )}
+
+                    </div>
+
+                    {/* PRICE + ACTIONS */}
+
+                    <div className="mt-6 flex flex-col gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-between">
+
+                      <div>
+
+                        <div className="flex items-baseline gap-2">
+
+                          <span className="text-2xl font-bold text-blue-700">
+                            $
+                            {property.price.toLocaleString()}
+                          </span>
+
+                          <span className="text-sm text-slate-500">
+                            / night
+                          </span>
+
+                        </div>
+
+                        {property.originalPrice && (
+                          <span className="text-sm text-slate-400 line-through">
+                            $
+                            {property.originalPrice.toLocaleString()}
+                          </span>
+                        )}
+
+                        <div className="mt-1 text-xs text-slate-500">
+                          {property.reviews.toLocaleString()}{" "}
+                          verified reviews
+                        </div>
+
+                      </div>
+
+                      <div className="flex gap-2">
+
+                        <button
+                          onClick={(event) =>
+                            toggleDetails(
+                              property.id,
+                              event
+                            )
+                          }
+                          className="rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          {isExpanded ? (
+                            <span className="inline-flex items-center gap-1">
+                              <ChevronUp size={16} />
+                              Hide
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <ChevronDown size={16} />
+                              Details
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleBookNow(property);
+                          }}
+                          className="rounded-full bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:from-blue-800 hover:to-blue-700"
+                        >
+                          Book Now
+                        </button>
+
+                      </div>
+                    </div>
+
+                    {/* DETAILS */}
+
+                    {isExpanded && (
+                      <div className="mt-5 rounded-2xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-blue-50 p-4">
+
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                          <Sparkles
+                            size={17}
+                            className="text-yellow-600"
+                          />
+
+                          What makes this stay special
+                        </div>
+
+                        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+
+                          {property.perks.map((perk) => (
+                            <li
+                              key={perk}
+                              className="rounded-xl bg-white px-3 py-2.5 text-sm text-slate-600 shadow-sm"
+                            >
+                              ✓ {perk}
+                            </li>
+                          ))}
+
+                        </ul>
+
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* ===================================================
+             NO RESULTS
+          =================================================== */
+
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <MapPin size={28} />
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-slate-900">
+              No properties found
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+              We couldn't find a property matching
+              your destination and selected filters.
+              Try another destination or clear some
+              filters.
+            </p>
+
+            <button
+              onClick={() => {
+                setFilters({
+                  priceRange: [0, 1000],
+                  rating: 0,
+                  amenities: [],
+                });
+
+                navigate("/book");
+              }}
+              className="mt-6 rounded-full bg-blue-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-blue-800"
+            >
+              Back to Search
+            </button>
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };

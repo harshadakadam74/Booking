@@ -1,60 +1,80 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Hotel, Menu, X, User, LogOut } from 'lucide-react'
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, X, User, LogOut } from "lucide-react";
+import Logo from "../Logo/Logo";
 
 const Header = () => {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const navigate = useNavigate()
+  const authToken = localStorage.getItem("authToken");
+  const storedUser = localStorage.getItem("user");
 
-  const authToken = localStorage.getItem('authToken')
-  const storedUser = localStorage.getItem('user')
-  const isLoggedIn = !!authToken
-  const user = storedUser ? JSON.parse(storedUser) : null
+  const isLoggedIn = !!authToken;
 
+  let user = null;
 
-  const handleLogout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('authToken')
-    navigate('/')
+  try {
+    user = storedUser ? JSON.parse(storedUser) : null;
+  } catch (error) {
+    console.error("Invalid user data:", error);
+    localStorage.removeItem("user");
   }
 
+  const displayName =
+    user?.name ||
+    `${user?.firstname || ""} ${user?.lastname || ""}`.trim() ||
+    "Account";
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    setOpen(false);
+    navigate("/");
+  };
+
   return (
-    <header className="  bg-blue-300/35 top-0 w-full  z-50 sm:px-8 lg:px-16 ">
+    <header className="sticky top-0 z-50 border-b border-blue-100 bg-white/95 shadow-sm backdrop-blur-md">
 
-      {/* Floating White Navbar */}
-      <div className=" mx-auto px-6 py-3.5 flex justify-between items-center">
+      {/* Navbar */}
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
 
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 text-3xl font-bold text-blue-600">
-          <Hotel size={30} /> FastBooking
+        {/* FastBooking Logo */}
+        <Link
+          to="/"
+          className="flex items-center"
+          onClick={() => setOpen(false)}
+        >
+          <Logo />
         </Link>
 
-      
+        {/* Desktop Navigation */}
+        <nav className="hidden items-center gap-8 md:flex">
 
-        {/* Right Side */}
-        <div className="hidden md:flex items-center gap-12">
-
+          {/* List Property */}
           <Link
             to="/list-property"
-            className="text-gray-700 hover:text-blue-600"
+            className="font-medium text-slate-700 transition hover:text-[#C58A18]"
           >
             List your property
           </Link>
 
           {isLoggedIn ? (
             <>
+              {/* Account */}
               <Link
                 to="/account"
-                className="flex items-center gap-2 text-gray-700 hover:text-blue-600"
+                className="flex items-center gap-2 font-medium text-slate-700 transition hover:text-[#C58A18]"
               >
-                <User size={18} />
-                {user?.name || `${user?.firstname || ''} ${user?.lastname || ''}`.trim() || 'Account'}
+                <User size={18} className="text-[#082B5C]" />
+                <span>{displayName}</span>
               </Link>
 
+              {/* Logout */}
               <button
+                type="button"
                 onClick={handleLogout}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
+                className="flex items-center gap-2 rounded-lg bg-[#082B5C] px-4 py-2.5 font-semibold text-white shadow-sm transition duration-300 hover:bg-[#C58A18]"
               >
                 <LogOut size={18} />
                 Logout
@@ -62,76 +82,101 @@ const Header = () => {
             </>
           ) : (
             <>
+              {/* Login */}
               <Link
                 to="/login"
-                className="text-gray-700 hover:text-blue-600"
+                className="font-medium text-slate-700 transition hover:text-[#C58A18]"
               >
                 Login
               </Link>
 
+              {/* Register */}
               <Link
                 to="/register"
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
+                className="rounded-lg bg-[#082B5C] px-5 py-2.5 font-semibold text-white shadow-sm transition duration-300 hover:bg-[#C58A18]"
               >
                 Register
               </Link>
             </>
           )}
-        </div>
+        </nav>
 
-        {/* Mobile Button */}
+        {/* Mobile Menu Button */}
         <button
-          className="md:hidden text-gray-700"
+          type="button"
+          aria-label="Toggle menu"
+          aria-expanded={open}
           onClick={() => setOpen(!open)}
+          className="rounded-lg p-2 text-[#082B5C] transition hover:bg-blue-50 md:hidden"
         >
-          {open ? <X size={28} /> : <Menu size={28} />}
+          {open ? <X size={27} /> : <Menu size={27} />}
         </button>
       </div>
 
       {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden mx-4 mt-2 bg-white rounded-xl shadow p-4 flex flex-col gap-4">
+        <div className="border-t border-blue-100 bg-white px-4 py-4 shadow-md md:hidden">
 
+          <div className="mx-auto flex max-w-7xl flex-col gap-2">
 
-          <Link to="/list-property" onClick={() => setOpen(false)}>
-            List your property
-          </Link>
+            {/* List Property */}
+            <Link
+              to="/list-property"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-4 py-3 font-medium text-slate-700 transition hover:bg-blue-50 hover:text-[#C58A18]"
+            >
+              List your property
+            </Link>
 
-          {isLoggedIn ? (
-            <>
-              <Link to="/account" onClick={() => setOpen(false)}>
-                {user?.name || 'Account'}
-              </Link>
+            {isLoggedIn ? (
+              <>
+                {/* Account */}
+                <Link
+                  to="/account"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-4 py-3 font-medium text-slate-700 transition hover:bg-blue-50 hover:text-[#C58A18]"
+                >
+                  <User size={18} className="text-[#082B5C]" />
+                  {displayName}
+                </Link>
 
-              <button
-                onClick={() => {
-                  handleLogout()
-                  setOpen(false)
-                }}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" onClick={() => setOpen(false)}>
-                Login
-              </Link>
+                {/* Logout */}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-[#082B5C] px-4 py-3 font-semibold text-white transition hover:bg-[#C58A18]"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Login */}
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-4 py-3 font-medium text-slate-700 transition hover:bg-blue-50 hover:text-[#C58A18]"
+                >
+                  Login
+                </Link>
 
-              <Link
-                to="/register"
-                onClick={() => setOpen(false)}
-                className="bg-blue-600 text-white px-4 py-2 rounded text-center"
-              >
-                Register
-              </Link>
-            </>
-          )}
+                {/* Register */}
+                <Link
+                  to="/register"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg bg-[#082B5C] px-4 py-3 text-center font-semibold text-white transition hover:bg-[#C58A18]"
+                >
+                  Register
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       )}
-    </header>
-  )
-}
 
-export default Header
+    </header>
+  );
+};
+
+export default Header;

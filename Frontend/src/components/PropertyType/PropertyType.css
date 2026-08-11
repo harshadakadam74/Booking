@@ -1,12 +1,25 @@
-@keyframes scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+.property-scroll-wrapper {
+  width: 100%;
+  overflow: hidden;
 }
 
-.animate-scroll {
-  animation: scroll 30s linear infinite;
+.property-scroll {
+  display: flex;
+  width: max-content;
+  animation: propertyScroll 20s linear infinite;
+}
+
+/* Pause when user hovers */
+.property-scroll:hover {
+  animation-play-state: paused;
+}
+
+@keyframes propertyScroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }

@@ -1,62 +1,74 @@
-import React from 'react'
+import React from "react";
 import { Link } from "react-router-dom";
+import { Tag, ArrowRight } from "lucide-react";
 
 const Offers_Deals = () => {
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 mt-18 sm:mt-20 md:mt-24">
-
-      {/* Offers Section */}
-      <section className="mb-10">
-
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
-          Offers
-        </h2>
-
-        <p className="text-gray-500 mb-6 text-sm sm:text-base">
-          Promotions, deals and special offers for you
-        </p>
-
-        {/* CARD */}
-        <div className="flex flex-col md:flex-row items-center gap-5 bg-white border rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition">
-
-          {/* IMAGE */}
-          <img
-            src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
-            alt="Offer"
-            className="w-full h-44 sm:h-52 md:w-40 md:h-40 object-cover rounded-lg"
-          />
-
-          {/* TEXT */}
-          <div className="flex-1 w-full text-center md:text-left">
-
-            <p className="text-xs sm:text-sm text-gray-500 mb-1">
-              Early 2026 Deals
-            </p>
-
-            <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">
-              At least 15% off
-            </h3>
-
-            <p className="text-gray-600 mb-4 text-sm sm:text-base leading-relaxed">
-              Save on your next stay with Early 2026 Deals.
-              Book now, stay until 1 April 2026.
-            </p>
-
-            {/* BUTTON FIX */}
-            <Link
-              to="/deals"
-              className="block md:inline-block w-full md:w-auto text-center bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base px-5 py-3 rounded-lg font-medium transition"
-            >
-              Explore deals
-            </Link>
-
+    <section className="mb-10 py-10 px-10">
+      {/* Section Heading */}
+      <div className="mb-6">
+        <div className="mb-2 flex items-center gap-2">
+          <div className="rounded-lg bg-[#FFF8E7] p-2">
+            <Tag size={20} className="text-[#C58A18]" />
           </div>
 
+          <h2 className="text-xl font-bold text-[#082B5C] sm:text-2xl md:text-3xl">
+            Offers
+          </h2>
         </div>
 
-      </section>
-    </div>
-  )
-}
+        <p className="text-sm text-slate-500 sm:text-base">
+          Promotions, deals and special offers for you
+        </p>
+      </div>
+
+      {/* Offer Card */}
+      <div className="group flex flex-col items-center gap-5 overflow-hidden rounded-2xl border border-blue-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#C58A18]/40 hover:shadow-lg sm:p-6 md:flex-row">
+
+        {/* Image */}
+        <div className="relative w-full shrink-0 md:w-44">
+          <img
+            src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
+            alt="Travel Offer"
+            className="h-44 w-full rounded-xl object-cover sm:h-52 md:h-44"
+          />
+
+          {/* Gold Discount Badge */}
+          <span className="absolute left-3 top-3 rounded-full bg-[#C58A18] px-3 py-1 text-xs font-bold text-white shadow-md">
+            15% OFF
+          </span>
+        </div>
+
+        {/* Content */}
+        <div className="w-full flex-1 text-center md:text-left">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#C58A18] sm:text-sm">
+            Special Deal
+          </p>
+
+          <h3 className="mb-2 text-lg font-bold text-[#082B5C] sm:text-xl md:text-2xl">
+            At least 15% off
+          </h3>
+
+          <p className="mb-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            Save on your next stay with FastBooking special offers.
+            Discover great hotels and enjoy exclusive discounts.
+          </p>
+
+          {/* Button */}
+          <Link
+            to="/deals"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#082B5C] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C58A18] hover:shadow-md sm:text-base md:w-auto"
+          >
+            Explore Deals
+            <ArrowRight size={17} />
+          </Link>
+        </div>
+
+        {/* Gold Accent */}
+        <div className="hidden h-24 w-1 rounded-full bg-gradient-to-b from-transparent via-[#C58A18] to-transparent md:block" />
+      </div>
+    </section>
+  );
+};
 
 export default Offers_Deals;

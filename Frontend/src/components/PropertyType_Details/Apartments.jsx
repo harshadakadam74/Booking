@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Star, MapPin, Wifi, Car, Utensils, Dumbbell, Heart } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import {
+  Star,
+  MapPin,
+  Wifi,
+  Car,
+  Utensils,
+  Dumbbell,
+  Heart,
+  Waves,
+  Loader2,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Apartments = () => {
   const [apartments, setApartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [likedProperties, setLikedProperties] = useState(new Set());
+
   const navigate = useNavigate();
 
+  // =====================================================
+  // LOAD APARTMENTS
+  // =====================================================
+
   useEffect(() => {
-    // Mock data for apartments
     const mockApartments = [
       {
         id: 1,
@@ -19,9 +33,10 @@ const Apartments = () => {
         reviews: 980,
         price: 120,
         originalPrice: 150,
-        image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800",
         amenities: ["wifi", "parking", "kitchen"],
-        discount: 20
+        discount: 20,
       },
       {
         id: 2,
@@ -31,9 +46,10 @@ const Apartments = () => {
         reviews: 720,
         price: 140,
         originalPrice: 175,
-        image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800",
         amenities: ["wifi", "parking", "gym"],
-        discount: 20
+        discount: 20,
       },
       {
         id: 3,
@@ -43,158 +59,379 @@ const Apartments = () => {
         reviews: 1100,
         price: 160,
         originalPrice: 200,
-        image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=400&h=300",
+        image:
+          "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
         amenities: ["wifi", "parking", "pool"],
-        discount: 20
-      }
+        discount: 20,
+      },
     ];
+
     setApartments(mockApartments);
     setLoading(false);
   }, []);
 
-  // Load liked properties from localStorage
+  // =====================================================
+  // LOAD LIKED PROPERTIES
+  // =====================================================
+
   useEffect(() => {
-    const liked = localStorage.getItem('likedProperties');
-    if (liked) {
-      setLikedProperties(new Set(JSON.parse(liked)));
+    try {
+      const liked = localStorage.getItem("likedProperties");
+
+      if (liked) {
+        setLikedProperties(new Set(JSON.parse(liked)));
+      }
+    } catch (error) {
+      console.error("Unable to load liked properties:", error);
     }
   }, []);
 
+  // =====================================================
+  // LIKE / UNLIKE
+  // =====================================================
+
   const toggleLike = (propertyId) => {
-    const newLiked = new Set(likedProperties);
-    if (newLiked.has(propertyId)) {
-      newLiked.delete(propertyId);
-    } else {
-      newLiked.add(propertyId);
-    }
-    setLikedProperties(newLiked);
-    localStorage.setItem('likedProperties', JSON.stringify([...newLiked]));
-  };
+    setLikedProperties((prev) => {
+      const updated = new Set(prev);
 
-  const getAmenityIcon = (amenity) => {
-    switch (amenity) {
-      case 'wifi': return <Wifi size={16} />;
-      case 'parking': return <Car size={16} />;
-      case 'kitchen': return <Utensils size={16} />;
-      case 'gym': return <Dumbbell size={16} />;
-      case 'pool': return <div className="w-4 h-4 bg-blue-500 rounded"></div>; // Simple pool icon
-      default: return null;
-    }
-  };
-
-  const handleBookNow = (apartment) => {
-    // Navigate to payment page with apartment details
-    navigate('/payment', {
-      state: {
-        property: {
-          ...apartment,
-          type: 'Apartment'
-        },
-        searchParams: {
-          location: apartment.location,
-          dates: {
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
-          },
-          guests: {
-            adults: 2,
-            children: 0,
-            rooms: 1
-          }
-        }
+      if (updated.has(propertyId)) {
+        updated.delete(propertyId);
+      } else {
+        updated.add(propertyId);
       }
+
+      localStorage.setItem(
+        "likedProperties",
+        JSON.stringify([...updated])
+      );
+
+      return updated;
     });
   };
 
+  // =====================================================
+  // AMENITY ICON
+  // =====================================================
+
+  const getAmenityIcon = (amenity) => {
+    switch (amenity) {
+      case "wifi":
+        return <Wifi size={17} />;
+
+      case "parking":
+        return <Car size={17} />;
+
+      case "kitchen":
+        return <Utensils size={17} />;
+
+      case "gym":
+        return <Dumbbell size={17} />;
+
+      case "pool":
+        return <Waves size={17} />;
+
+      default:
+        return null;
+    }
+  };
+
+  // =====================================================
+  // BOOK NOW
+  // =====================================================
+
+  const handleBookNow = (apartment) => {
+    navigate("/payment", {
+      state: {
+        property: {
+          ...apartment,
+          type: "Apartment",
+        },
+
+        searchParams: {
+          location: apartment.location,
+
+          dates: {
+            startDate: new Date(),
+            endDate: new Date(
+              Date.now() + 7 * 24 * 60 * 60 * 1000
+            ),
+          },
+
+          guests: {
+            adults: 2,
+            children: 0,
+            rooms: 1,
+          },
+        },
+      },
+    });
+  };
+
+  // =====================================================
+  // LOADING
+  // =====================================================
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2
+            size={36}
+            className="animate-spin text-[#082B5C]"
+          />
+
+          <p className="text-sm text-slate-500">
+            Loading apartments...
+          </p>
+        </div>
       </div>
     );
   }
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Apartments</h1>
-        <p className="text-gray-600">Comfortable apartments for your stay</p>
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#C58A18]">
+          FastBooking Stays
+        </p>
+
+        <h1 className="text-3xl font-bold text-[#082B5C] sm:text-4xl">
+          Apartments
+        </h1>
+
+        <p className="mt-2 text-slate-500">
+          Comfortable apartments for your stay
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Apartment Grid */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+
         {apartments.map((apartment) => (
-          <div key={apartment.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative">
+          <div
+            key={apartment.id}
+            className="
+              group
+              overflow-hidden
+              rounded-3xl
+              border
+              border-blue-100
+              bg-white
+              shadow-sm
+              transition-all
+              duration-300
+              hover:-translate-y-1
+              hover:border-[#C58A18]/40
+              hover:shadow-xl
+            "
+          >
+
+            {/* Image */}
+            <div className="relative overflow-hidden">
+
               <img
                 src={apartment.image}
                 alt={apartment.name}
-                className="w-full h-48 object-cover"
+                className="
+                  h-52
+                  w-full
+                  object-cover
+                  transition-transform
+                  duration-500
+                  group-hover:scale-105
+                "
               />
+
+              {/* Discount */}
               {apartment.discount > 0 && (
-                <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
+                <div className="
+                  absolute
+                  left-3
+                  top-3
+                  rounded-full
+                  bg-[#C58A18]
+                  px-3
+                  py-1
+                  text-xs
+                  font-bold
+                  text-white
+                  shadow-md
+                ">
                   {apartment.discount}% OFF
                 </div>
               )}
+
+              {/* Like */}
               <button
+                type="button"
                 onClick={() => toggleLike(apartment.id)}
-                className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white transition-colors"
+                aria-label={
+                  likedProperties.has(apartment.id)
+                    ? "Remove from favorites"
+                    : "Add to favorites"
+                }
+                className="
+                  absolute
+                  right-3
+                  top-3
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-white/95
+                  shadow-md
+                  transition
+                  hover:scale-110
+                "
               >
                 <Heart
                   size={20}
-                  className={`${
+                  className={
                     likedProperties.has(apartment.id)
-                      ? 'fill-red-500 text-red-500'
-                      : 'text-gray-600'
-                  }`}
+                      ? "fill-red-500 text-red-500"
+                      : "text-slate-600"
+                  }
                 />
               </button>
             </div>
 
-            <div className="p-4">
-              <h3 className="text-xl font-semibold mb-2">{apartment.name}</h3>
+            {/* Content */}
+            <div className="p-5">
 
-              <div className="flex items-center mb-2">
-                <MapPin size={16} className="text-gray-500 mr-1" />
-                <span className="text-gray-600 text-sm">{apartment.location}</span>
+              {/* Name */}
+              <h2 className="text-xl font-bold text-[#082B5C]">
+                {apartment.name}
+              </h2>
+
+              {/* Location */}
+              <div className="mt-2 flex items-center gap-1.5">
+                <MapPin
+                  size={16}
+                  className="text-[#C58A18]"
+                />
+
+                <span className="text-sm text-slate-500">
+                  {apartment.location}
+                </span>
               </div>
 
-              <div className="flex items-center mb-3">
-                <Star className="text-yellow-400 fill-current" size={16} />
-                <span className="ml-1 text-sm">{apartment.rating}</span>
-                <span className="text-gray-500 text-sm ml-1">({apartment.reviews} reviews)</span>
+              {/* Rating */}
+              <div className="mt-3 flex items-center gap-1.5">
+
+                <Star
+                  size={16}
+                  className="fill-[#E3AE32] text-[#E3AE32]"
+                />
+
+                <span className="text-sm font-semibold text-[#082B5C]">
+                  {apartment.rating}
+                </span>
+
+                <span className="text-sm text-slate-400">
+                  ({apartment.reviews} reviews)
+                </span>
+
               </div>
 
-              <div className="flex items-center gap-2 mb-4">
-                {apartment.amenities.slice(0, 3).map((amenity, index) => (
-                  <div key={index} className="text-gray-500">
-                    {getAmenityIcon(amenity)}
-                  </div>
-                ))}
+              {/* Amenities */}
+              <div className="mt-4 flex items-center gap-2">
+
+                {apartment.amenities
+                  .slice(0, 3)
+                  .map((amenity, index) => (
+                    <div
+                      key={`${amenity}-${index}`}
+                      title={amenity}
+                      className="
+                        flex
+                        h-9
+                        w-9
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-blue-50
+                        text-[#082B5C]
+                      "
+                    >
+                      {getAmenityIcon(amenity)}
+                    </div>
+                  ))}
+
                 {apartment.amenities.length > 3 && (
-                  <span className="text-gray-500 text-sm">+{apartment.amenities.length - 3} more</span>
+                  <span className="text-xs text-slate-500">
+                    +{apartment.amenities.length - 3} more
+                  </span>
                 )}
+
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* Divider */}
+              <div className="my-5 h-px bg-slate-100" />
+
+              {/* Price + Button */}
+              <div className="flex items-center justify-between gap-3">
+
                 <div>
-                  <span className="text-2xl font-bold text-blue-600">${apartment.price}</span>
-                  {apartment.originalPrice && (
-                    <span className="text-gray-500 line-through ml-2">${apartment.originalPrice}</span>
-                  )}
-                  <span className="text-gray-500 text-sm"> / night</span>
+
+                  <div className="flex items-baseline gap-2">
+
+                    <span className="text-2xl font-bold text-[#082B5C]">
+                      ${apartment.price}
+                    </span>
+
+                    {apartment.originalPrice && (
+                      <span className="text-sm text-slate-400 line-through">
+                        ${apartment.originalPrice}
+                      </span>
+                    )}
+
+                  </div>
+
+                  <span className="text-xs text-slate-500">
+                    per night
+                  </span>
+
                 </div>
-                <button 
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+
+                {/* Book Button */}
+                <button
+                  type="button"
                   onClick={() => handleBookNow(apartment)}
+                  className="
+                    rounded-xl
+                    bg-[#082B5C]
+                    px-5
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-white
+                    transition-all
+                    duration-300
+                    hover:-translate-y-0.5
+                    hover:bg-[#C58A18]
+                    hover:shadow-lg
+                  "
                 >
                   Book Now
                 </button>
+
               </div>
+
             </div>
           </div>
         ))}
+
       </div>
-    </div>
+
+    </section>
   );
 };
 

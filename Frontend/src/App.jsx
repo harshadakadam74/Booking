@@ -29,6 +29,7 @@ import AccountFavorites from './Pages/Account/Favorites'
 import AccountPayments from './Pages/Account/Payments'
 import AccountSettings from './Pages/Account/Settings'
 import PlaceholderPage from './Pages/PlaceholderPage'
+import Logo from './components/Logo/Logo'
 
 
 
@@ -121,6 +122,9 @@ const App = () => {
           ></Route>
           <Route path='/list-property' element={<ListProperty />}></Route>
 
+          {/*Logo */}
+          <Route path='/' element={<Logo />}></Route>
+
           {/* Support Routes */}
           <Route path='/trips' element={<PlaceholderPage title="Manage Your Trips" description="View and manage all your upcoming and past bookings" />}></Route>
           <Route path='/support' element={<PlaceholderPage title="Contact Customer Service" description="Get help with your bookings and account" />}></Route>
@@ -156,6 +160,23 @@ const App = () => {
           <Route path='/contact' element={<PlaceholderPage title="Corporate Contact" description="Get in touch with our team" />}></Route>
           <Route path='/content-guidelines' element={<PlaceholderPage title="Content Guidelines and Reporting" description="Our content standards and reporting procedures" />}></Route>
 
+           {/* Legal and Policy Routes */}
+          <Route path='/cookie-settings' element={<PlaceholderPage title="Cookie Settings" description="Manage your cookie preferences" />}></Route>
+          <Route path='/cookie-policy' element={<PlaceholderPage title="Cookie Policy" description="Learn about our cookie usage" />}></Route>
+          <Route path='/legal' element={<PlaceholderPage title="Legal Notices" description="Important legal information" />}></Route>
+          <Route path='/security' element={<PlaceholderPage title="Security Information" description="How we protect your data and account" />}></Route>
+
+
+           {/* Additional Routes */}
+          <Route path='/site-map' element={<PlaceholderPage title="Site Map" description="Navigate our website" />}></Route>
+          <Route path='/accessibility-statement' element={<PlaceholderPage title="Accessibility Statement" description="Our commitment to accessibility" />}></Route>
+          <Route path='/grievance-officer' element={<PlaceholderPage title="Grievance Officer" description="Contact our grievance officer" />}></Route>
+          <Route path='/modern-slavery-statement' element={<PlaceholderPage title="Modern Slavery Statement" description="Our stance against modern slavery" />}></Route>
+          <Route path='/human-rights-statement' element={<PlaceholderPage title="Human Rights Statement" description="Our human rights commitments" />}></Route>
+          <Route path='/extranet-login' element={<PlaceholderPage title="Extranet Login" description="Partner portal for property owners" />}></Route>
+
+
+         
           <Route path='/*' element={<NotFound />}></Route>
         </Routes>
         <Footer />

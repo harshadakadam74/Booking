@@ -1,21 +1,78 @@
+import React from "react";
 import { Link } from "react-router-dom";
-import footerSections from './footerLinks';
+import {
+  MapPin,
+  Mail,
+  Phone,
+  Facebook,
+  Instagram,
+  Twitter,
+} from "lucide-react";
+
+import footerSections from "./footerLinks";
 
 const Footer = () => {
   return (
-    <footer className="bg-blue-100 text-sm text-gray-700">
+    <footer className="bg-white">
 
-      {/* Footer columns */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 text-center md:text-left">
+      {/* Main Footer */}
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-12 sm:px-6 md:grid-cols-5">
+
+        {/* Brand */}
+        <div className="md:col-span-1">
+          <Link
+            to="/"
+            className="text-2xl font-bold text-[#082B5C]"
+          >
+            Fast<span className="text-[#C58A18]">Booking</span>
+          </Link>
+
+          <p className="mt-4 text-sm leading-6 text-slate-500">
+            Find your perfect stay with FastBooking. Book hotels quickly,
+            securely, and easily from anywhere.
+          </p>
+
+          {/* Social Icons */}
+          <div className="mt-5 flex gap-3">
+            <a
+              href="#"
+              aria-label="Facebook"
+              className="rounded-full bg-blue-50 p-2.5 text-[#082B5C] transition duration-300 hover:bg-[#082B5C] hover:text-white"
+            >
+              <Facebook size={17} />
+            </a>
+
+            <a
+              href="#"
+              aria-label="Instagram"
+              className="rounded-full bg-blue-50 p-2.5 text-[#082B5C] transition duration-300 hover:bg-[#C58A18] hover:text-white"
+            >
+              <Instagram size={17} />
+            </a>
+
+            <a
+              href="#"
+              aria-label="Twitter"
+              className="rounded-full bg-blue-50 p-2.5 text-[#082B5C] transition duration-300 hover:bg-[#082B5C] hover:text-white"
+            >
+              <Twitter size={17} />
+            </a>
+          </div>
+        </div>
+
+        {/* Footer Columns */}
         {footerSections.map((section) => (
           <div key={section.title}>
-            <h4 className="font-bold mb-3 text-black">{section.title}</h4>
-            <ul className="space-y-2">
+            <h4 className="mb-4 font-bold text-[#082B5C]">
+              {section.title}
+            </h4>
+
+            <ul className="space-y-3">
               {section.links.map((link) => (
                 <li key={link.to}>
                   <Link
                     to={link.to}
-                    className="block text-gray-700 transition hover:text-blue-700 hover:underline"
+                    className="text-sm text-slate-600 transition duration-300 hover:text-[#C58A18]"
                   >
                     {link.label}
                   </Link>
@@ -24,29 +81,79 @@ const Footer = () => {
             </ul>
           </div>
         ))}
+
       </div>
 
-      {/* Bottom bar */}
-      <div className="border-t border-gray-300 max-w-5xl mx-auto mt-10 sm:mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center text-gray-500">
-          <p className="mb-4">
-            FastBooking is part of Booking Holdings Inc., the world leader in
-            online travel and related services.
-          </p>
-          <p className="text-xms sm:text-sm">
-            Copyright © 1996–2026 FastBooking™. All rights reserved.
-          </p>
+      {/* Contact Information */}
+      <div className="border-t border-blue-100 bg-blue-50">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 md:flex-row md:items-center md:justify-between">
 
-          {/* Logos */}
-          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 mt-6 font-semibold">
-            <span className="text-blue-700 text-xl font-semibold ">FastBooking</span>
-            <span className="text-blue-500 text-xl font-semibold">priceline</span>
-            <span className="text-orange-500 font-bold">KAYAK</span>
-            <span className="text-gray-800 text-xl">agoda</span>
-            <span className="text-blue-600 text-xl">OpenTable</span>
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <MapPin size={17} className="text-[#C58A18]" />
+            <span>India</span>
           </div>
+
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Mail size={17} className="text-[#C58A18]" />
+            <span>support@fastbooking.com</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Phone size={17} className="text-[#C58A18]" />
+            <span>+91 98765 43210</span>
+          </div>
+
         </div>
       </div>
+
+      {/* Bottom Bar */}
+      <div className="border-t border-blue-100">
+        <div className="mx-auto max-w-7xl px-4 py-6 text-center sm:px-6">
+
+          <p className="mb-3 text-sm text-slate-500">
+            FastBooking helps travelers discover and book comfortable
+            stays quickly and securely.
+          </p>
+
+          <p className="text-xs text-slate-400 sm:text-sm">
+            Copyright © 1996–2026{" "}
+            <span className="font-semibold text-[#082B5C]">
+              FastBooking™
+            </span>
+            . All rights reserved.
+          </p>
+
+          {/* Brand Names */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-5 text-sm font-semibold">
+
+            <span className="text-[#082B5C]">
+              Fast<span className="text-[#C58A18]">Booking</span>
+            </span>
+
+            <span className="text-[#082B5C]">
+              priceline
+            </span>
+
+            <span className="text-[#C58A18]">
+              KAYAK
+            </span>
+
+            <span className="text-slate-700">
+              agoda
+            </span>
+
+            <span className="text-[#082B5C]">
+              OpenTable
+            </span>
+
+          </div>
+
+          {/* Gold Accent */}
+          <div className="mx-auto mt-6 h-px max-w-xs bg-gradient-to-r from-transparent via-[#C58A18] to-transparent" />
+
+        </div>
+      </div>
+
     </footer>
   );
 };
