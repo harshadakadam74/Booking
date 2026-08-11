@@ -4,6 +4,7 @@ import Input_enter from "../components/Input_Enter/Input_enter";
 import Offers_Deals from "../components/Offers_Deals/Offers_Deals";
 import PropertyType from "../components/PropertyType/PropertyType";
 import TripPlanner from "../components/TripPlanner/TripPlanner";
+import TravelInsights from '../components/TravelInsights';
 
 export function Home() {
  
@@ -14,6 +15,7 @@ export function Home() {
     <Offers_Deals/>
     <PropertyType/>
     <TripPlanner />
+    <TravelInsights />
     <ProductSlider />
 
     </>
