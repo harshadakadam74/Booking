@@ -255,7 +255,7 @@ const Input_enter = () => {
   return (
     <section
       ref={searchRef}
-      className="relative min-h-[600px] overflow-visible"
+      className="relative min-h-[650px] overflow-visible"
     >
       {/* =================================================
           BACKGROUND
