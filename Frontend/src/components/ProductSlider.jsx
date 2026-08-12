@@ -62,7 +62,7 @@ const FEATURED_PROPERTIES = [
     reviews: 480,
     price: 120,
     image:
-      "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=800&h=600",
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800&h=600",
     type: "Cabin",
   },
   {
@@ -75,6 +75,143 @@ const FEATURED_PROPERTIES = [
     image:
       "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=800&h=600",
     type: "Resort",
+  },
+
+  // --------------------------------------------------
+  // NEW PROPERTIES
+  // --------------------------------------------------
+
+  {
+    id: 7,
+    name: "Royal Palace Hotel",
+    location: "Dubai, UAE",
+    rating: 4.9,
+    reviews: 3200,
+    price: 280,
+    image:
+      "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Hotel",
+  },
+  {
+    id: 8,
+    name: "Skyline Luxury Suites",
+    location: "Singapore",
+    rating: 4.8,
+    reviews: 1750,
+    price: 240,
+    image:
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Apartment",
+  },
+  {
+    id: 9,
+    name: "Mountain View Retreat",
+    location: "Aspen, USA",
+    rating: 4.7,
+    reviews: 1100,
+    price: 310,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Resort",
+  },
+  {
+    id: 10,
+    name: "Royal Garden Villa",
+    location: "Bali, Indonesia",
+    rating: 4.9,
+    reviews: 1450,
+    price: 390,
+    image:
+      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Villa",
+  },
+  {
+    id: 11,
+    name: "Eiffel View Hotel",
+    location: "Paris, France",
+    rating: 4.7,
+    reviews: 2300,
+    price: 260,
+    image:
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Hotel",
+  },
+  {
+    id: 12,
+    name: "Swiss Alpine Chalet",
+    location: "Zermatt, Switzerland",
+    rating: 4.9,
+    reviews: 980,
+    price: 420,
+    image:
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Cabin",
+  },
+  {
+    id: 13,
+    name: "Royal Heritage Palace",
+    location: "Jaipur, India",
+    rating: 4.8,
+    reviews: 1850,
+    price: 180,
+    image:
+      "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Hotel",
+  },
+  {
+    id: 14,
+    name: "Goa Beach Escape",
+    location: "Goa, India",
+    rating: 4.7,
+    reviews: 1260,
+    price: 140,
+    image:
+      "https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Resort",
+  },
+  {
+    id: 15,
+    name: "Himalayan Luxury Lodge",
+    location: "Manali, India",
+    rating: 4.8,
+    reviews: 870,
+    price: 110,
+    image:
+      "https://images.unsplash.com/photo-1544986581-efac024faf62?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Cabin",
+  },
+  {
+    id: 16,
+    name: "Santorini Sunset Villa",
+    location: "Santorini, Greece",
+    rating: 4.9,
+    reviews: 2100,
+    price: 450,
+    image:
+      "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Villa",
+  },
+  {
+    id: 17,
+    name: "Tokyo Modern Residence",
+    location: "Tokyo, Japan",
+    rating: 4.6,
+    reviews: 1640,
+    price: 190,
+    image:
+      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Apartment",
+  },
+  {
+    id: 18,
+    name: "London Royal Suites",
+    location: "London, UK",
+    rating: 4.7,
+    reviews: 1980,
+    price: 230,
+    image:
+      "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&q=80&w=800&h=600",
+    type: "Hotel",
   },
 ];
 

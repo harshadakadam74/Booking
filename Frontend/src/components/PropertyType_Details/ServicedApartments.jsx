@@ -23,47 +23,259 @@ const ServicedApartments = () => {
   // Mock Data
   // --------------------------------------------------
   useEffect(() => {
-    const mockServicedApartments = [
-      {
-        id: 1,
-        name: "Executive City Apartments",
-        location: "London, UK",
-        rating: 4.5,
-        reviews: 680,
-        price: 200,
-        originalPrice: 250,
-        image:
-          "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "gym", "kitchen"],
-        discount: 20,
-      },
-      {
-        id: 2,
-        name: "Business District Suites",
-        location: "New York, USA",
-        rating: 4.7,
-        reviews: 520,
-        price: 180,
-        originalPrice: 225,
-        image:
-          "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "gym", "restaurant"],
-        discount: 20,
-      },
-      {
-        id: 3,
-        name: "Downtown Serviced Living",
-        location: "Singapore",
-        rating: 4.6,
-        reviews: 410,
-        price: 160,
-        originalPrice: 200,
-        image:
-          "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "gym", "kitchen"],
-        discount: 20,
-      },
-    ];
+   const mockServicedApartments = [
+  {
+    id: 1,
+    name: "Executive City Apartments",
+    location: "London, UK",
+    rating: 4.5,
+    reviews: 680,
+    price: 200,
+    originalPrice: 250,
+    image:
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 20,
+  },
+
+  {
+    id: 2,
+    name: "Business District Suites",
+    location: "New York, USA",
+    rating: 4.7,
+    reviews: 520,
+    price: 180,
+    originalPrice: 225,
+    image:
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 20,
+  },
+
+  {
+    id: 3,
+    name: "Downtown Serviced Living",
+    location: "Singapore",
+    rating: 4.6,
+    reviews: 410,
+    price: 160,
+    originalPrice: 200,
+    image:
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 20,
+  },
+
+  {
+    id: 4,
+    name: "Luxury Harbour Apartments",
+    location: "Sydney, Australia",
+    rating: 4.8,
+    reviews: 890,
+    price: 240,
+    originalPrice: 300,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 20,
+  },
+
+  {
+    id: 5,
+    name: "Modern City Suites",
+    location: "Dubai, UAE",
+    rating: 4.9,
+    reviews: 1250,
+    price: 210,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 25,
+  },
+
+  {
+    id: 6,
+    name: "Central Park Residences",
+    location: "Toronto, Canada",
+    rating: 4.6,
+    reviews: 570,
+    price: 175,
+    originalPrice: 220,
+    image:
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 20,
+  },
+
+  {
+    id: 7,
+    name: "Elegant Business Suites",
+    location: "Paris, France",
+    rating: 4.7,
+    reviews: 740,
+    price: 230,
+    originalPrice: 290,
+    image:
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "kitchen", "restaurant"],
+    discount: 21,
+  },
+
+  {
+    id: 8,
+    name: "Skyline Serviced Apartments",
+    location: "Tokyo, Japan",
+    rating: 4.8,
+    reviews: 920,
+    price: 195,
+    originalPrice: 250,
+    image:
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 22,
+  },
+
+  {
+    id: 9,
+    name: "Royal City Residences",
+    location: "Mumbai, India",
+    rating: 4.5,
+    reviews: 610,
+    price: 120,
+    originalPrice: 160,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 25,
+  },
+
+  {
+    id: 10,
+    name: "Premium Urban Suites",
+    location: "Singapore",
+    rating: 4.8,
+    reviews: 830,
+    price: 190,
+    originalPrice: 240,
+    image:
+      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 21,
+  },
+
+  {
+    id: 11,
+    name: "Beachside Serviced Suites",
+    location: "Barcelona, Spain",
+    rating: 4.7,
+    reviews: 690,
+    price: 185,
+    originalPrice: 235,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "gym"],
+    discount: 21,
+  },
+
+  {
+    id: 12,
+    name: "Luxury Riverside Apartments",
+    location: "Amsterdam, Netherlands",
+    rating: 4.6,
+    reviews: 480,
+    price: 205,
+    originalPrice: 260,
+    image:
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "kitchen", "gym"],
+    discount: 21,
+  },
+
+  {
+    id: 13,
+    name: "Manhattan Executive Living",
+    location: "New York, USA",
+    rating: 4.9,
+    reviews: 1380,
+    price: 275,
+    originalPrice: 350,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 21,
+  },
+
+  {
+    id: 14,
+    name: "Marina View Residences",
+    location: "Abu Dhabi, UAE",
+    rating: 4.8,
+    reviews: 760,
+    price: 225,
+    originalPrice: 290,
+    image:
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 22,
+  },
+
+  {
+    id: 15,
+    name: "Central Luxury Apartments",
+    location: "Melbourne, Australia",
+    rating: 4.7,
+    reviews: 540,
+    price: 170,
+    originalPrice: 215,
+    image:
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "gym"],
+    discount: 21,
+  },
+
+  {
+    id: 16,
+    name: "Garden View Serviced Suites",
+    location: "Bangalore, India",
+    rating: 4.6,
+    reviews: 430,
+    price: 110,
+    originalPrice: 145,
+    image:
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "kitchen", "gym"],
+    discount: 24,
+  },
+
+  {
+    id: 17,
+    name: "Elite Business Apartments",
+    location: "Berlin, Germany",
+    rating: 4.7,
+    reviews: 620,
+    price: 165,
+    originalPrice: 210,
+    image:
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "restaurant"],
+    discount: 21,
+  },
+
+  {
+    id: 18,
+    name: "Luxury Downtown Residence",
+    location: "Bangkok, Thailand",
+    rating: 4.8,
+    reviews: 850,
+    price: 140,
+    originalPrice: 185,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "gym", "kitchen"],
+    discount: 24,
+  },
+];
 
     setServicedApartments(mockServicedApartments);
     setLoading(false);

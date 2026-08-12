@@ -22,47 +22,227 @@ const Cabins = () => {
   // =====================================================
 
   useEffect(() => {
-    const mockCabins = [
-      {
-        id: 1,
-        name: "Cozy Forest Cabin",
-        location: "Oregon, USA",
-        rating: 4.5,
-        reviews: 480,
-        price: 120,
-        originalPrice: 150,
-        image:
-          "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen", "fireplace"],
-        discount: 20,
-      },
-      {
-        id: 2,
-        name: "Lakeview Cabin",
-        location: "Maine, USA",
-        rating: 4.7,
-        reviews: 320,
-        price: 140,
-        originalPrice: 175,
-        image:
-          "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen", "fireplace"],
-        discount: 20,
-      },
-      {
-        id: 3,
-        name: "Mountain Cabin Retreat",
-        location: "Colorado, USA",
-        rating: 4.6,
-        reviews: 550,
-        price: 160,
-        originalPrice: 200,
-        image:
-          "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen", "fireplace"],
-        discount: 20,
-      },
-    ];
+   const mockCabins = [
+  {
+    id: 1,
+    name: "Cozy Forest Cabin",
+    location: "Oregon, USA",
+    rating: 4.5,
+    reviews: 480,
+    price: 120,
+    originalPrice: 150,
+    image:
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: 2,
+    name: "Lakeview Cabin",
+    location: "Maine, USA",
+    rating: 4.7,
+    reviews: 320,
+    price: 140,
+    originalPrice: 175,
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: 3,
+    name: "Mountain Cabin Retreat",
+    location: "Colorado, USA",
+    rating: 4.6,
+    reviews: 550,
+    price: 160,
+    originalPrice: 200,
+    image:
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+
+  // 4
+  {
+    id: 4,
+    name: "Pinewood Hideaway",
+    location: "Montana, USA",
+    rating: 4.8,
+    reviews: 690,
+    price: 185,
+    originalPrice: 230,
+    image:
+      "https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 20,
+  },
+
+  // 5
+  {
+    id: 5,
+    name: "Snowy Mountain Lodge",
+    location: "Vermont, USA",
+    rating: 4.9,
+    reviews: 870,
+    price: 210,
+    originalPrice: 260,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 19,
+  },
+
+  // 6
+  {
+    id: 6,
+    name: "Woodland Escape",
+    location: "Washington, USA",
+    rating: 4.6,
+    reviews: 410,
+    price: 135,
+    originalPrice: 165,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 18,
+  },
+
+  // 7
+  {
+    id: 7,
+    name: "Riverfront Cabin",
+    location: "North Carolina, USA",
+    rating: 4.7,
+    reviews: 530,
+    price: 155,
+    originalPrice: 195,
+    image:
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 21,
+  },
+
+  // 8
+  {
+    id: 8,
+    name: "Luxury Glass Cabin",
+    location: "Alaska, USA",
+    rating: 4.9,
+    reviews: 760,
+    price: 280,
+    originalPrice: 350,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+
+  // 9
+  {
+    id: 9,
+    name: "Lakeside Wooden Cabin",
+    location: "Minnesota, USA",
+    rating: 4.5,
+    reviews: 350,
+    price: 125,
+    originalPrice: 160,
+    image:
+      "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 22,
+  },
+
+  // 10
+  {
+    id: 10,
+    name: "Romantic Cabin Retreat",
+    location: "Tennessee, USA",
+    rating: 4.8,
+    reviews: 620,
+    price: 175,
+    originalPrice: 220,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 20,
+  },
+
+  // 11
+  {
+    id: 11,
+    name: "Forest View Chalet",
+    location: "British Columbia, Canada",
+    rating: 4.7,
+    reviews: 480,
+    price: 190,
+    originalPrice: 240,
+    image:
+      "https://images.unsplash.com/photo-1480074568708-e7b720bb3f09?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 21,
+  },
+
+  // 12
+  {
+    id: 12,
+    name: "Hilltop Cabin",
+    location: "Utah, USA",
+    rating: 4.6,
+    reviews: 390,
+    price: 145,
+    originalPrice: 180,
+    image:
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 19,
+  },
+
+  // 13
+  {
+    id: 13,
+    name: "Private Forest Retreat",
+    location: "Idaho, USA",
+    rating: 4.8,
+    reviews: 510,
+    price: 170,
+    originalPrice: 215,
+    image:
+      "https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 21,
+  },
+
+  // 14
+  {
+    id: 14,
+    name: "Mountain View Cabin",
+    location: "Wyoming, USA",
+    rating: 4.9,
+    reviews: 830,
+    price: 225,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+
+  // 15
+  {
+    id: 15,
+    name: "Luxury Woodland Cabin",
+    location: "New Hampshire, USA",
+    rating: 4.7,
+    reviews: 570,
+    price: 200,
+    originalPrice: 250,
+    image:
+      "https://images.unsplash.com/photo-1480074568708-e7b720bb3f09?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+];
 
     setCabins(mockCabins);
     setLoading(false);

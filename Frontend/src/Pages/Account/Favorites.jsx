@@ -50,6 +50,9 @@ const favoriteProperties = [
   },
 ];
 
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop";
+
 const AccountFavorites = () => {
   const navigate = useNavigate();
 
@@ -73,17 +76,19 @@ const AccountFavorites = () => {
         }
 
         /*
-          Handles both:
+          Supports both formats:
+
           [1, 2, 5]
 
-          and, if your app stores objects:
+          and:
+
           [{ id: 1 }, { id: 2 }]
         */
 
         const favoriteIds = saved
           .map((item) => {
-            if (typeof item === "object") {
-              return item?.id || item?._id;
+            if (item && typeof item === "object") {
+              return item.id || item._id;
             }
 
             return item;
@@ -98,11 +103,7 @@ const AccountFavorites = () => {
 
         setFavorites(matched);
       } catch (error) {
-        console.error(
-          "Failed to load favorites:",
-          error
-        );
-
+        console.error("Failed to load favorites:", error);
         setFavorites([]);
       } finally {
         setLoading(false);
@@ -117,10 +118,7 @@ const AccountFavorites = () => {
       }
     };
 
-    window.addEventListener(
-      "storage",
-      handleStorageChange
-    );
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
       window.removeEventListener(
@@ -142,8 +140,8 @@ const AccountFavorites = () => {
 
       const updated = saved.filter((item) => {
         const id =
-          typeof item === "object"
-            ? item?.id || item?._id
+          item && typeof item === "object"
+            ? item.id || item._id
             : item;
 
         return String(id) !== String(propertyId);
@@ -157,15 +155,11 @@ const AccountFavorites = () => {
       setFavorites((previous) =>
         previous.filter(
           (property) =>
-            String(property.id) !==
-            String(propertyId)
+            String(property.id) !== String(propertyId)
         )
       );
     } catch (error) {
-      console.error(
-        "Unable to remove favorite:",
-        error
-      );
+      console.error("Unable to remove favorite:", error);
     }
   };
 
@@ -206,23 +200,17 @@ const AccountFavorites = () => {
   return (
     <section className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#F8FBFF] via-white to-[#FFF9EC] px-4 py-8 sm:px-6 lg:px-8">
 
-      {/* =====================================================
-          BACKGROUND DECORATION
-      ====================================================== */}
+      {/* Background Decoration */}
 
       <div className="pointer-events-none absolute -left-40 top-10 h-96 w-96 rounded-full bg-[#082B5C]/5 blur-3xl" />
 
       <div className="pointer-events-none absolute -right-40 bottom-10 h-96 w-96 rounded-full bg-[#E3AE32]/10 blur-3xl" />
 
-      {/* =====================================================
-          MAIN CONTAINER
-      ====================================================== */}
+      {/* Main Container */}
 
       <div className="relative z-10 mx-auto max-w-7xl">
 
-        {/* =====================================================
-            BACK BUTTON
-        ====================================================== */}
+        {/* Back Button */}
 
         <Link
           to="/account"
@@ -232,9 +220,7 @@ const AccountFavorites = () => {
           Back to Account
         </Link>
 
-        {/* =====================================================
-            HEADER
-        ====================================================== */}
+        {/* Header */}
 
         <div className="mb-8 overflow-hidden rounded-[2rem] bg-[#082B5C] p-6 text-white shadow-xl sm:p-8">
 
@@ -259,7 +245,7 @@ const AccountFavorites = () => {
 
             </div>
 
-            {/* FAVORITE COUNT */}
+            {/* Favorite Count */}
 
             <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
 
@@ -285,9 +271,7 @@ const AccountFavorites = () => {
           </div>
         </div>
 
-        {/* =====================================================
-            EMPTY STATE
-        ====================================================== */}
+        {/* Empty State */}
 
         {favorites.length === 0 ? (
           <div className="rounded-[2rem] border border-[#E3AE32]/20 bg-white p-8 text-center shadow-sm sm:p-14">
@@ -321,15 +305,9 @@ const AccountFavorites = () => {
           </div>
         ) : (
 
-          /* =====================================================
-             FAVORITE CONTENT
-          ====================================================== */
-
           <div>
 
-            {/* =================================================
-                SUMMARY
-            ================================================== */}
+            {/* Summary */}
 
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
@@ -357,9 +335,7 @@ const AccountFavorites = () => {
 
             </div>
 
-            {/* =================================================
-                PROPERTY GRID
-            ================================================== */}
+            {/* Property Grid */}
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 
@@ -370,9 +346,7 @@ const AccountFavorites = () => {
                   className="group overflow-hidden rounded-[2rem] border border-[#E3AE32]/20 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#E3AE32]/60 hover:shadow-xl"
                 >
 
-                  {/* =================================================
-                      IMAGE
-                  ================================================== */}
+                  {/* Image */}
 
                   <div className="relative h-56 overflow-hidden">
 
@@ -382,15 +356,13 @@ const AccountFavorites = () => {
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                       onError={(event) => {
                         event.currentTarget.src =
-                          "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop";
+                          FALLBACK_IMAGE;
                       }}
                     />
 
-                    {/* IMAGE OVERLAY */}
-
                     <div className="absolute inset-0 bg-gradient-to-t from-[#082B5C]/70 via-transparent to-transparent" />
 
-                    {/* FAVORITE BUTTON */}
+                    {/* Remove Favorite */}
 
                     <button
                       type="button"
@@ -407,7 +379,7 @@ const AccountFavorites = () => {
                       />
                     </button>
 
-                    {/* RATING */}
+                    {/* Rating */}
 
                     <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#A56F00] shadow-md">
 
@@ -420,11 +392,12 @@ const AccountFavorites = () => {
 
                     </div>
 
-                    {/* PRICE */}
+                    {/* Price */}
 
                     <div className="absolute bottom-4 right-4 rounded-full bg-[#082B5C] px-3 py-1.5 text-xs font-bold text-white shadow-md">
 
                       ${property.price}
+
                       <span className="font-normal text-blue-100">
                         {" "}
                         / night
@@ -434,9 +407,7 @@ const AccountFavorites = () => {
 
                   </div>
 
-                  {/* =================================================
-                      CARD CONTENT
-                  ================================================== */}
+                  {/* Card Content */}
 
                   <div className="p-5">
 
@@ -474,9 +445,7 @@ const AccountFavorites = () => {
                       {property.description}
                     </p>
 
-                    {/* =================================================
-                        BOTTOM
-                    ================================================== */}
+                    {/* Bottom */}
 
                     <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
 
@@ -503,7 +472,7 @@ const AccountFavorites = () => {
 
                     </div>
 
-                    {/* REMOVE */}
+                    {/* Remove */}
 
                     <button
                       type="button"
@@ -525,9 +494,7 @@ const AccountFavorites = () => {
           </div>
         )}
 
-        {/* =====================================================
-            BOTTOM CTA
-        ====================================================== */}
+        {/* Bottom CTA */}
 
         {favorites.length > 0 && (
           <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-3xl border border-[#E3AE32]/20 bg-white p-5 shadow-sm sm:flex-row">

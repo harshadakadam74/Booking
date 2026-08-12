@@ -30,6 +30,7 @@ const GlampingSites = () => {
       amenities: ["wifi", "parking", "restaurant"],
       discount: 22,
     },
+
     {
       id: "glamping-2",
       name: "Forest Dome Glamping",
@@ -43,6 +44,7 @@ const GlampingSites = () => {
       amenities: ["wifi", "parking", "kitchen"],
       discount: 22,
     },
+
     {
       id: "glamping-3",
       name: "Desert Glamping Resort",
@@ -56,9 +58,93 @@ const GlampingSites = () => {
       amenities: ["wifi", "parking", "restaurant"],
       discount: 21,
     },
+
+    {
+      id: "glamping-4",
+      name: "Mountain View Camp",
+      location: "Manali, India",
+      rating: 4.9,
+      reviews: 520,
+      price: 140,
+      originalPrice: 190,
+      image:
+        "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "parking", "restaurant"],
+      discount: 26,
+    },
+
+    {
+      id: "glamping-5",
+      name: "Lakeview Luxury Tent",
+      location: "Queenstown, New Zealand",
+      rating: 4.8,
+      reviews: 390,
+      price: 210,
+      originalPrice: 270,
+      image:
+        "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "parking", "kitchen"],
+      discount: 22,
+    },
+
+    {
+      id: "glamping-6",
+      name: "Jungle Treehouse Camp",
+      location: "Kerala, India",
+      rating: 4.7,
+      reviews: 340,
+      price: 125,
+      originalPrice: 170,
+      image:
+        "https://images.unsplash.com/photo-1520984032042-162d526883e0?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "restaurant", "parking"],
+      discount: 26,
+    },
+
+    {
+      id: "glamping-7",
+      name: "Northern Lights Dome",
+      location: "Lapland, Finland",
+      rating: 4.9,
+      reviews: 610,
+      price: 320,
+      originalPrice: 400,
+      image:
+        "https://images.unsplash.com/photo-1483347756197-71ef80e95f73?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "parking", "kitchen"],
+      discount: 20,
+    },
+
+    {
+      id: "glamping-8",
+      name: "Beachside Glamping Tent",
+      location: "Goa, India",
+      rating: 4.6,
+      reviews: 275,
+      price: 110,
+      originalPrice: 150,
+      image:
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "restaurant", "parking"],
+      discount: 27,
+    },
+
+    {
+      id: "glamping-9",
+      name: "African Wilderness Camp",
+      location: "Tanzania, Africa",
+      rating: 4.9,
+      reviews: 480,
+      price: 290,
+      originalPrice: 360,
+      image:
+        "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&q=80&w=800&h=600",
+      amenities: ["wifi", "restaurant", "parking"],
+      discount: 19,
+    },
   ];
 
-  // Load liked properties
+  // Load wishlist
   useEffect(() => {
     try {
       const liked = localStorage.getItem("likedProperties");
@@ -142,9 +228,7 @@ const GlampingSites = () => {
     <section className="bg-white py-10 sm:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        {/* =========================
-            HEADER
-        ========================== */}
+        {/* Header */}
         <div className="mb-8 text-center sm:text-left">
 
           <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
@@ -166,13 +250,10 @@ const GlampingSites = () => {
             Luxury camping experiences surrounded by nature
           </p>
 
-          {/* Gold Accent */}
-          <div className="mt-4 h-1 w-16 rounded-full bg-[#C58A18] sm:mx-0 mx-auto" />
+          <div className="mx-auto mt-4 h-1 w-16 rounded-full bg-[#C58A18] sm:mx-0" />
         </div>
 
-        {/* =========================
-            CARDS
-        ========================== */}
+        {/* Cards */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 
           {glampingSites.map((site) => (
@@ -194,9 +275,7 @@ const GlampingSites = () => {
               "
             >
 
-              {/* =========================
-                  IMAGE
-              ========================== */}
+              {/* Image */}
               <div className="relative overflow-hidden">
 
                 <img
@@ -216,24 +295,26 @@ const GlampingSites = () => {
                   }}
                 />
 
-                {/* Dark Image Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#061D3D]/50 via-transparent to-transparent" />
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#061D3D]/60 via-transparent to-transparent" />
 
                 {/* Discount */}
                 {site.discount > 0 && (
-                  <div className="
-                    absolute
-                    left-3
-                    top-3
-                    rounded-full
-                    bg-[#C58A18]
-                    px-3
-                    py-1.5
-                    text-xs
-                    font-bold
-                    text-white
-                    shadow-lg
-                  ">
+                  <div
+                    className="
+                      absolute
+                      left-3
+                      top-3
+                      rounded-full
+                      bg-[#C58A18]
+                      px-3
+                      py-1.5
+                      text-xs
+                      font-bold
+                      text-white
+                      shadow-lg
+                    "
+                  >
                     {site.discount}% OFF
                   </div>
                 )}
@@ -273,43 +354,48 @@ const GlampingSites = () => {
                   />
                 </button>
 
-                {/* Glamping Badge */}
-                <div className="
-                  absolute
-                  bottom-3
-                  left-3
-                  flex
-                  items-center
-                  gap-1.5
-                  rounded-full
-                  bg-[#082B5C]/90
-                  px-3
-                  py-1.5
-                  text-xs
-                  font-semibold
-                  text-white
-                  backdrop-blur
-                ">
-                  <Tent size={14} className="text-[#E3AE32]" />
+                {/* Badge */}
+                <div
+                  className="
+                    absolute
+                    bottom-3
+                    left-3
+                    flex
+                    items-center
+                    gap-1.5
+                    rounded-full
+                    bg-[#082B5C]/90
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-semibold
+                    text-white
+                    backdrop-blur
+                  "
+                >
+                  <Tent
+                    size={14}
+                    className="text-[#E3AE32]"
+                  />
+
                   Glamping
                 </div>
               </div>
 
-              {/* =========================
-                  CONTENT
-              ========================== */}
+              {/* Content */}
               <div className="p-5">
 
-                {/* Property Name */}
-                <h3 className="
-                  mb-2
-                  line-clamp-1
-                  text-xl
-                  font-bold
-                  text-[#082B5C]
-                  transition-colors
-                  group-hover:text-[#C58A18]
-                ">
+                <h3
+                  className="
+                    mb-2
+                    line-clamp-1
+                    text-xl
+                    font-bold
+                    text-[#082B5C]
+                    transition-colors
+                    group-hover:text-[#C58A18]
+                  "
+                >
                   {site.name}
                 </h3>
 
@@ -328,16 +414,18 @@ const GlampingSites = () => {
                 {/* Rating */}
                 <div className="mb-4 flex items-center gap-2">
 
-                  <div className="
-                    flex
-                    items-center
-                    gap-1
-                    rounded-md
-                    bg-[#082B5C]
-                    px-2
-                    py-1
-                    text-white
-                  ">
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-1
+                      rounded-md
+                      bg-[#082B5C]
+                      px-2
+                      py-1
+                      text-white
+                    "
+                  >
                     <Star
                       size={14}
                       className="fill-[#E3AE32] text-[#E3AE32]"
@@ -354,75 +442,60 @@ const GlampingSites = () => {
                 </div>
 
                 {/* Amenities */}
-                <div className="
-                  mb-5
-                  flex
-                  items-center
-                  gap-2
-                  border-b
-                  border-slate-100
-                  pb-4
-                ">
-
-                  {site.amenities
-                    .slice(0, 3)
-                    .map((amenity) => (
-                      <div
-                        key={amenity}
-                        title={amenity}
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-[#FFF8E7]
-                          text-[#082B5C]
-                        "
-                      >
-                        {getAmenityIcon(amenity)}
-                      </div>
-                    ))}
+                <div
+                  className="
+                    mb-5
+                    flex
+                    items-center
+                    gap-2
+                    border-b
+                    border-slate-100
+                    pb-4
+                  "
+                >
+                  {site.amenities.slice(0, 3).map((amenity) => (
+                    <div
+                      key={amenity}
+                      title={amenity}
+                      className="
+                        flex
+                        h-9
+                        w-9
+                        items-center
+                        justify-center
+                        rounded-lg
+                        bg-[#FFF8E7]
+                        text-[#082B5C]
+                      "
+                    >
+                      {getAmenityIcon(amenity)}
+                    </div>
+                  ))}
 
                   <span className="ml-1 text-xs text-slate-400">
                     Great amenities
                   </span>
                 </div>
 
-                {/* =========================
-                    PRICE + BUTTON
-                ========================== */}
+                {/* Price + Button */}
                 <div className="flex items-end justify-between gap-3">
 
                   <div>
-
                     <div className="flex items-baseline gap-2">
 
-                      <span className="
-                        text-2xl
-                        font-bold
-                        text-[#082B5C]
-                      ">
+                      <span className="text-2xl font-bold text-[#082B5C]">
                         ${site.price}
                       </span>
 
-                      {site.originalPrice && (
-                        <span className="
-                          text-sm
-                          text-slate-400
-                          line-through
-                        ">
-                          ${site.originalPrice}
-                        </span>
-                      )}
+                      <span className="text-sm text-slate-400 line-through">
+                        ${site.originalPrice}
+                      </span>
 
                     </div>
 
                     <p className="text-xs text-slate-500">
                       per night
                     </p>
-
                   </div>
 
                   <button
@@ -454,16 +527,18 @@ const GlampingSites = () => {
                 </div>
 
                 {/* Gold Accent */}
-                <div className="
-                  mt-5
-                  h-0.5
-                  w-full
-                  bg-gradient-to-r
-                  from-transparent
-                  via-[#C58A18]
-                  to-transparent
-                  opacity-50
-                " />
+                <div
+                  className="
+                    mt-5
+                    h-0.5
+                    w-full
+                    bg-gradient-to-r
+                    from-transparent
+                    via-[#C58A18]
+                    to-transparent
+                    opacity-50
+                  "
+                />
 
               </div>
             </div>

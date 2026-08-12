@@ -46,6 +46,5 @@ export const PropertyTypes = [
     image:
       "https://q-xx.bstatic.com/xdata/images/hotel/263x210/595551195.jpeg?k=fe19403cca087623a33bf24c4154a636cd26d04c2aa948634fb05afa971e7767&o=",
     link: "/serviced-apartments",
-  }
-
+  },
 ];

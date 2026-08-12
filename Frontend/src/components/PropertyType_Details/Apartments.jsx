@@ -24,47 +24,219 @@ const Apartments = () => {
   // =====================================================
 
   useEffect(() => {
-    const mockApartments = [
-      {
-        id: 1,
-        name: "City Center Apartment",
-        location: "Los Angeles, USA",
-        rating: 4.6,
-        reviews: 980,
-        price: 120,
-        originalPrice: 150,
-        image:
-          "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen"],
-        discount: 20,
-      },
-      {
-        id: 2,
-        name: "Downtown Loft",
-        location: "Chicago, USA",
-        rating: 4.4,
-        reviews: 720,
-        price: 140,
-        originalPrice: 175,
-        image:
-          "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "gym"],
-        discount: 20,
-      },
-      {
-        id: 3,
-        name: "Beachfront Studio",
-        location: "San Diego, USA",
-        rating: 4.7,
-        reviews: 1100,
-        price: 160,
-        originalPrice: 200,
-        image:
-          "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "pool"],
-        discount: 20,
-      },
-    ];
+   const mockApartments = [
+  {
+    id: 1,
+    name: "City Center Apartment",
+    location: "Los Angeles, USA",
+    rating: 4.6,
+    reviews: 980,
+    price: 120,
+    originalPrice: 550,
+    image:
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 20,
+  },
+
+  {
+    id: 2,
+    name: "Downtown Loft",
+    location: "Chicago, USA",
+    rating: 4.4,
+    reviews: 720,
+    price: 140,
+    originalPrice: 775,
+    image:
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "gym"],
+    discount: 20,
+  },
+
+  {
+    id: 3,
+    name: "Beachfront Studio",
+    location: "San Diego, USA",
+    rating: 4.7,
+    reviews: 1100,
+    price: 160,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "pool"],
+    discount: 20,
+  },
+
+  {
+    id: 4,
+    name: "Luxury Sea View Apartment",
+    location: "Goa, India",
+    rating: 4.8,
+    reviews: 1450,
+    price: 95,
+    originalPrice: 385,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "pool"],
+    discount: 24,
+  },
+
+  {
+    id: 5,
+    name: "Modern City Apartment",
+    location: "Mumbai, India",
+    rating: 4.5,
+    reviews: 860,
+    price: 80,
+    originalPrice: 655,
+    image:
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "gym"],
+    discount: 24,
+  },
+
+  {
+    id: 6,
+    name: "Premium Apartment",
+    location: "Dubai, UAE",
+    rating: 4.9,
+    reviews: 2100,
+    price: 220,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "gym", "pool"],
+    discount: 21,
+  },
+
+  {
+    id: 7,
+    name: "Luxury Downtown Residence",
+    location: "New York, USA",
+    rating: 4.7,
+    reviews: 1750,
+    price: 250,
+    originalPrice: 320,
+    image:
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "gym", "kitchen"],
+    discount: 22,
+  },
+
+  {
+    id: 8,
+    name: "Elegant Park View Apartment",
+    location: "London, UK",
+    rating: 4.6,
+    reviews: 1320,
+    price: 190,
+    originalPrice: 440,
+    image:
+      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 21,
+  },
+
+  {
+    id: 9,
+    name: "Luxury Marina Apartment",
+    location: "Singapore",
+    rating: 4.8,
+    reviews: 1680,
+    price: 180,
+    originalPrice: 530,
+    image:
+      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "gym", "pool"],
+    discount: 22,
+  },
+
+  {
+    id: 10,
+    name: "Modern Apartment Stay",
+    location: "Paris, France",
+    rating: 4.5,
+    reviews: 940,
+    price: 170,
+    originalPrice: 315,
+    image:
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "kitchen", "parking"],
+    discount: 21,
+  },
+
+  {
+    id: 11,
+    name: "Royal Palace Apartment",
+    location: "Abu Dhabi, UAE",
+    rating: 4.9,
+    reviews: 1890,
+    price: 230,
+    originalPrice: 890,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "gym", "pool"],
+    discount: 20,
+  },
+
+  {
+    id: 12,
+    name: "Mountain View Apartment",
+    location: "Manali, India",
+    rating: 4.7,
+    reviews: 780,
+    price: 770,
+    originalPrice: 95,
+    image:
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 26,
+  },
+
+  {
+    id: 13,
+    name: "Luxury Lake View Residence",
+    location: "Udaipur, India",
+    rating: 4.8,
+    reviews: 1120,
+    price: 310,
+    originalPrice: 145,
+    image:
+      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "pool", "kitchen"],
+    discount: 24,
+  },
+
+  {
+    id: 14,
+    name: "Skyline Apartment",
+    location: "Bangalore, India",
+    rating: 4.6,
+    reviews: 990,
+    price: 475,
+    originalPrice: 100,
+    image:
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "gym"],
+    discount: 25,
+  },
+
+  {
+    id: 15,
+    name: "Ocean View Residence",
+    location: "Miami, USA",
+    rating: 4.8,
+    reviews: 1540,
+    price: 210,
+    originalPrice: 270,
+    image:
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "pool", "parking"],
+    discount: 22,
+  },
+
+ 
+];
 
     setApartments(mockApartments);
     setLoading(false);

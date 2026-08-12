@@ -22,47 +22,164 @@ const Cottages = () => {
   // =====================================================
 
   useEffect(() => {
-    const mockCottages = [
-      {
-        id: 1,
-        name: "Rustic Mountain Cottage",
-        location: "Colorado, USA",
-        rating: 4.7,
-        reviews: 320,
-        price: 180,
-        originalPrice: 220,
-        image:
-          "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen", "fireplace"],
-        discount: 18,
-      },
-      {
-        id: 2,
-        name: "Lakeview Cottage",
-        location: "Maine, USA",
-        rating: 4.5,
-        reviews: 280,
-        price: 160,
-        originalPrice: 200,
-        image:
-          "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen", "fireplace"],
-        discount: 20,
-      },
-      {
-        id: 3,
-        name: "Countryside Cottage",
-        location: "Vermont, USA",
-        rating: 4.6,
-        reviews: 190,
-        price: 140,
-        originalPrice: 175,
-        image:
-          "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=800",
-        amenities: ["wifi", "parking", "kitchen"],
-        discount: 20,
-      },
-    ];
+  const mockCottages = [
+  {
+    id: "cottage-1",
+    name: "Rustic Mountain Cottage",
+    location: "Colorado, USA",
+    rating: 4.7,
+    reviews: 320,
+    price: 180,
+    originalPrice: 220,
+    image:
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 18,
+  },
+  {
+    id: "cottage-2",
+    name: "Lakeview Cottage",
+    location: "Maine, USA",
+    rating: 4.5,
+    reviews: 280,
+    price: 160,
+    originalPrice: 200,
+    image:
+      "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: "cottage-3",
+    name: "Countryside Cottage",
+    location: "Vermont, USA",
+    rating: 4.6,
+    reviews: 190,
+    price: 140,
+    originalPrice: 175,
+    image:
+      "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 20,
+  },
+  {
+    id: "cottage-4",
+    name: "Pine Forest Cottage",
+    location: "Oregon, USA",
+    rating: 4.8,
+    reviews: 460,
+    price: 175,
+    originalPrice: 215,
+    image:
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 19,
+  },
+  {
+    id: "cottage-5",
+    name: "Lakeside Luxury Cottage",
+    location: "Michigan, USA",
+    rating: 4.9,
+    reviews: 610,
+    price: 220,
+    originalPrice: 275,
+    image:
+      "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: "cottage-6",
+    name: "Cozy Woodland Cottage",
+    location: "Washington, USA",
+    rating: 4.6,
+    reviews: 340,
+    price: 150,
+    originalPrice: 185,
+    image:
+      "https://images.unsplash.com/photo-1480074568708-e7b720bb3f09?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 19,
+  },
+  {
+    id: "cottage-7",
+    name: "Romantic Hilltop Cottage",
+    location: "Tennessee, USA",
+    rating: 4.8,
+    reviews: 520,
+    price: 195,
+    originalPrice: 245,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: "cottage-8",
+    name: "Mountain View Cottage",
+    location: "Utah, USA",
+    rating: 4.7,
+    reviews: 410,
+    price: 165,
+    originalPrice: 210,
+    image:
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 21,
+  },
+  {
+    id: "cottage-9",
+    name: "Private Garden Cottage",
+    location: "California, USA",
+    rating: 4.5,
+    reviews: 275,
+    price: 135,
+    originalPrice: 170,
+    image:
+      "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 20,
+  },
+  {
+    id: "cottage-10",
+    name: "Snowy Winter Cottage",
+    location: "Vermont, USA",
+    rating: 4.9,
+    reviews: 720,
+    price: 240,
+    originalPrice: 300,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+  {
+    id: "cottage-11",
+    name: "Riverside Cottage",
+    location: "North Carolina, USA",
+    rating: 4.6,
+    reviews: 380,
+    price: 155,
+    originalPrice: 195,
+    image:
+      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen"],
+    discount: 21,
+  },
+  {
+    id: "cottage-12",
+    name: "Luxury Forest Cottage",
+    location: "British Columbia, Canada",
+    rating: 4.9,
+    reviews: 850,
+    price: 260,
+    originalPrice: 325,
+    image:
+      "https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800",
+    amenities: ["wifi", "parking", "kitchen", "fireplace"],
+    discount: 20,
+  },
+];
 
     setCottages(mockCottages);
     setLoading(false);

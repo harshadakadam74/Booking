@@ -23,47 +23,175 @@ const Hotels = () => {
   // Hotel Data
   // =========================
   useEffect(() => {
-    const mockHotels = [
-      {
-        id: 1,
-        name: "Grand Plaza Hotel",
-        location: "New York, USA",
-        rating: 4.5,
-        reviews: 1250,
-        price: 150,
-        originalPrice: 200,
-        image:
-          "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "restaurant", "gym"],
-        discount: 25,
-      },
-      {
-        id: 2,
-        name: "Ocean View Resort",
-        location: "Miami, USA",
-        rating: 4.8,
-        reviews: 890,
-        price: 220,
-        originalPrice: 280,
-        image:
-          "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "restaurant", "pool"],
-        discount: 21,
-      },
-      {
-        id: 3,
-        name: "Mountain Lodge",
-        location: "Aspen, USA",
-        rating: 4.3,
-        reviews: 650,
-        price: 180,
-        originalPrice: 230,
-        image:
-          "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800&h=600",
-        amenities: ["wifi", "parking", "restaurant", "spa"],
-        discount: 22,
-      },
-    ];
+   const mockHotels = [
+  {
+    id: 1,
+    name: "Grand Plaza Hotel",
+    location: "New York, USA",
+    rating: 4.5,
+    reviews: 1250,
+    price: 150,
+    originalPrice: 200,
+    image:
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "gym"],
+    discount: 25,
+  },
+
+  {
+    id: 2,
+    name: "Ocean View Resort",
+    location: "Miami, USA",
+    rating: 4.8,
+    reviews: 890,
+    price: 220,
+    originalPrice: 280,
+    image:
+      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "pool"],
+    discount: 21,
+  },
+
+  {
+    id: 3,
+    name: "Mountain Lodge",
+    location: "Aspen, USA",
+    rating: 4.3,
+    reviews: 650,
+    price: 180,
+    originalPrice: 230,
+    image:
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "spa"],
+    discount: 22,
+  },
+
+  {
+    id: 4,
+    name: "Royal Palace Hotel",
+    location: "Dubai, UAE",
+    rating: 4.9,
+    reviews: 2100,
+    price: 320,
+    originalPrice: 420,
+    image:
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "pool"],
+    discount: 24,
+  },
+
+  {
+    id: 5,
+    name: "Taj Heritage Resort",
+    location: "Jaipur, India",
+    rating: 4.7,
+    reviews: 980,
+    price: 110,
+    originalPrice: 150,
+    image:
+      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "spa"],
+    discount: 27,
+  },
+
+  {
+    id: 6,
+    name: "Beach Paradise Resort",
+    location: "Goa, India",
+    rating: 4.6,
+    reviews: 760,
+    price: 130,
+    originalPrice: 180,
+    image:
+      "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "pool"],
+    discount: 28,
+  },
+
+  {
+    id: 7,
+    name: "Luxury Hills Resort",
+    location: "Manali, India",
+    rating: 4.5,
+    reviews: 540,
+    price: 95,
+    originalPrice: 130,
+    image:
+      "https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "spa"],
+    discount: 27,
+  },
+
+  {
+    id: 8,
+    name: "Royal London Hotel",
+    location: "London, UK",
+    rating: 4.6,
+    reviews: 1420,
+    price: 240,
+    originalPrice: 300,
+    image:
+      "https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "gym"],
+    discount: 20,
+  },
+
+  {
+    id: 9,
+    name: "Paris Luxury Stay",
+    location: "Paris, France",
+    rating: 4.8,
+    reviews: 1680,
+    price: 280,
+    originalPrice: 350,
+    image:
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "restaurant", "gym", "spa"],
+    discount: 20,
+  },
+
+  {
+    id: 10,
+    name: "Tokyo Grand Hotel",
+    location: "Tokyo, Japan",
+    rating: 4.7,
+    reviews: 1890,
+    price: 210,
+    originalPrice: 270,
+    image:
+      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "gym"],
+    discount: 22,
+  },
+
+  {
+    id: 11,
+    name: "Swiss Alpine Resort",
+    location: "Zermatt, Switzerland",
+    rating: 4.9,
+    reviews: 870,
+    price: 350,
+    originalPrice: 450,
+    image:
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "parking", "restaurant", "spa"],
+    discount: 22,
+  },
+
+  {
+    id: 12,
+    name: "Bali Tropical Resort",
+    location: "Bali, Indonesia",
+    rating: 4.8,
+    reviews: 1120,
+    price: 160,
+    originalPrice: 210,
+    image:
+      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&q=80&w=800&h=600",
+    amenities: ["wifi", "restaurant", "pool", "spa"],
+    discount: 24,
+  },
+];
 
     setHotels(mockHotels);
     setLoading(false);
