@@ -80,6 +80,11 @@ const BookPage = () => {
     "Barcelona, Spain",
     "Amsterdam, Netherlands",
     "Vienna, Austria",
+    "Zurich, Switzerland",
+    "Bali, Indonesia",
+    "Bangkok, Thailand",
+    "Dubai, UAE",
+    
   ];
 
   const quickSearches = [

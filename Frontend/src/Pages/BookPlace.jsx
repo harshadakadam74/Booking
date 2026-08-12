@@ -45,7 +45,6 @@ const baseProperties = [
       "Airport shuttle",
     ],
   },
-
   {
     id: 2,
     name: "Cozy Boutique Hotel",
@@ -63,7 +62,6 @@ const baseProperties = [
     highlight: "Best for romantic weekend escapes",
     perks: ["Late checkout", "Wellness access", "City guide"],
   },
-
   {
     id: 3,
     name: "City Center Apartment",
@@ -81,7 +79,6 @@ const baseProperties = [
     highlight: "Great for longer stays and families",
     perks: ["Laundry access", "Full kitchen", "Self check-in"],
   },
-
   {
     id: 4,
     name: "Executive Suite",
@@ -99,7 +96,6 @@ const baseProperties = [
     highlight: "Ideal for business trips and premium comfort",
     perks: ["Workspace", "Concierge", "Priority check-in"],
   },
-
   {
     id: 5,
     name: "Beachfront Resort",
@@ -117,7 +113,6 @@ const baseProperties = [
     highlight: "Top-rated escape with oceanfront lounging",
     perks: ["Beach access", "Spa pass", "Ocean views"],
   },
-
   {
     id: 6,
     name: "Mountain View Cabin",
@@ -161,7 +156,6 @@ const BookPlace = () => {
 
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
-
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -223,16 +217,15 @@ const BookPlace = () => {
       });
 
       setProperties(matchedProperties);
-
       setLoading(false);
 
       /* Save recent search */
+
       if (searchParams.location) {
         try {
           const stored = JSON.parse(
-            localStorage.getItem(
-              "fastBookingRecentSearches"
-            ) || "[]"
+            localStorage.getItem("fastBookingRecentSearches") ||
+              "[]"
           );
 
           const nextSearches = [
@@ -362,15 +355,18 @@ const BookPlace = () => {
   ========================================================= */
 
   const handleBookNow = (property) => {
-    const authToken =
-      localStorage.getItem("authToken");
+    const authToken = localStorage.getItem("authToken");
+
+    const bookingState = {
+      property,
+      searchParams,
+    };
 
     if (!authToken) {
       navigate("/login", {
         state: {
           from: "/payment",
-          property,
-          searchParams,
+          ...bookingState,
         },
       });
 
@@ -378,10 +374,7 @@ const BookPlace = () => {
     }
 
     navigate("/payment", {
-      state: {
-        property,
-        searchParams,
-      },
+      state: bookingState,
     });
   };
 
@@ -434,7 +427,9 @@ const BookPlace = () => {
 
                 <div className="space-y-4 p-6">
                   <div className="h-6 w-2/3 animate-pulse rounded bg-slate-200" />
+
                   <div className="h-4 w-1/3 animate-pulse rounded bg-slate-200" />
+
                   <div className="h-12 animate-pulse rounded bg-slate-200" />
                 </div>
               </div>
@@ -455,9 +450,7 @@ const BookPlace = () => {
 
       <div className="mx-auto max-w-7xl">
 
-        {/* =====================================================
-            LOGIN / REGISTER NOTICE
-        ===================================================== */}
+        {/* LOGIN / REGISTER NOTICE */}
 
         {!localStorage.getItem("authToken") && (
           <div className="mb-6 overflow-hidden rounded-3xl border border-yellow-200 bg-gradient-to-r from-yellow-50 via-white to-blue-50 shadow-sm">
@@ -512,13 +505,12 @@ const BookPlace = () => {
                 </button>
 
               </div>
+
             </div>
           </div>
         )}
 
-        {/* =====================================================
-            HERO
-        ===================================================== */}
+        {/* HERO */}
 
         <div className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-800 via-blue-700 to-indigo-800 p-6 text-white shadow-xl sm:p-8">
 
@@ -561,6 +553,7 @@ const BookPlace = () => {
 
               <p className="text-2xl font-bold">
                 {filteredProperties.length}
+
                 <span className="ml-1 text-sm font-medium text-blue-100">
                   stays
                 </span>
@@ -571,9 +564,7 @@ const BookPlace = () => {
           </div>
         </div>
 
-        {/* =====================================================
-            FILTER BAR
-        ===================================================== */}
+        {/* FILTER BAR */}
 
         <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
 
@@ -640,9 +631,7 @@ const BookPlace = () => {
                     onChange={(event) =>
                       setFilters((prev) => ({
                         ...prev,
-                        rating: Number(
-                          event.target.value
-                        ),
+                        rating: Number(event.target.value),
                       }))
                     }
                     className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-blue-500"
@@ -707,11 +696,8 @@ const BookPlace = () => {
                   <div className="flex flex-wrap gap-2">
 
                     {amenityOptions.map((amenity) => {
-
                       const selected =
-                        filters.amenities.includes(
-                          amenity
-                        );
+                        filters.amenities.includes(amenity);
 
                       return (
                         <button
@@ -739,15 +725,12 @@ const BookPlace = () => {
           )}
         </div>
 
-        {/* =====================================================
-            PROPERTY GRID
-        ===================================================== */}
+        {/* PROPERTY GRID */}
 
         {filteredProperties.length > 0 ? (
           <div className="grid gap-6 lg:grid-cols-2">
 
             {filteredProperties.map((property) => {
-
               const isFavorite =
                 favorites.includes(property.id);
 
@@ -835,7 +818,6 @@ const BookPlace = () => {
                             size={15}
                             className="text-red-500"
                           />
-
                           {property.location}
                         </div>
 
@@ -860,7 +842,9 @@ const BookPlace = () => {
                     {/* HIGHLIGHT */}
 
                     <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-3">
+
                       <div className="flex items-start gap-2 text-sm font-semibold text-blue-700">
+
                         <Sparkles
                           size={17}
                           className="mt-0.5 shrink-0"
@@ -869,7 +853,9 @@ const BookPlace = () => {
                         <span>
                           {property.highlight}
                         </span>
+
                       </div>
+
                     </div>
 
                     {/* AMENITIES */}
@@ -978,12 +964,14 @@ const BookPlace = () => {
                       <div className="mt-5 rounded-2xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-blue-50 p-4">
 
                         <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
+
                           <Sparkles
                             size={17}
                             className="text-yellow-600"
                           />
 
                           What makes this stay special
+
                         </div>
 
                         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -1006,11 +994,11 @@ const BookPlace = () => {
                 </div>
               );
             })}
+
           </div>
         ) : (
-          /* ===================================================
-             NO RESULTS
-          =================================================== */
+
+          /* NO RESULTS */
 
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
 
