@@ -37,7 +37,7 @@ const Header = () => {
     <header className="sticky top-0 z-50 border-b border-blue-100 bg-white/95 shadow-sm backdrop-blur-md">
 
       {/* Navbar */}
-      <div className="mx-auto flex max-w-7xl items-center justify-between sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl  items-center justify-between sm:px-6 lg:px-8">
 
         {/* FastBooking Logo */}
         <Link
