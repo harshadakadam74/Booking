@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Star,
   MapPin,
@@ -12,18 +12,14 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const Cabins = () => {
-  const [cabins, setCabins] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [likedProperties, setLikedProperties] = useState(new Set());
-
   const navigate = useNavigate();
 
   // =====================================================
   // LOAD CABINS
   // =====================================================
+  const [cabins] = useState(() => {
+    const mockCabins = [
 
-  useEffect(() => {
-   const mockCabins = [
   {
     id: 1,
     name: "Cozy Forest Cabin",
@@ -243,27 +239,24 @@ const Cabins = () => {
     amenities: ["wifi", "parking", "kitchen", "fireplace"],
     discount: 20,
   },
-];
+    ];
 
-    setCabins(mockCabins);
-    setLoading(false);
-  }, []);
+    return mockCabins;
+  });
+  const [loading] = useState(false);
+  const [likedProperties, setLikedProperties] = useState(() => {
+    try {
+      const liked = localStorage.getItem("likedProperties");
+      return liked ? new Set(JSON.parse(liked)) : new Set();
+    } catch (error) {
+      console.error("Error loading liked properties:", error);
+      return new Set();
+    }
+  });
 
   // =====================================================
   // LOAD LIKED PROPERTIES
   // =====================================================
-
-  useEffect(() => {
-    try {
-      const liked = localStorage.getItem("likedProperties");
-
-      if (liked) {
-        setLikedProperties(new Set(JSON.parse(liked)));
-      }
-    } catch (error) {
-      console.error("Error loading liked properties:", error);
-    }
-  }, []);
 
   // =====================================================
   // LIKE / UNLIKE

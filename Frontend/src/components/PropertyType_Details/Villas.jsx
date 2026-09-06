@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Star,
   MapPin,
@@ -14,16 +14,12 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const Villas = () => {
-  const [villas, setVillas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [likedProperties, setLikedProperties] = useState(new Set());
-
   const navigate = useNavigate();
 
   // --------------------------------------------------
   // Mock Villa Data
   // --------------------------------------------------
-  useEffect(() => {
+  const [villas] = useState(() => {
    const mockVillas = [
   {
     id: "villa-1",
@@ -321,27 +317,24 @@ const Villas = () => {
     amenities: ["wifi", "parking", "kitchen", "fireplace"],
     discount: 26,
   },
-];
+    ];
 
-    setVillas(mockVillas);
-    setLoading(false);
-  }, []);
+    return mockVillas;
+  });
+  const [loading] = useState(false);
+  const [likedProperties, setLikedProperties] = useState(() => {
+    try {
+      const liked = localStorage.getItem("likedProperties");
+      return liked ? new Set(JSON.parse(liked)) : new Set();
+    } catch (error) {
+      console.error("Failed to load liked properties:", error);
+      return new Set();
+    }
+  });
 
   // --------------------------------------------------
   // Load Favorites
   // --------------------------------------------------
-  useEffect(() => {
-    const liked = localStorage.getItem("likedProperties");
-
-    if (liked) {
-      try {
-        setLikedProperties(new Set(JSON.parse(liked)));
-      } catch (error) {
-        console.error("Failed to load liked properties:", error);
-      }
-    }
-  }, []);
-
   // --------------------------------------------------
   // Toggle Favorite
   // --------------------------------------------------

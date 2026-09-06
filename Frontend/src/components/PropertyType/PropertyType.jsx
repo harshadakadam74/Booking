@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Hotel,
@@ -9,6 +9,21 @@ import {
 import "./PropertyType.css";
 
 const BrowseByPropertyType = () => {
+  useEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem(
+      "homeScrollPosition"
+    );
+
+    if (!savedScrollPosition) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, Number(savedScrollPosition));
+      sessionStorage.removeItem("homeScrollPosition");
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   const propertyTypes = [
     {
       name: "Hotels",
@@ -63,10 +78,16 @@ const BrowseByPropertyType = () => {
 
             {/* Duplicate list for seamless scrolling */}
             {[...propertyTypes, ...propertyTypes].map(
-              ({ name, icon: Icon, link }, index) => (
+              ({ name, icon, link }, index) => (
                 <Link
                   key={`${name}-${index}`}
                   to={link}
+                  onClick={() => {
+                    sessionStorage.setItem(
+                      "homeScrollPosition",
+                      String(window.scrollY)
+                    );
+                  }}
                   className="
                     group
                     flex
@@ -110,17 +131,17 @@ const BrowseByPropertyType = () => {
                       group-hover:bg-[#082B5C]
                     "
                   >
-                    <Icon
-                      size={28}
-                      strokeWidth={1.8}
-                      className="
+                    {React.createElement(icon, {
+                      size: 28,
+                      strokeWidth: 1.8,
+                      className: `
                         text-[#C58A18]
                         transition-all
                         duration-300
                         group-hover:scale-110
                         group-hover:text-[#E3AE32]
-                      "
-                    />
+                      `,
+                    })}
                   </div>
 
                   {/* Name */}

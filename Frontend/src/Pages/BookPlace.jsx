@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -495,7 +495,6 @@ const BookPlace = () => {
   const searchParams = location.state || {};
 
   const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -535,8 +534,6 @@ const BookPlace = () => {
   ========================================================= */
 
   useEffect(() => {
-    setLoading(true);
-
     const searchLocation =
       searchParams.location?.trim() || "New York, USA";
 
@@ -599,7 +596,7 @@ const BookPlace = () => {
      FILTER + SORT
   ========================================================= */
 
-  useEffect(() => {
+  const filteredProperties = useMemo(() => {
     const filtered = [...properties]
       .filter((property) => {
         const priceMatch =
@@ -633,7 +630,7 @@ const BookPlace = () => {
         return b.rating - a.rating;
       });
 
-    setFilteredProperties(filtered);
+    return filtered;
   }, [filters, properties, sortBy]);
 
   /* =========================================================

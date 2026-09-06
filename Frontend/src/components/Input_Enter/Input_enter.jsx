@@ -33,7 +33,15 @@ const Input_enter = () => {
   const [openGuests, setOpenGuests] = useState(false);
 
   const [isWorkTrip, setIsWorkTrip] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([]);
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(stored) ? stored : [];
+    } catch (error) {
+      console.error("Recent search loading error:", error);
+      return [];
+    }
+  });
 
   const [date, setDate] = useState([
     {
@@ -52,17 +60,6 @@ const Input_enter = () => {
   // =====================================================
   // LOAD RECENT SEARCHES
   // =====================================================
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-
-      setRecentSearches(Array.isArray(stored) ? stored : []);
-    } catch (error) {
-      console.error("Recent search loading error:", error);
-      setRecentSearches([]);
-    }
-  }, []);
 
   // =====================================================
   // CLOSE DROPDOWNS WHEN CLICKING OUTSIDE

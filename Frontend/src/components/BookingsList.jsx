@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setLoading,
@@ -26,11 +26,7 @@ export default function BookingsList() {
     (state) => state.booking
   );
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     dispatch(setLoading(true));
 
     try {
@@ -48,7 +44,11 @@ export default function BookingsList() {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   // Status colors
   const getStatusColor = (status) => {

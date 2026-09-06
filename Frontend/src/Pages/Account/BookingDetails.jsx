@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   MapPin,
@@ -25,8 +25,6 @@ import HotelMap from "../../components/booking/HotelMap";
 const BookingDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const [booking, setBooking] = useState(null);
 
   // =====================================================
   // FALLBACK BOOKING
@@ -76,37 +74,26 @@ const BookingDetails = () => {
     confirmationNumber: "CNF-782945",
   });
 
+  const [booking, setBooking] = useState(() => {
+    try {
+      const stored = localStorage.getItem("userBookings");
+      const bookings = stored ? JSON.parse(stored) : [];
+      return (
+        bookings.find(
+          (item) =>
+            String(item.id) === String(id) ||
+            String(item._id) === String(id)
+        ) || createFallbackBooking(id)
+      );
+    } catch (error) {
+      console.error("Failed to load booking:", error);
+      return createFallbackBooking(id);
+    }
+  });
+
   // =====================================================
   // LOAD BOOKING
   // =====================================================
-
-  useEffect(() => {
-    try {
-      const stored =
-        localStorage.getItem("userBookings");
-
-      const bookings = stored
-        ? JSON.parse(stored)
-        : [];
-
-      const match = bookings.find(
-        (item) =>
-          String(item.id) === String(id) ||
-          String(item._id) === String(id)
-      );
-
-      setBooking(
-        match || createFallbackBooking(id)
-      );
-    } catch (error) {
-      console.error(
-        "Failed to load booking:",
-        error
-      );
-
-      setBooking(createFallbackBooking(id));
-    }
-  }, [id]);
 
   // =====================================================
   // TRIP DURATION

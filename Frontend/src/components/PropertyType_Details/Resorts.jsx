@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Star,
   MapPin,
@@ -12,16 +12,12 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const Resorts = () => {
-  const [resorts, setResorts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [likedProperties, setLikedProperties] = useState(new Set());
-
   const navigate = useNavigate();
 
   // =========================
   // Resort Data
   // =========================
-  useEffect(() => {
+  const [resorts] = useState(() => {
     const mockResorts = [
   {
     id: 1,
@@ -170,27 +166,20 @@ const Resorts = () => {
     amenities: ["wifi", "restaurant", "pool", "spa"],
     discount: 19,
   },
-];
+    ];
 
-    setResorts(mockResorts);
-    setLoading(false);
-  }, []);
-
-  // =========================
-  // Load Favorites
-  // =========================
-  useEffect(() => {
+    return mockResorts;
+  });
+  const [loading] = useState(false);
+  const [likedProperties, setLikedProperties] = useState(() => {
     try {
       const liked = localStorage.getItem("likedProperties");
-
-      if (liked) {
-        setLikedProperties(new Set(JSON.parse(liked)));
-      }
+      return liked ? new Set(JSON.parse(liked)) : new Set();
     } catch (error) {
       console.error("Error loading liked properties:", error);
-      setLikedProperties(new Set());
+      return new Set();
     }
-  }, []);
+  });
 
   // =========================
   // Like / Unlike

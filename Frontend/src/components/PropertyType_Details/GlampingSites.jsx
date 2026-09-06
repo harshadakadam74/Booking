@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Star,
   MapPin,
@@ -15,7 +15,15 @@ import { useNavigate } from "react-router-dom";
 const GlampingSites = () => {
   const navigate = useNavigate();
 
-  const [likedProperties, setLikedProperties] = useState(new Set());
+  const [likedProperties, setLikedProperties] = useState(() => {
+    try {
+      const liked = localStorage.getItem("likedProperties");
+      return liked ? new Set(JSON.parse(liked)) : new Set();
+    } catch (error) {
+      console.error("Error loading liked properties:", error);
+      return new Set();
+    }
+  });
 
   const glampingSites = [
     {
@@ -146,18 +154,6 @@ const GlampingSites = () => {
   ];
 
   // Load wishlist
-  useEffect(() => {
-    try {
-      const liked = localStorage.getItem("likedProperties");
-
-      if (liked) {
-        setLikedProperties(new Set(JSON.parse(liked)));
-      }
-    } catch (error) {
-      console.error("Error loading liked properties:", error);
-    }
-  }, []);
-
   // Toggle wishlist
   const toggleLike = (propertyId) => {
     const newLiked = new Set(likedProperties);

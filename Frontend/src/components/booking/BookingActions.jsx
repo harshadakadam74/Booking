@@ -67,7 +67,7 @@ const BookingActions = ({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
 
         {actions.map(
-          ({ label, icon: Icon, onClick, disabled = false }) => (
+          ({ label, icon, onClick, disabled = false }) => (
             <button
               key={label}
               type="button"
@@ -110,17 +110,17 @@ const BookingActions = ({
                 }
               `}
             >
-              <Icon
-                size={18}
-                className={`
+              {React.createElement(icon, {
+                size: 18,
+                className: `
                   transition-colors duration-300
                   ${
                     disabled
                       ? "text-gray-400"
                       : "text-[#C58A18] group-hover:text-[#E3AE32]"
                   }
-                `}
-              />
+                `,
+              })}
 
               <span>{label}</span>
             </button>
