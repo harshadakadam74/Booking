@@ -1,6 +1,7 @@
 // API Base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4545";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:4545"
+).replace(/\/$/, "");
 
 export async function apiFetch(path, options = {}) {
   // Get JWT token

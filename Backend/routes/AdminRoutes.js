@@ -6,6 +6,11 @@ const { admin } = require('../middlewares/AdminMiddleware');
 
 router.use(authenticate, admin);
 router.get('/users', AdminController.getAllUsers);
+router.post('/users', AdminController.createAdmin);
+router.get('/properties', AdminController.getAllProperties);
+router.post('/properties', AdminController.createProperty);
+router.put('/property/:id', AdminController.updateProperty);
+router.delete('/property/:id', AdminController.deleteProperty);
 router.get('/bookings', AdminController.getAllBookings);
 router.get('/products', AdminController.getAllProducts);
 router.delete('/user/:id', AdminController.deleteUser);

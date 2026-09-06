@@ -1,7 +1,9 @@
 import axios from "axios";
 
-// Set API base URL from environment or fallback
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4545";
+// Use the local backend by default and avoid double slashes in request URLs.
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:4545"
+).replace(/\/$/, "");
 
 // Create axios instance
 const apiClient = axios.create({
@@ -41,6 +43,7 @@ apiClient.interceptors.response.use(
 
       if (!shouldSkipRedirect) {
         localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
         window.location.href = "/login";
       }
     }

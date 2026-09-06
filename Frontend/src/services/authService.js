@@ -89,3 +89,65 @@ export const updateUserProfile = async (payload) => {
     );
   }
 };
+
+export const fetchAdminUsers = async () => {
+  try {
+    const response = await apiClient.get('/api/v1/admin/users');
+    return response.data?.data?.users || [];
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to fetch users'));
+  }
+};
+
+export const createAdmin = async (payload) => {
+  try {
+    const response = await apiClient.post('/api/v1/admin/users', payload);
+    return response.data?.data?.user;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to create admin'));
+  }
+};
+
+export const fetchAdminProperties = async () => {
+  try {
+    const response = await apiClient.get('/api/v1/admin/properties');
+    return response.data?.data?.properties || [];
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to fetch hotels'));
+  }
+};
+
+export const createProperty = async (payload) => {
+  try {
+    const response = await apiClient.post('/api/v1/admin/properties', payload);
+    return response.data?.data?.property;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to create hotel'));
+  }
+};
+
+export const updatePropertyAvailability = async (propertyId, payload) => {
+  try {
+    const response = await apiClient.put(`/api/v1/admin/property/${propertyId}`, payload);
+    return response.data?.data?.property;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to update room availability'));
+  }
+};
+
+export const deleteProperty = async (propertyId) => {
+  try {
+    await apiClient.delete(`/api/v1/admin/property/${propertyId}`);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to delete hotel'));
+  }
+};
+
+export const fetchPublicProperties = async (type = 'Hotel') => {
+  try {
+    const response = await apiClient.get('/api/v1/properties', { params: { type } });
+    return response.data?.properties || [];
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Failed to fetch hotels'));
+  }
+};

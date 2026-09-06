@@ -455,6 +455,14 @@ const UserAccount = () => {
                   text="Account Settings"
                 />
 
+                {user?.role === "ADMIN" && (
+                  <AccountLink
+                    to="/admin"
+                    icon={<ShieldCheck size={19} />}
+                    text="Admin Dashboard"
+                  />
+                )}
+
               </nav>
 
               <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">

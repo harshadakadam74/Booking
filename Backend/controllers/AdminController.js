@@ -1,7 +1,105 @@
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Product = require('../models/Product');
+const Property = require('../models/Property');
 const ApiResponse = require('../Utils/ApiResponse');
+const UserService = require('../services/UserService');
+
+const createAdmin = async (req, res) => {
+  try {
+    const { name, mobile, email, password } = req.body;
+
+    if (!name || !mobile || !email || !password) {
+      return ApiResponse.error(res, 400, 'Name, mobile, email and password are required');
+    }
+
+    const user = await UserService.createUser({
+      name: name.trim(),
+      mobile: mobile.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      role: 'ADMIN',
+    });
+
+    user.password = undefined;
+    return ApiResponse.success(res, { user }, 'Admin created successfully');
+  } catch (error) {
+    const statusCode = error.message.includes('already exists') ? 409 : 400;
+    return ApiResponse.error(res, statusCode, error.message);
+  }
+};
+
+const getAllProperties = async (req, res) => {
+  try {
+    const properties = await Property.find().sort({ createdAt: -1 });
+    return ApiResponse.success(res, { properties }, 'Properties fetched successfully');
+  } catch (error) {
+    return ApiResponse.error(res, 500, error.message);
+  }
+};
+
+const createProperty = async (req, res) => {
+  try {
+    const {
+      name,
+      location,
+      type = 'Hotel',
+      description = '',
+      image = '',
+      price,
+      totalRooms,
+      availableRooms,
+      amenities = [],
+    } = req.body;
+
+    if (!name || !location || price === undefined || totalRooms === undefined || availableRooms === undefined) {
+      return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required');
+    }
+
+    const property = await Property.create({
+      name,
+      location,
+      type,
+      description,
+      image,
+      price: Number(price),
+      totalRooms: Number(totalRooms),
+      availableRooms: Number(availableRooms),
+      amenities: Array.isArray(amenities) ? amenities : [],
+    });
+
+    return ApiResponse.success(res, { property }, 'Hotel created successfully', 201);
+  } catch (error) {
+    return ApiResponse.error(res, 400, error.message);
+  }
+};
+
+const updateProperty = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return ApiResponse.error(res, 404, 'Hotel not found');
+
+    const { availableRooms, totalRooms, active } = req.body;
+    if (availableRooms !== undefined) property.availableRooms = Number(availableRooms);
+    if (totalRooms !== undefined) property.totalRooms = Number(totalRooms);
+    if (active !== undefined) property.active = Boolean(active);
+    await property.save();
+
+    return ApiResponse.success(res, { property }, 'Hotel availability updated successfully');
+  } catch (error) {
+    return ApiResponse.error(res, 400, error.message);
+  }
+};
+
+const deleteProperty = async (req, res) => {
+  try {
+    const property = await Property.findByIdAndDelete(req.params.id);
+    if (!property) return ApiResponse.error(res, 404, 'Hotel not found');
+    return ApiResponse.success(res, null, 'Hotel deleted successfully');
+  } catch (error) {
+    return ApiResponse.error(res, 500, error.message);
+  }
+};
 
 const getAllUsers = async (req, res) => {
   try {
@@ -68,4 +166,16 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getAllBookings, getAllProducts, deleteUser, deleteProduct, updateBookingStatus };
+module.exports = {
+  createAdmin,
+  getAllProperties,
+  createProperty,
+  updateProperty,
+  deleteProperty,
+  getAllUsers,
+  getAllBookings,
+  getAllProducts,
+  deleteUser,
+  deleteProduct,
+  updateBookingStatus,
+};

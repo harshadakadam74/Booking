@@ -31,6 +31,7 @@ import AccountPayments from "./Pages/Account/Payments";
 import AccountSettings from "./Pages/Account/Settings";
 import PlaceholderPage from "./Pages/PlaceholderPage";
 import Logo from "./components/Logo/Logo";
+import AdminDashboard from "./Pages/AdminDashboard";
 
 const App = () => {
   return (
@@ -67,6 +68,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <UserAccount />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminDashboard />
               </ProtectedRoute>
             }
           ></Route>

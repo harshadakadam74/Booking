@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Star,
   MapPin,
@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { fetchPublicProperties } from "../../services/authService";
 
 const Hotels = () => {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ const Hotels = () => {
   // =========================
   // Hotel Data
   // =========================
-  const [hotels] = useState(() => {
+  const [hotels, setHotels] = useState(() => {
    const mockHotels = [
   {
     id: 1,
@@ -191,7 +192,25 @@ const Hotels = () => {
 
     return mockHotels;
   });
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPublicProperties()
+      .then((managedHotels) => {
+        const formattedHotels = managedHotels.map((hotel) => ({
+          ...hotel,
+          id: hotel._id,
+          rating: hotel.rating || 0,
+          reviews: hotel.reviews || 0,
+          originalPrice: hotel.price,
+          discount: 0,
+          amenities: hotel.amenities || [],
+        }));
+        setHotels((currentHotels) => [...formattedHotels, ...currentHotels]);
+      })
+      .catch((error) => console.error("Error loading managed hotels:", error))
+      .finally(() => setLoading(false));
+  }, []);
   const [likedProperties, setLikedProperties] = useState(() => {
     try {
       const liked = localStorage.getItem("likedProperties");
@@ -293,7 +312,7 @@ const Hotels = () => {
   // =========================
   if (loading) {
     return (
-      <section className="flex min-h-[400px] items-center justify-center bg-[#F7F9FC]">
+      <section className="flex min-h-100 items-center justify-center bg-[#F7F9FC]">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-[#C58A18]" />
 
@@ -316,7 +335,7 @@ const Hotels = () => {
             Header
         ========================= */}
         <div className="relative mb-10 overflow-hidden rounded-3xl bg-[#082B5C] px-6 py-8 shadow-xl sm:px-10 sm:py-10">
-          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-[#E3AE32]/10" />
+          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border-24 border-[#E3AE32]/10" />
           <div className="absolute -bottom-24 right-28 h-48 w-48 rounded-full bg-[#C58A18]/10 blur-3xl" />
 
           <div className="relative max-w-2xl">
@@ -387,7 +406,7 @@ const Hotels = () => {
                   />
 
                   {/* Dark image overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent" />
 
                   {/* Discount */}
                   {hotel.discount > 0 && (
@@ -499,6 +518,12 @@ const Hotels = () => {
                     </span>
                   </div>
 
+                  {hotel.availableRooms !== undefined && (
+                    <p className={`mb-4 text-sm font-semibold ${hotel.availableRooms > 0 ? "text-green-700" : "text-red-600"}`}>
+                      {hotel.availableRooms > 0 ? `${hotel.availableRooms} rooms available` : "Sold out"}
+                    </p>
+                  )}
+
                   {/* Divider */}
                   <div className="mb-4 h-px bg-slate-100" />
 
@@ -562,6 +587,7 @@ const Hotels = () => {
 
                     <button
                       type="button"
+                      disabled={hotel.availableRooms === 0}
                       onClick={() => handleBookNow(hotel)}
                       className="
                         inline-flex
@@ -580,6 +606,9 @@ const Hotels = () => {
                         hover:-translate-y-0.5
                         hover:bg-[#C58A18]
                         hover:shadow-md
+                        disabled:cursor-not-allowed
+                        disabled:bg-slate-300
+                        disabled:hover:translate-y-0
                       "
                     >
                       Book Now

@@ -4,13 +4,12 @@ const UserService = require('../services/UserService')
 const authenticate = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization || "";
-
-const token = authHeader.startsWith("Bearer ")
-  ? authHeader.split(" ")[1]
-  : null;
+        const [scheme, token] = authHeader.trim().split(/\s+/);
 
         // If User Not Pass Generated Token Throw Error
-        if(!token) return res.status(401).json({ message: "Token Not Found" });
+        if(scheme !== "Bearer" || !token) {
+            return res.status(401).json({ message: "Bearer token required" });
+        }
 
         const userId = JWT_PROVIDER.getUserIdFromToken(token);
 

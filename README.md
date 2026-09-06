@@ -160,6 +160,7 @@ PORT=4545
 JWT_SECRET=your_secret_key_here
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
+CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 ```
 
@@ -167,6 +168,11 @@ NODE_ENV=development
 ```
 VITE_API_URL=http://localhost:4545
 ```
+
+Copy `Backend/.env.sample` to `Backend/.env` and `Frontend/.env.sample` to
+`Frontend/.env` before starting the applications. Replace `JWT_SECRET` and
+the SMTP values with real deployment credentials; never commit either `.env`
+file.
 
 ## 🎨 UI Components
 
