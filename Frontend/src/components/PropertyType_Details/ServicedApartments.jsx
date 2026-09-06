@@ -9,6 +9,7 @@ import {
   Heart,
   CookingPot,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -377,7 +378,7 @@ const ServicedApartments = () => {
   // --------------------------------------------------
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center bg-slate-50">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#F7F9FC]">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-[#C58A18]" />
 
@@ -393,22 +394,25 @@ const ServicedApartments = () => {
   // UI
   // --------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F7F9FC] px-4 py-10 sm:px-6 lg:px-8">
 
       {/* Header */}
-      <div className="mx-auto mb-8 max-w-7xl">
-
-        <div className="mb-2 flex items-center gap-3">
-          <div className="h-8 w-1 rounded-full bg-[#C58A18]" />
-
-          <h1 className="text-2xl font-bold text-[#082B5C] sm:text-3xl md:text-4xl">
-            Serviced Apartments
+      <div className="relative mx-auto mb-10 max-w-7xl overflow-hidden rounded-3xl bg-[#082B5C] px-6 py-8 shadow-xl sm:px-10 sm:py-10">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-[#E3AE32]/10" />
+        <div className="absolute -bottom-24 right-28 h-48 w-48 rounded-full bg-[#C58A18]/10 blur-3xl" />
+        <div className="relative max-w-2xl">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#E3AE32]/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">
+            <Sparkles size={15} />
+            FastBooking stays
+          </div>
+          <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
+            Feel at home, with more service
           </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-blue-100 sm:text-base">
+            Enjoy the space of an apartment with the thoughtful details of a
+            hotel stay.
+          </p>
         </div>
-
-        <p className="text-sm text-slate-500 sm:text-base">
-          Fully serviced apartments with hotel amenities
-        </p>
       </div>
 
       {/* Property Grid */}
@@ -422,7 +426,7 @@ const ServicedApartments = () => {
               overflow-hidden
               rounded-2xl
               border
-              border-blue-100
+              border-slate-200
               bg-white
               shadow-sm
               transition-all
@@ -580,8 +584,8 @@ const ServicedApartments = () => {
                         items-center
                         justify-center
                         rounded-lg
-                        bg-[#F5F8FC]
-                        text-[#082B5C]
+                        bg-[#FFF8E7]
+                        text-[#C58A18]
                         transition-colors
                         hover:bg-[#FFF8E7]
                         hover:text-[#C58A18]
@@ -596,7 +600,7 @@ const ServicedApartments = () => {
                     flex
                     items-center
                     rounded-lg
-                    bg-[#F5F8FC]
+                    bg-[#FFF8E7]
                     px-3
                     text-xs
                     font-medium

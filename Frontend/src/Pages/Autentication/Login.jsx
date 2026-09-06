@@ -34,7 +34,7 @@ const Login = () => {
     const token = localStorage.getItem("authToken");
 
     if (token) {
-      navigate("/account", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [navigate]);
 
@@ -127,7 +127,7 @@ const Login = () => {
       }
 
       // Redirect
-      navigate("/account", { replace: true });
+      navigate("/", { replace: true });
     } catch (error) {
       console.error("Login error:", error);
 

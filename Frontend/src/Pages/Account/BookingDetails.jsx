@@ -232,56 +232,40 @@ Thank you for booking with FastBooking.
   // =====================================================
 
   const handleCancelBooking = () => {
-    if (!booking) return;
+  if (!booking) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this booking?"
-    );
+  const confirmed = window.confirm(
+    "Are you sure you want to cancel this booking?"
+  );
 
-    if (!confirmed) return;
+  if (!confirmed) return;
 
-    try {
-      const stored =
-        localStorage.getItem(
-          "userBookings"
-        );
+  try {
+    const stored = localStorage.getItem("userBookings");
+    const bookings = stored ? JSON.parse(stored) : [];
 
-      const bookings = stored
-        ? JSON.parse(stored)
-        : [];
+    // Prefer the route param `id` since it's always defined,
+    // falling back to whichever id field the booking has.
+    const targetId = booking.id ?? booking._id ?? id;
 
-      const nextBookings =
-        bookings.map((item) => {
-          const sameBooking =
-            String(item.id) ===
-              String(booking.id) ||
-            String(item._id) ===
-              String(booking.id);
+    const nextBookings = bookings.map((item) => {
+      const itemId = item.id ?? item._id;
 
-          return sameBooking
-            ? {
-                ...item,
-                status: "cancelled",
-              }
-            : item;
-        });
+      const sameBooking =
+  String(item.id) === String(booking.id) ||
+  String(item._id) === String(booking.id);
+        String(itemId) === String(targetId);
 
-      localStorage.setItem(
-        "userBookings",
-        JSON.stringify(nextBookings)
-      );
+      return sameBooking ? { ...item, status: "cancelled" } : item;
+    });
 
-      setBooking({
-        ...booking,
-        status: "cancelled",
-      });
-    } catch (error) {
-      console.error(
-        "Unable to cancel booking:",
-        error
-      );
-    }
-  };
+    localStorage.setItem("userBookings", JSON.stringify(nextBookings));
+
+    setBooking({ ...booking, status: "cancelled" });
+  } catch (error) {
+    console.error("Unable to cancel booking:", error);
+  }
+};
 
   // =====================================================
   // CONTACT HOTEL

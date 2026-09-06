@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Compass,
   Sparkles,
@@ -53,32 +54,33 @@ const popularPlaces = [
 
 const popularHotels = [
   {
-    name: "Luxury Downtown Hotel",
+    name: "Marine Drive Grand",
     location: "Mumbai",
     rating: 4.8,
-    price: 250,
+    price: 180,
     image:
       "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=80",
   },
   {
-    name: "Beachfront Resort",
-    location: "Goa",
-    rating: 4.9,
-    price: 350,
+    name: "The Pink City Palace",
+    location: "Jaipur",
+    rating: 4.8,
+    price: 115,
     image:
       "https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=900&q=80",
   },
   {
-    name: "City Center Hotel",
-    location: "Delhi",
-    rating: 4.7,
-    price: 180,
+    name: "Capital Heights Hotel",
+    location: "New Delhi",
+    rating: 4.8,
+    price: 130,
     image:
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
   },
 ];
 
 const TravelInsights = () => {
+  const navigate = useNavigate();
   const [recentSearches, setRecentSearches] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [selectedPlace, setSelectedPlace] = useState(null);
@@ -193,6 +195,20 @@ const TravelInsights = () => {
     };
 
     selectDestination(place);
+  };
+
+  const handleHotelClick = (hotel) => {
+    navigate("/book-place", {
+      state: {
+        location: `${hotel.location}, India`,
+        guests: {
+          adults: 2,
+          children: 0,
+          rooms: 1,
+        },
+        workTrip: false,
+      },
+    });
   };
 
   return (
@@ -566,6 +582,7 @@ const TravelInsights = () => {
 
             <button
               type="button"
+              onClick={() => navigate("/book-place")}
               className="flex items-center gap-2 self-start rounded-full bg-[#082B5C] px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#C58A18] sm:self-auto"
             >
               View all
@@ -641,6 +658,8 @@ const TravelInsights = () => {
 
                     <button
                       type="button"
+                      onClick={() => handleHotelClick(hotel)}
+                      aria-label={`View ${hotel.name}`}
                       className="rounded-full bg-[#082B5C] p-2.5 text-white transition hover:bg-[#C58A18]"
                     >
                       <ArrowRight size={16} />

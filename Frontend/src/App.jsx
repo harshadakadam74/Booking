@@ -19,6 +19,7 @@ import ServicedApartments from "./components/PropertyType_Details/ServicedApartm
 import Deals from "./components/ExploreDeals_Details/Deals";
 import BookPage from "./Pages/BookPage";
 import BookPlace from "./Pages/BookPlace";
+import TripPlanner from "./Pages/TripPlanner";
 import Payment from "./Pages/Payment";
 import PaymentSuccess from "./Pages/PaymentSuccess";
 import UserAccount from "./Pages/UserAccount";
@@ -60,6 +61,7 @@ const App = () => {
           <Route path="/deals" element={<Deals />}></Route>
           <Route path="/book" element={<BookPage />}></Route>
           <Route path="/book-place" element={<BookPlace />}></Route>
+          <Route path="/trip-planner" element={<TripPlanner />}></Route>
           <Route
             path="/account"
             element={

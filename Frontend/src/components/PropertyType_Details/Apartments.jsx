@@ -9,6 +9,7 @@ import {
   Heart,
   Waves,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -345,7 +346,7 @@ const Apartments = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
+      <div className="flex min-h-[400px] items-center justify-center bg-[#F7F9FC]">
         <div className="flex flex-col items-center gap-3">
           <Loader2
             size={36}
@@ -365,21 +366,26 @@ const Apartments = () => {
   // =====================================================
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <section className="min-h-screen bg-[#F7F9FC] px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
 
       {/* Header */}
-      <div className="mb-8">
-        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#C58A18]">
-          FastBooking Stays
-        </p>
-
-        <h1 className="text-3xl font-bold text-[#082B5C] sm:text-4xl">
-          Apartments
-        </h1>
-
-        <p className="mt-2 text-slate-500">
-          Comfortable apartments for your stay
-        </p>
+      <div className="relative mb-10 overflow-hidden rounded-3xl bg-[#082B5C] px-6 py-8 shadow-xl sm:px-10 sm:py-10">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full border-[24px] border-[#E3AE32]/10" />
+        <div className="absolute -bottom-24 right-28 h-48 w-48 rounded-full bg-[#C58A18]/10 blur-3xl" />
+        <div className="relative max-w-2xl">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#E3AE32]/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">
+            <Sparkles size={15} />
+            FastBooking stays
+          </div>
+          <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
+            Apartments made for living
+          </h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-blue-100 sm:text-base">
+            Settle into comfortable spaces with the flexibility of home and the
+            ease of FastBooking.
+          </p>
+        </div>
       </div>
 
       {/* Apartment Grid */}
@@ -393,7 +399,7 @@ const Apartments = () => {
               overflow-hidden
               rounded-3xl
               border
-              border-blue-100
+              border-slate-200
               bg-white
               shadow-sm
               transition-all
@@ -529,8 +535,8 @@ const Apartments = () => {
                         items-center
                         justify-center
                         rounded-xl
-                        bg-blue-50
-                        text-[#082B5C]
+                        bg-[#FFF8E7]
+                        text-[#C58A18]
                       "
                     >
                       {getAmenityIcon(amenity)}
@@ -603,6 +609,7 @@ const Apartments = () => {
 
       </div>
 
+      </div>
     </section>
   );
 };
