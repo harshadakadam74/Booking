@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="FastBooking suitcase icon">
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d67b8"/>
+      <stop offset="0.55" stop-color="#084587"/>
+      <stop offset="1" stop-color="#032653"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd62e"/>
+      <stop offset="1" stop-color="#f49b00"/>
+    </linearGradient>
+  </defs>
+  <path d="M22 16V11a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v5" fill="none" stroke="#07519b" stroke-width="4" stroke-linecap="round"/>
+  <rect x="12" y="14" width="40" height="43" rx="8" fill="url(#case)" stroke="#0a2f61" stroke-width="2"/>
+  <path d="M17 18h30a4 4 0 0 1 4 4v7H13v-7a4 4 0 0 1 4-4Z" fill="#2a76c4" opacity=".7"/>
+  <path d="M23 23v27M32 23v27M41 23v27" stroke="#021e49" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+  <path d="M3 46c13 10 28 7 39-3 7-6 10-13 17-17-4 8-7 17-17 24-13 9-29 11-40 2Z" fill="url(#gold)"/>
+  <path d="m42 27 13-10-5 10 8 3-14 2-7 7 2-9-7-3 10-1Z" fill="#ffc21a"/>
+  <circle cx="20" cy="58" r="2.5" fill="#062b5e"/>
+  <circle cx="44" cy="58" r="2.5" fill="#062b5e"/>
+</svg>
