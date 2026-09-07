@@ -58,7 +58,7 @@ const bookingSchema = new mongoose.Schema(
     paymentDetails: {
       paymentMethod: {
         type: String,
-        enum: ["CREDIT_CARD", "DEBIT_CARD", "RAZORPAY", "UPI"],
+        enum: ["CREDIT_CARD", "DEBIT_CARD", "RAZORPAY", "UPI", "DUMMY"],
       },
       transactionId: String,
       paymentId: String,

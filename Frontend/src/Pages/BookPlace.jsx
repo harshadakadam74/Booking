@@ -18,6 +18,7 @@ import {
   CookingPot,
   Bath,
 } from "lucide-react";
+import { getPricePrediction } from "../utils/pricePrediction";
 
 /* =========================================================
    PROPERTY DATA
@@ -693,10 +694,17 @@ const BookPlace = () => {
 
   const handleBookNow = (property) => {
     const authToken = localStorage.getItem("authToken");
+    const prediction = getPricePrediction({
+      price: property.price,
+      checkInDate: searchParams?.dates?.startDate,
+      availableRooms: property.availableRooms,
+      totalRooms: property.totalRooms,
+    });
 
     const bookingState = {
-      property,
+      property: { ...property, price: prediction.predictedPrice, basePrice: property.price },
       searchParams,
+      pricePrediction: prediction,
     };
 
     if (!authToken) {
@@ -1230,6 +1238,21 @@ const BookPlace = () => {
                     <div className="mt-6 flex flex-col gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-between">
 
                       <div>
+
+                            {(() => {
+                              const prediction = getPricePrediction({
+                                price: property.price,
+                                checkInDate: searchParams?.dates?.startDate,
+                                availableRooms: property.availableRooms,
+                                totalRooms: property.totalRooms,
+                              });
+
+                              return (
+                                <div className={`mb-2 text-xs font-semibold ${prediction.direction === "increase" ? "text-amber-700" : prediction.direction === "decrease" ? "text-green-700" : "text-slate-500"}`}>
+                                  {prediction.message}
+                                </div>
+                              );
+                            })()}
 
                         <div className="flex items-baseline gap-2">
 

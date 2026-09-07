@@ -1,4 +1,4 @@
-const razorpay = require('../config/Payment');
+const { getRazorpay } = require('../config/Payment');
 const Payment = require('../models/Payment');
 
 let stripeClient;
@@ -14,7 +14,7 @@ const getStripeClient = () => {
 };
 
 const createRazorpayOrder = async ({ amount, receipt }) => {
-  return razorpay.orders.create({ amount, currency: 'INR', receipt });
+  return getRazorpay().orders.create({ amount, currency: 'INR', receipt });
 };
 
 const createStripePaymentIntent = async ({ amount, currency, metadata }) => {
@@ -27,14 +27,18 @@ const retrieveStripePaymentIntent = async (paymentIntentId) => {
   return stripe.paymentIntents.retrieve(paymentIntentId);
 };
 
-const verifyRazorpaySignature = (payload, signature, secret) => {
+const verifyRazorpaySignature = (orderId, paymentId, signature, secret) => {
+  if (!orderId || !paymentId || !signature || !secret) return false;
   const crypto = require('crypto');
   const generatedSignature = crypto
     .createHmac('sha256', secret)
-    .update(`${payload.orderId}|${payload.paymentId}`)
+    .update(`${orderId}|${paymentId}`)
     .digest('hex');
 
-  return generatedSignature === signature;
+  return crypto.timingSafeEqual(
+    Buffer.from(generatedSignature),
+    Buffer.from(signature)
+  );
 };
 
 const savePayment = async (paymentData) => {

@@ -65,3 +65,60 @@ export const getAllBookings = async () => {
     throw error.response?.data || error;
   }
 };
+
+export const createPaymentOrder = async (bookingId) => {
+  try {
+    const response = await apiClient.post('/api/v1/payments/create-order', {
+      bookingId,
+      paymentMethod: 'RAZORPAY',
+    });
+    return response.data?.data || response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Unable to create payment order';
+    throw new Error(message);
+  }
+};
+
+export const verifyPayment = async (bookingId, paymentResponse) => {
+  try {
+    const response = await apiClient.post('/api/v1/payments/verify', {
+      bookingId,
+      paymentMethod: 'RAZORPAY',
+      razorpay_order_id: paymentResponse.razorpay_order_id,
+      razorpay_payment_id: paymentResponse.razorpay_payment_id,
+      razorpay_signature: paymentResponse.razorpay_signature,
+    });
+    return response.data?.data || response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Payment verification failed';
+    throw new Error(message);
+  }
+};
+
+export const createDummyPayment = async (bookingId) => {
+  try {
+    const response = await apiClient.post('/api/v1/payments/dummy-payment', { bookingId });
+    return response.data?.data || response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Dummy payment failed';
+    throw new Error(message);
+  }
+};
+
+export const createBookingReview = async (payload) => {
+  try {
+    const response = await apiClient.post('/api/v1/reviews/booking', payload);
+    return response.data?.data?.review || response.data?.review;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getBookingReview = async (bookingId) => {
+  try {
+    const response = await apiClient.get(`/api/v1/reviews/booking/${bookingId}`);
+    return response.data?.data?.review || null;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

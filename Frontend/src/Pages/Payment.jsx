@@ -13,13 +13,25 @@ import {
   Building2,
   Sparkles,
 } from "lucide-react";
-import { createBooking } from "../services/bookingService";
+import {
+  createBooking,
+  createDummyPayment,
+  createPaymentOrder,
+  verifyPayment,
+} from "../services/bookingService";
+import { getPricePrediction } from "../utils/pricePrediction";
 
 const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const { property, searchParams } = location.state || {};
+  const pricePrediction = location.state?.pricePrediction || getPricePrediction({
+    price: property?.price,
+    checkInDate: searchParams?.dates?.startDate,
+    availableRooms: property?.availableRooms,
+    totalRooms: property?.totalRooms,
+  });
 
   const [paymentMethod, setPaymentMethod] = useState("card");
 
@@ -142,34 +154,6 @@ const Payment = () => {
       newErrors.booking = "Please select valid booking dates.";
     }
 
-    // Card validation
-    if (paymentMethod === "card") {
-      if (!cardDetails.name.trim()) {
-        newErrors.name = "Cardholder name is required.";
-      }
-
-      const cardNumber = cardDetails.number.replace(/\s/g, "");
-
-      if (!cardNumber) {
-        newErrors.number = "Card number is required.";
-      } else if (cardNumber.length !== 16) {
-        newErrors.number =
-          "Enter a valid 16-digit card number.";
-      }
-
-      if (!cardDetails.expiry.trim()) {
-        newErrors.expiry = "Expiry date is required.";
-      } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardDetails.expiry)) {
-        newErrors.expiry = "Enter expiry as MM/YY.";
-      }
-
-      if (!cardDetails.cvv.trim()) {
-        newErrors.cvv = "CVV is required.";
-      } else if (!/^\d{3,4}$/.test(cardDetails.cvv)) {
-        newErrors.cvv = "Enter a valid CVV.";
-      }
-    }
-
     // Billing validation
     if (!billingAddress.address.trim()) {
       newErrors.address = "Address is required.";
@@ -191,6 +175,19 @@ const Payment = () => {
 
     return Object.keys(newErrors).length === 0;
   };
+
+  const loadRazorpay = () => new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
   // =========================================================
   // SUBMIT BOOKING
@@ -232,7 +229,7 @@ const Payment = () => {
 
         totalPrice: calculateTotal(),
 
-        paymentMethod,
+        paymentMethod: "RAZORPAY",
 
         specialRequests: "",
 
@@ -246,19 +243,67 @@ const Payment = () => {
           "",
       };
 
+      const propertyId = property._id || property.id;
+      if (typeof propertyId === "string" && /^[a-f\d]{24}$/i.test(propertyId)) {
+        bookingPayload.propertyId = propertyId;
+      }
+
       const response = await createBooking(bookingPayload);
 
       const booking = response?.booking || response || null;
+      const bookingId = booking?._id || booking?.id;
+      if (!bookingId) throw new Error("Booking ID was not returned by the server");
+
+      if (paymentMethod === "dummy") {
+        const dummyResult = await createDummyPayment(bookingId);
+        navigate("/payment-success", {
+          replace: true,
+          state: {
+            property,
+            searchParams,
+            total: calculateTotal(),
+            booking: dummyResult?.booking || booking,
+            paymentMethod: "DUMMY",
+          },
+        });
+        return;
+      }
+
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Razorpay Checkout failed to load");
+
+      const { order, key } = await createPaymentOrder(bookingId);
+      await new Promise((resolve, reject) => {
+        const razorpay = new window.Razorpay({
+          key,
+          amount: order.amount,
+          currency: order.currency,
+          name: "FastBooking",
+          description: `Hotel booking - ${property.name}`,
+          order_id: order.id,
+          prefill: {
+            name: user?.name || "",
+            email: user?.email || "",
+            contact: user?.mobile || user?.phone || "",
+          },
+          theme: { color: "#0B5ED7" },
+          handler: async (paymentResponse) => {
+            try {
+              await verifyPayment(bookingId, paymentResponse);
+              resolve();
+            } catch (error) {
+              reject(new Error(error?.message || "Payment verification failed"));
+            }
+          },
+          modal: { ondismiss: () => reject(new Error("Payment was cancelled")) },
+        });
+        razorpay.on("payment.failed", () => reject(new Error("Payment failed")));
+        razorpay.open();
+      });
 
       navigate("/payment-success", {
         replace: true,
-        state: {
-          property,
-          searchParams,
-          total: calculateTotal(),
-          booking,
-          paymentMethod,
-        },
+        state: { property, searchParams, total: calculateTotal(), booking, paymentMethod: "RAZORPAY" },
       });
     } catch (error) {
       console.error("Booking creation error:", error);
@@ -346,7 +391,7 @@ const Payment = () => {
             HEADER
         ================================================== */}
 
-        <div className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-900 p-6 text-white shadow-xl sm:p-8">
+        <div className="mb-8 overflow-hidden rounded-3xl bg-linear-to-r from-blue-950 via-blue-900 to-indigo-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 
             <div>
@@ -458,11 +503,11 @@ const Payment = () => {
 
                       <div>
                         <p className="font-semibold">
-                          Credit / Debit Card
+                          Razorpay Checkout
                         </p>
 
                         <p className="mt-0.5 text-xs text-slate-500">
-                          Visa, Mastercard, RuPay
+                          UPI, cards and net banking
                         </p>
                       </div>
 
@@ -474,16 +519,16 @@ const Payment = () => {
                       )}
                     </button>
 
-                    {/* PAYPAL */}
+                    {/* DUMMY PAYMENT */}
 
                     <button
                       type="button"
                       onClick={() => {
-                        setPaymentMethod("paypal");
+                        setPaymentMethod("dummy");
                         setBookingError("");
                       }}
                       className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition ${
-                        paymentMethod === "paypal"
+                        paymentMethod === "dummy"
                           ? "border-yellow-500 bg-yellow-50 text-yellow-800 shadow-sm"
                           : "border-slate-200 bg-white text-slate-600 hover:border-yellow-200"
                       }`}
@@ -494,15 +539,15 @@ const Payment = () => {
 
                       <div>
                         <p className="font-semibold">
-                          PayPal
+                          Dummy payment
                         </p>
 
                         <p className="mt-0.5 text-xs text-slate-500">
-                          Fast & secure payment
+                          Development testing only
                         </p>
                       </div>
 
-                      {paymentMethod === "paypal" && (
+                      {paymentMethod === "dummy" && (
                         <CheckCircle
                           size={19}
                           className="ml-auto shrink-0 text-yellow-600"
@@ -881,7 +926,7 @@ const Payment = () => {
                     <button
                       type="submit"
                       disabled={isProcessing}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-700 to-blue-800 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-800 hover:to-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-700 to-blue-800 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-800 hover:to-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isProcessing ? (
                         <>
@@ -891,7 +936,7 @@ const Payment = () => {
                       ) : (
                         <>
                           <Lock size={19} />
-                          Pay ${total.toLocaleString()}
+                          Pay ₹{total.toLocaleString("en-IN")}
                         </>
                       )}
                     </button>
@@ -900,7 +945,7 @@ const Payment = () => {
                 ) : (
 
                   /* ==================================================
-                     PAYPAL
+                     DUMMY PAYMENT
                   ================================================== */
 
                   <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-8 text-center">
@@ -910,12 +955,11 @@ const Payment = () => {
                     </div>
 
                     <h3 className="text-xl font-bold text-slate-900">
-                      Continue with PayPal
+                      Complete payment
                     </h3>
 
                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                      You will be redirected to PayPal to
-                      securely complete your payment.
+                      This test payment confirms the booking without charging money.
                     </p>
 
                     {(bookingError || errors.booking) && (
@@ -937,7 +981,7 @@ const Payment = () => {
                         </>
                       ) : (
                         <>
-                          Continue with PayPal
+                          Complete dummy payment
                           <ArrowLeft
                             size={17}
                             className="rotate-180"
@@ -1108,13 +1152,17 @@ const Payment = () => {
 
                 <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
 
+                  <p className={`mb-3 text-xs font-semibold ${pricePrediction.direction === "increase" ? "text-amber-700" : pricePrediction.direction === "decrease" ? "text-green-700" : "text-slate-500"}`}>
+                    {pricePrediction.message}
+                  </p>
+
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">
-                      ${property.price} × {nights} nights
+                      ₹{Number(property.price || 0).toLocaleString("en-IN")} × {nights} nights
                     </span>
 
                     <span className="font-semibold text-slate-800">
-                      ${(Number(property.price || 0) * nights).toLocaleString()}
+                      ₹{(Number(property.price || 0) * nights).toLocaleString("en-IN")}
                     </span>
                   </div>
 
@@ -1138,7 +1186,7 @@ const Payment = () => {
                     </span>
 
                     <span className="text-2xl font-extrabold text-blue-800">
-                      ${total.toLocaleString()}
+                      ₹{total.toLocaleString("en-IN")}
                     </span>
                   </div>
 

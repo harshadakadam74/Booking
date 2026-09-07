@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fetchPublicProperties } from "../../services/authService";
+import { getPricePrediction } from "../../utils/pricePrediction";
 
 const Hotels = () => {
   const navigate = useNavigate();
@@ -280,12 +281,22 @@ const Hotels = () => {
   // Book Now
   // =========================
   const handleBookNow = (hotel) => {
+    const prediction = getPricePrediction({
+      price: hotel.price,
+      checkInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      availableRooms: hotel.availableRooms,
+      totalRooms: hotel.totalRooms,
+    });
+
     navigate("/payment", {
       state: {
         property: {
           ...hotel,
+          price: prediction.predictedPrice,
+          basePrice: hotel.price,
           type: "Hotel",
         },
+        pricePrediction: prediction,
 
         searchParams: {
           location: hotel.location,
@@ -560,6 +571,20 @@ const Hotels = () => {
                   <div className="flex items-end justify-between gap-3">
 
                     <div>
+                      {(() => {
+                        const prediction = getPricePrediction({
+                          price: hotel.price,
+                          checkInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                          availableRooms: hotel.availableRooms,
+                          totalRooms: hotel.totalRooms,
+                        });
+
+                        return (
+                          <p className={`mb-1 text-xs font-semibold ${prediction.direction === "increase" ? "text-amber-700" : prediction.direction === "decrease" ? "text-green-700" : "text-slate-500"}`}>
+                            {prediction.message}
+                          </p>
+                        );
+                      })()}
                       <div className="flex items-baseline gap-1">
                         <span className="
                           text-2xl

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   MapPin,
@@ -21,6 +21,8 @@ import BookingActions from "../../components/booking/BookingActions";
 import BookingOverview from "../../components/booking/BookingOverview";
 import QRCodeCard from "../../components/booking/QRCodeCard";
 import HotelMap from "../../components/booking/HotelMap";
+import BookingReview from "../../components/booking/BookingReview";
+import { getBookingReview } from "../../services/bookingService";
 
 const BookingDetails = () => {
   const { id } = useParams();
@@ -90,10 +92,19 @@ const BookingDetails = () => {
       return createFallbackBooking(id);
     }
   });
+  const [existingReview, setExistingReview] = useState(null);
 
   // =====================================================
   // LOAD BOOKING
   // =====================================================
+
+  useEffect(() => {
+    if (!id || !/^[a-f\d]{24}$/i.test(id)) return;
+
+    getBookingReview(id)
+      .then(setExistingReview)
+      .catch((error) => console.error("Failed to load booking review:", error));
+  }, [id]);
 
   // =====================================================
   // TRIP DURATION
@@ -360,6 +371,13 @@ Thank you for booking with FastBooking.
     String(booking.status || "")
       .toLowerCase() === "cancelled";
 
+  const reviewStatus = String(booking.bookingStatus || booking.status || "").toUpperCase();
+  const checkoutDate = booking.checkOutDate || booking.checkOut;
+  const canReview = !isCancelled && (
+    reviewStatus === "COMPLETED" ||
+    (checkoutDate && new Date(checkoutDate) <= new Date())
+  );
+
   // =====================================================
   // PAGE
   // =====================================================
@@ -396,7 +414,7 @@ Thank you for booking with FastBooking.
             HERO
         ================================================= */}
 
-        <section className="relative mb-6 overflow-hidden rounded-[2rem] bg-[#082B5C] p-6 text-white shadow-xl sm:p-8">
+        <section className="relative mb-6 overflow-hidden rounded-4xl bg-[#082B5C] p-6 text-white shadow-xl sm:p-8">
 
           {/* Gold Glow */}
 
@@ -543,6 +561,12 @@ Thank you for booking with FastBooking.
 
           <BookingOverview
             booking={booking}
+          />
+
+          <BookingReview
+            bookingId={booking._id || booking.id || id}
+            canReview={canReview}
+            existingReview={existingReview}
           />
 
           {/* STATUS */}

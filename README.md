@@ -158,6 +158,8 @@ Follow the testing guide in [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) to:
 MONGO_URI=mongodb://localhost:27017/booking
 PORT=4545
 JWT_SECRET=your_secret_key_here
+RAZORPAY_KEY_ID=rzp_test_replace_me
+RAZORPAY_KEY_SECRET=replace_with_razorpay_test_secret
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 CLIENT_URL=http://localhost:5173

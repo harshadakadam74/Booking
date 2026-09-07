@@ -1,11 +1,13 @@
 const Booking = require("../models/Booking");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 // Create a new booking
 const createBooking = async (req, res) => {
   try {
     const {
       property,
+      propertyId,
       checkInDate,
       checkOutDate,
       numberOfGuests,
@@ -59,6 +61,10 @@ const createBooking = async (req, res) => {
       guestEmail: guestEmail || req.user.email,
       guestPhone: guestPhone || req.user.mobile,
     };
+
+    if (propertyId && mongoose.Types.ObjectId.isValid(propertyId)) {
+      bookingData.propertyId = propertyId;
+    }
 
     const booking = new Booking(bookingData);
     await booking.save();

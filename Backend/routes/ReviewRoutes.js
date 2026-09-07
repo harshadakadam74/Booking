@@ -9,6 +9,8 @@ router.get("/product/:productId", ReviewController.getReviewsByProduct);
 
 // Authenticated User
 router.post("/", authenticate, ReviewController.createReview);
+router.post("/booking", authenticate, ReviewController.createBookingReview);
+router.get("/booking/:bookingId", authenticate, ReviewController.getBookingReview);
 router.put("/:id", authenticate, ReviewController.updateReview);
 router.delete("/:id", authenticate, ReviewController.deleteReview);
 

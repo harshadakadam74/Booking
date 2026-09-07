@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const Booking = require('../models/Booking');
 const ApiResponse = require('../Utils/ApiResponse');
 
 const createReview = async (req, res) => {
@@ -23,6 +24,61 @@ const createReview = async (req, res) => {
     return ApiResponse.success(res, { review }, 'Review created successfully');
   } catch (error) {
     return ApiResponse.error(res, 500, error.message);
+  }
+};
+
+const createBookingReview = async (req, res) => {
+  try {
+    const { bookingId, rating, comment = '', photos = [] } = req.body;
+    const numericRating = Number(rating);
+
+    if (!bookingId || !Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
+      return ApiResponse.error(res, 400, 'bookingId and a rating from 1 to 5 are required');
+    }
+
+    const booking = await Booking.findOne({ _id: bookingId, user: req.user._id });
+    if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
+    if (booking.bookingStatus === 'CANCELLED') {
+      return ApiResponse.error(res, 400, 'Cancelled bookings cannot be reviewed');
+    }
+
+    const checkoutPassed = booking.checkOutDate && new Date(booking.checkOutDate) <= new Date();
+    if (booking.bookingStatus !== 'COMPLETED' && !checkoutPassed) {
+      return ApiResponse.error(res, 400, 'You can review this stay after checkout');
+    }
+
+    const existingReview = await Review.findOne({ userId: req.user._id, bookingId });
+    if (existingReview) return ApiResponse.error(res, 409, 'You already reviewed this booking');
+
+    const safePhotos = Array.isArray(photos)
+      ? photos.filter((photo) => typeof photo === 'string' && photo.trim()).slice(0, 5)
+      : [];
+
+    const review = await Review.create({
+      userId: req.user._id,
+      bookingId: booking._id,
+      propertyId: booking.propertyId,
+      propertyName: booking.property,
+      rating: numericRating,
+      comment: String(comment).trim().slice(0, 2000),
+      photos: safePhotos,
+    });
+
+    return ApiResponse.success(res, { review }, 'Review submitted successfully', 201);
+  } catch (error) {
+    return ApiResponse.error(res, error.code === 11000 ? 409 : 400, error.message);
+  }
+};
+
+const getBookingReview = async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ _id: req.params.bookingId, user: req.user._id });
+    if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
+
+    const review = await Review.findOne({ bookingId: booking._id });
+    return ApiResponse.success(res, { review }, 'Booking review loaded successfully');
+  } catch (error) {
+    return ApiResponse.error(res, 400, error.message);
   }
 };
 
@@ -72,4 +128,4 @@ const deleteReview = async (req, res) => {
   }
 };
 
-module.exports = { createReview, getReviewsByProduct, updateReview, deleteReview };
+module.exports = { createReview, createBookingReview, getBookingReview, getReviewsByProduct, updateReview, deleteReview };

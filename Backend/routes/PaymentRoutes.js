@@ -5,6 +5,7 @@ const { authenticate } = require('../middlewares/Authenticate');
 
 router.post('/create-order', authenticate, PaymentController.createOrder);
 router.post('/verify', authenticate, PaymentController.verifyPayment);
+router.post('/dummy-payment', authenticate, PaymentController.createDummyPayment);
 router.post('/webhook', PaymentController.handleWebhook);
 router.get('/history', authenticate, PaymentController.getPaymentHistory);
 
