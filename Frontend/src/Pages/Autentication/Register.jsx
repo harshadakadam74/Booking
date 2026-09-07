@@ -140,7 +140,7 @@ const Register = () => {
         localStorage.setItem("user", JSON.stringify(profile));
       }
 
-      navigate("/account");
+      navigate("/");
     } catch (error) {
       console.error("Registration error:", error);
 
