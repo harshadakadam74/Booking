@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   CreditCard,
@@ -52,6 +52,8 @@ const Payment = () => {
   const [errors, setErrors] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [locationStatus, setLocationStatus] = useState("");
+  const [detectedGuestLocation, setDetectedGuestLocation] = useState(null);
 
   const storedUser = localStorage.getItem("user");
 
@@ -139,7 +141,7 @@ const Payment = () => {
   // VALIDATION
   // =========================================================
 
-  const validateForm = () => {
+  const validateForm = (address = billingAddress) => {
     const newErrors = {};
 
     if (!searchParams?.dates?.startDate) {
@@ -155,19 +157,19 @@ const Payment = () => {
     }
 
     // Billing validation
-    if (!billingAddress.address.trim()) {
+    if (!address.address.trim()) {
       newErrors.address = "Address is required.";
     }
 
-    if (!billingAddress.city.trim()) {
+    if (!address.city.trim()) {
       newErrors.city = "City is required.";
     }
 
-    if (!billingAddress.zipCode.trim()) {
+    if (!address.zipCode.trim()) {
       newErrors.zipCode = "ZIP code is required.";
     }
 
-    if (!billingAddress.country.trim()) {
+    if (!address.country.trim()) {
       newErrors.country = "Country is required.";
     }
 
@@ -189,6 +191,87 @@ const Payment = () => {
     document.body.appendChild(script);
   });
 
+  const reverseGeocode = useCallback(async ({ latitude, longitude }) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${latitude}&lon=${longitude}`
+      );
+
+      if (!response.ok) return {};
+
+      const address = (await response.json()).address || {};
+      const supportedCountries = ["IN", "US", "GB", "CA", "AU"];
+
+      return {
+        address: [address.house_number, address.road]
+          .filter(Boolean)
+          .join(" "),
+        city: address.city || address.town || address.village || "",
+        zipCode: address.postcode || "",
+        country: supportedCountries.includes(address.country_code?.toUpperCase())
+          ? address.country_code.toUpperCase()
+          : "",
+      };
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const getGuestLocation = useCallback(() => new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      setLocationStatus("Location detection is not supported by this browser.");
+      resolve(null);
+      return;
+    }
+
+    setLocationStatus("Detecting your location...");
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const coordinates = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          accuracy: coords.accuracy,
+          capturedAt: new Date().toISOString(),
+        };
+        const detectedAddress = await reverseGeocode(coordinates);
+        setLocationStatus(
+          Object.values(detectedAddress).some(Boolean)
+            ? "Location and address detected."
+            : "Location detected."
+        );
+        resolve({ coordinates, detectedAddress });
+      },
+      () => {
+        setLocationStatus("Location permission was not granted. Continuing booking.");
+        resolve(null);
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  }), [reverseGeocode]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getGuestLocation().then((detectedLocation) => {
+      if (!isMounted || !detectedLocation) return;
+
+      setDetectedGuestLocation(detectedLocation);
+      const detectedAddress = detectedLocation.detectedAddress || {};
+
+      setBillingAddress((previous) => ({
+        address: previous.address || detectedAddress.address || "",
+        city: previous.city || detectedAddress.city || "",
+        zipCode: previous.zipCode || detectedAddress.zipCode || "",
+        country: previous.country || detectedAddress.country || "",
+      }));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getGuestLocation]);
+
   // =========================================================
   // SUBMIT BOOKING
   // =========================================================
@@ -203,14 +286,27 @@ const Payment = () => {
       return;
     }
 
-    if (!validateForm()) {
-      return;
-    }
-
     setIsProcessing(true);
     setBookingError("");
 
     try {
+      const detectedLocation =
+        detectedGuestLocation || await getGuestLocation();
+      const detectedAddress = detectedLocation?.detectedAddress || {};
+      const nextBillingAddress = {
+        address: billingAddress.address || detectedAddress.address || "",
+        city: billingAddress.city || detectedAddress.city || "",
+        zipCode: billingAddress.zipCode || detectedAddress.zipCode || "",
+        country: billingAddress.country || detectedAddress.country || "",
+      };
+
+      setBillingAddress(nextBillingAddress);
+
+      if (!validateForm(nextBillingAddress)) {
+        setIsProcessing(false);
+        return;
+      }
+
       const bookingPayload = {
         property: property.name,
 
@@ -241,6 +337,8 @@ const Payment = () => {
           user?.mobile ||
           user?.phone ||
           "",
+
+        guestLocation: detectedLocation?.coordinates || null,
       };
 
       const propertyId = property._id || property.id;
@@ -918,6 +1016,13 @@ const Payment = () => {
                     {(bookingError || errors.booking) && (
                       <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         {bookingError || errors.booking}
+                      </div>
+                    )}
+
+                    {locationStatus && (
+                      <div className="mb-5 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                        <MapPin size={16} />
+                        {locationStatus}
                       </div>
                     )}
 

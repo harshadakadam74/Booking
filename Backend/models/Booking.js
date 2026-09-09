@@ -68,6 +68,12 @@ const bookingSchema = new mongoose.Schema(
     guestName: String,
     guestEmail: String,
     guestPhone: String,
+    guestLocation: {
+      latitude: Number,
+      longitude: Number,
+      accuracy: Number,
+      capturedAt: Date,
+    },
     cancellationReason: String,
     cancellationDate: Date,
   },

@@ -17,6 +17,7 @@ const createBooking = async (req, res) => {
       guestName,
       guestEmail,
       guestPhone,
+      guestLocation,
     } = req.body;
 
     // Validate required fields
@@ -60,6 +61,7 @@ const createBooking = async (req, res) => {
       guestName: guestName || req.user.name,
       guestEmail: guestEmail || req.user.email,
       guestPhone: guestPhone || req.user.mobile,
+      guestLocation,
     };
 
     if (propertyId && mongoose.Types.ObjectId.isValid(propertyId)) {
