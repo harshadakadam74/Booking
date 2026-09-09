@@ -22,7 +22,10 @@ import BookingOverview from "../../components/booking/BookingOverview";
 import QRCodeCard from "../../components/booking/QRCodeCard";
 import HotelMap from "../../components/booking/HotelMap";
 import BookingReview from "../../components/booking/BookingReview";
-import { getBookingReview } from "../../services/bookingService";
+import {
+  cancelBooking,
+  getBookingReview,
+} from "../../services/bookingService";
 
 const BookingDetails = () => {
   const { id } = useParams();
@@ -143,6 +146,21 @@ const BookingDetails = () => {
   // DOWNLOAD RECEIPT
   // =====================================================
 
+  const downloadTextFile = (content, filename) => {
+    const blob = new Blob([content], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownloadReceipt = () => {
     const receipt = `
 FASTBOOKING
@@ -185,32 +203,49 @@ $${booking?.total || 0}
 Thank you for booking with FastBooking.
 `;
 
-    const blob = new Blob(
-      [receipt],
-      {
-        type: "text/plain;charset=utf-8",
-      }
+    downloadTextFile(
+      receipt,
+      `fastbooking-receipt-${booking?.id || id}.txt`
     );
+  };
 
-    const url =
-      URL.createObjectURL(blob);
+  const handleDownloadInvoice = () => {
+    const invoiceId =
+      booking?.invoiceId ||
+      `INV-${booking?.id || booking?.bookingId || id}`;
+    const total = booking?.totalAmount ?? booking?.totalPrice ?? booking?.total ?? 0;
+    const invoice = `
+FASTBOOKING
+================================
 
-    const link =
-      document.createElement("a");
+INVOICE
 
-    link.href = url;
+Invoice ID:
+${invoiceId}
 
-    link.download = `fastbooking-receipt-${
-      booking?.id || id
-    }.txt`;
+Booking ID:
+${booking?.id || booking?._id || id}
 
-    document.body.appendChild(link);
+Property:
+${booking?.property || "Booking"}
 
-    link.click();
+Guest:
+${booking?.guestName || booking?.guestEmail || "N/A"}
 
-    document.body.removeChild(link);
+Stay:
+${booking?.checkInDate || booking?.checkIn || "N/A"} to ${booking?.checkOutDate || booking?.checkOut || "N/A"}
 
-    URL.revokeObjectURL(url);
+Payment Status:
+${booking?.paymentStatus || "Paid"}
+
+Total Amount:
+₹${Number(total).toLocaleString("en-IN")}
+
+================================
+Thank you for booking with FastBooking.
+`;
+
+    downloadTextFile(invoice, `fastbooking-invoice-${invoiceId}.txt`);
   };
 
   // =====================================================
@@ -229,41 +264,45 @@ Thank you for booking with FastBooking.
   // CANCEL BOOKING
   // =====================================================
 
-  const handleCancelBooking = () => {
-  if (!booking) return;
+  const handleCancelBooking = async () => {
+    if (!booking) return;
 
-  const confirmed = window.confirm(
-    "Are you sure you want to cancel this booking?"
-  );
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this booking?"
+    );
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  try {
-    const stored = localStorage.getItem("userBookings");
-    const bookings = stored ? JSON.parse(stored) : [];
+    const targetId = booking._id || booking.id || id;
 
-    // Prefer the route param `id` since it's always defined,
-    // falling back to whichever id field the booking has.
-    const targetId = booking.id ?? booking._id ?? id;
+    try {
+      if (/^[a-f\d]{24}$/i.test(String(targetId))) {
+        await cancelBooking(targetId);
+      }
 
-    const nextBookings = bookings.map((item) => {
-      const itemId = item.id ?? item._id;
+      const cancelledBooking = {
+        ...booking,
+        status: "cancelled",
+        bookingStatus: "CANCELLED",
+      };
 
-      const sameBooking =
-  String(item.id) === String(booking.id) ||
-  String(item._id) === String(booking.id);
-        String(itemId) === String(targetId);
+      const stored = localStorage.getItem("userBookings");
+      const bookings = stored ? JSON.parse(stored) : [];
+      const nextBookings = Array.isArray(bookings)
+        ? bookings.map((item) => {
+            const itemId = item._id || item.id;
+            return String(itemId) === String(targetId)
+              ? { ...item, status: "cancelled", bookingStatus: "CANCELLED" }
+              : item;
+          })
+        : [];
 
-      return sameBooking ? { ...item, status: "cancelled" } : item;
-    });
-
-    localStorage.setItem("userBookings", JSON.stringify(nextBookings));
-
-    setBooking({ ...booking, status: "cancelled" });
-  } catch (error) {
-    console.error("Unable to cancel booking:", error);
-  }
-};
+      localStorage.setItem("userBookings", JSON.stringify(nextBookings));
+      setBooking(cancelledBooking);
+    } catch (error) {
+      window.alert(error?.message || "Unable to cancel booking");
+    }
+  };
 
   // =====================================================
   // CONTACT HOTEL
@@ -624,6 +663,7 @@ Thank you for booking with FastBooking.
 
               <BookingInvoice
                 booking={booking}
+                onDownloadInvoice={handleDownloadInvoice}
               />
 
             </div>
