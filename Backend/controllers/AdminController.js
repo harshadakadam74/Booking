@@ -50,10 +50,20 @@ const createProperty = async (req, res) => {
       totalRooms,
       availableRooms,
       amenities = [],
+      latitude,
+      longitude,
     } = req.body;
 
     if (!name || !location || price === undefined || totalRooms === undefined || availableRooms === undefined) {
       return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required');
+    }
+
+    const hasCoordinates = latitude !== undefined && longitude !== undefined && latitude !== '' && longitude !== '';
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+    if (hasCoordinates && (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+      !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180)) {
+      return ApiResponse.error(res, 400, 'Latitude and longitude must be valid coordinates');
     }
 
     const property = await Property.create({
@@ -66,6 +76,7 @@ const createProperty = async (req, res) => {
       totalRooms: Number(totalRooms),
       availableRooms: Number(availableRooms),
       amenities: Array.isArray(amenities) ? amenities : [],
+      ...(hasCoordinates ? { geoLocation: { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] } } : {}),
     });
 
     return ApiResponse.success(res, { property }, 'Hotel created successfully', 201);

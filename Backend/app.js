@@ -25,6 +25,7 @@ app.use('/api/v1/payments', Payment_Route);
 app.use('/api/v1/reviews', Review_Route);
 app.use('/api/v1/admin', Admin_Route);
 app.use('/api/v1/properties', Property_Route);
+app.use('/api/v1/hotels', Property_Route);
 
 app.use(errorHandler);
 

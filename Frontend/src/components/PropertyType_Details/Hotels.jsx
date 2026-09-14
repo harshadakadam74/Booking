@@ -9,13 +9,21 @@ import {
   Heart,
   Waves,
   Sparkles,
+  LocateFixed,
+  List,
+  Map,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchPublicProperties } from "../../services/authService";
+import { apiFetch } from "../../services/api";
 import { getPricePrediction } from "../../utils/pricePrediction";
 
 const Hotels = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const latitude = Number(searchParams.get("lat"));
+  const longitude = Number(searchParams.get("lng"));
+  const hasUserLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
 
   // =========================
   // Hotel Data
@@ -194,8 +202,47 @@ const Hotels = () => {
     return mockHotels;
   });
   const [loading, setLoading] = useState(true);
+  const [radius, setRadius] = useState(10);
+  const [view, setView] = useState("list");
+  const [locationStatus, setLocationStatus] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (hasUserLocation) {
+      const query = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        radius: String(radius),
+      });
+
+      apiFetch(`/api/v1/hotels/nearby?${query}`)
+        .then((response) => {
+          if (cancelled) return;
+          const nearbyHotels = (response.properties || []).map((hotel) => ({
+            ...hotel,
+            id: hotel._id,
+            rating: hotel.rating || 0,
+            reviews: hotel.reviews || 0,
+            originalPrice: hotel.price,
+            discount: 0,
+            amenities: hotel.amenities || [],
+          }));
+          setHotels(nearbyHotels);
+          setLocationStatus(`${nearbyHotels.length} stays found within ${radius} km.`);
+        })
+        .catch((error) => {
+          if (!cancelled) setLocationStatus(error.message || "Unable to find nearby stays.");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     fetchPublicProperties()
       .then((managedHotels) => {
         const formattedHotels = managedHotels.map((hotel) => ({
@@ -207,11 +254,23 @@ const Hotels = () => {
           discount: 0,
           amenities: hotel.amenities || [],
         }));
-        setHotels((currentHotels) => [...formattedHotels, ...currentHotels]);
+        if (!cancelled) setHotels((currentHotels) => [...formattedHotels, ...currentHotels]);
       })
       .catch((error) => console.error("Error loading managed hotels:", error))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasUserLocation, latitude, longitude, radius]);
+
+  const handleRadiusChange = (event) => {
+    setLoading(true);
+    setLocationStatus("Finding stays near your location...");
+    setRadius(Number(event.target.value));
+  };
   const [likedProperties, setLikedProperties] = useState(() => {
     try {
       const liked = localStorage.getItem("likedProperties");
@@ -366,10 +425,73 @@ const Hotels = () => {
           </div>
         </div>
 
+        {hasUserLocation && (
+          <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#082B5C]">
+              <LocateFixed size={18} className="text-[#C58A18]" />
+              <span>{locationStatus || "Hotels near your location"}</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Distance</span>
+                <select
+                  value={radius}
+                  onChange={handleRadiusChange}
+                  className="rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-[#C58A18]"
+                >
+                  <option value="1">Within 1 km</option>
+                  <option value="5">Within 5 km</option>
+                  <option value="10">Within 10 km</option>
+                  <option value="25">Within 25 km</option>
+                </select>
+              </label>
+
+              <div className="flex rounded-lg border border-slate-200 p-1" aria-label="Hotel view">
+                <button
+                  type="button"
+                  onClick={() => setView("list")}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${view === "list" ? "bg-[#082B5C] text-white" : "text-slate-600"}`}
+                >
+                  <List size={16} /> List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("map")}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${view === "map" ? "bg-[#082B5C] text-white" : "text-slate-600"}`}
+                >
+                  <Map size={16} /> Map
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* =========================
             Hotel Grid
         ========================= */}
-        {hotels.length === 0 ? (
+        {view === "map" && hasUserLocation && hotels.length > 0 ? (
+          <div className="relative min-h-120 overflow-hidden rounded-3xl border border-blue-100 bg-[#e7f0ea] bg-[linear-gradient(90deg,rgba(30,90,70,.12)_1px,transparent_1px),linear-gradient(rgba(30,90,70,.12)_1px,transparent_1px)] bg-size-[42px_42px] p-6">
+            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-[#082B5C]">
+              <div className="rounded-full bg-[#082B5C] p-2 text-white shadow-lg"><LocateFixed size={18} /></div>
+              <span className="mt-1 rounded bg-white/95 px-2 py-1 text-xs font-bold shadow">You</span>
+            </div>
+            {hotels.map((hotel, index) => (
+              <button
+                key={hotel.id}
+                type="button"
+                onClick={() => navigate(`/book?hotel=${hotel.id}`)}
+                className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-[#082B5C]"
+                style={{ left: `${18 + ((index * 29) % 68)}%`, top: `${20 + ((index * 37) % 58)}%` }}
+                title={`View ${hotel.name}`}
+              >
+                <MapPin className="fill-[#C58A18] text-[#082B5C] drop-shadow" size={30} />
+                <span className="max-w-40 truncate rounded bg-white/95 px-2 py-1 text-xs font-bold shadow">{hotel.name}</span>
+                <span className="rounded bg-white/90 px-2 py-0.5 text-[11px] shadow">{hotel.distanceKm} km</span>
+              </button>
+            ))}
+          </div>
+        ) : hotels.length === 0 ? (
           <div className="rounded-2xl border border-blue-100 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-[#082B5C]">
               No hotels found
@@ -502,6 +624,13 @@ const Hotels = () => {
                       {hotel.location}
                     </span>
                   </div>
+
+                  {hotel.distanceKm !== undefined && (
+                    <p className="mb-3 flex items-center gap-1 text-sm font-semibold text-[#082B5C]">
+                      <MapPin size={15} className="text-[#C58A18]" />
+                      {hotel.distanceKm.toFixed(1)} km from your location
+                    </p>
+                  )}
 
                   {/* Rating */}
                   <div className="mb-4 flex items-center">

@@ -1,58 +1,22 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   MapPin,
   Navigation,
   Star,
   ArrowRight,
   LocateFixed,
+  List,
+  Map,
   Wifi,
   Car,
   Heart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../../services/api";
 
 // ==================================================
 // NEARBY PROPERTIES
 // ==================================================
-
-const NEARBY_PROPERTIES = [
-  {
-    id: 1,
-    name: "City Center Hotel",
-    location: "Downtown",
-    distance: "1.2 km",
-    rating: "4.7",
-    reviews: 328,
-    price: 120,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
-    amenities: ["Free WiFi", "Parking"],
-  },
-  {
-    id: 2,
-    name: "Grand Plaza",
-    location: "Central Avenue",
-    distance: "2.4 km",
-    rating: "4.8",
-    reviews: 512,
-    price: 150,
-    image:
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
-    amenities: ["Free WiFi", "Parking"],
-  },
-  {
-    id: 3,
-    name: "Royal Residency",
-    location: "Business District",
-    distance: "3.1 km",
-    rating: "4.6",
-    reviews: 274,
-    price: 95,
-    image:
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80",
-    amenities: ["Free WiFi", "Parking"],
-  },
-];
 
 // ==================================================
 // COMPONENT
@@ -62,6 +26,10 @@ const NearbyProperties = () => {
   const navigate = useNavigate();
 
   const [locationStatus, setLocationStatus] = useState("");
+  const [hotels, setHotels] = useState([]);
+  const [radius, setRadius] = useState(10);
+  const [view, setView] = useState("list");
+  const [loading, setLoading] = useState(false);
 
   // ==================================================
   // LOAD FAVORITES
@@ -88,6 +56,24 @@ const NearbyProperties = () => {
   // FIND USER LOCATION
   // ==================================================
 
+  const loadNearby = useCallback(async (latitude, longitude, selectedRadius = radius) => {
+    setLoading(true);
+    try {
+      const query = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        radius: String(selectedRadius),
+      });
+      const response = await apiFetch(`/api/v1/properties/nearby?${query}`);
+      setHotels(response.properties || []);
+      setLocationStatus(`${response.properties?.length || 0} stays found within ${selectedRadius} km.`);
+    } catch (error) {
+      setLocationStatus(error.message || "Unable to load nearby hotels.");
+    } finally {
+      setLoading(false);
+    }
+  }, [radius]);
+
   const findNearby = () => {
     if (!navigator.geolocation) {
       setLocationStatus(
@@ -106,10 +92,13 @@ const NearbyProperties = () => {
 
         console.log("Latitude:", latitude);
         console.log("Longitude:", longitude);
+        sessionStorage.setItem("latitude", String(latitude));
+        sessionStorage.setItem("longitude", String(longitude));
+        sessionStorage.setItem("userLatitude", String(latitude));
+        sessionStorage.setItem("userLongitude", String(longitude));
 
-        setLocationStatus(
-          "Location detected successfully!"
-        );
+        setLocationStatus("Location detected. Opening nearby stays...");
+        navigate(`/hotels?lat=${latitude}&lng=${longitude}`);
       },
       (error) => {
         console.error("Location error:", error);
@@ -125,6 +114,24 @@ const NearbyProperties = () => {
         }
       }
     );
+  };
+
+  useEffect(() => {
+    const latitude = Number(sessionStorage.getItem("latitude"));
+    const longitude = Number(sessionStorage.getItem("longitude"));
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      loadNearby(latitude, longitude);
+    }
+  }, [loadNearby]);
+
+  const handleRadiusChange = (event) => {
+    const nextRadius = Number(event.target.value);
+    setRadius(nextRadius);
+    const latitude = Number(sessionStorage.getItem("latitude"));
+    const longitude = Number(sessionStorage.getItem("longitude"));
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      loadNearby(latitude, longitude, nextRadius);
+    }
   };
 
   // ==================================================
@@ -210,7 +217,7 @@ const NearbyProperties = () => {
             >
               <LocateFixed size={18} />
 
-              Find Nearby
+              {loading ? "Finding stays..." : "Find Nearby"}
             </button>
 
             {locationStatus && (
@@ -221,16 +228,62 @@ const NearbyProperties = () => {
           </div>
         </div>
 
+        <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-3 text-sm font-semibold text-blue-100">
+            <span>Search radius</span>
+            <select
+              value={radius}
+              onChange={handleRadiusChange}
+              className="rounded-lg border border-white/20 bg-blue-900 px-3 py-2 text-white outline-none focus:border-yellow-400"
+            >
+              <option value="1">Within 1 km</option>
+              <option value="5">Within 5 km</option>
+              <option value="10">Within 10 km</option>
+              <option value="25">Within 25 km</option>
+            </select>
+          </label>
+          <div className="flex rounded-lg border border-white/15 p-1" aria-label="Nearby property view">
+            <button type="button" onClick={() => setView("list")} className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${view === "list" ? "bg-yellow-500 text-slate-950" : "text-blue-100"}`}>
+              <List size={16} /> List
+            </button>
+            <button type="button" onClick={() => setView("map")} className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${view === "map" ? "bg-yellow-500 text-slate-950" : "text-blue-100"}`}>
+              <Map size={16} /> Map
+            </button>
+          </div>
+        </div>
+
         {/* ==================================================
             HOTEL CARDS
         ================================================== */}
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {view === "map" && hotels.length > 0 && (
+          <div className="relative mt-10 h-80 overflow-hidden rounded-3xl border border-white/10 bg-[#dbe8df] bg-[linear-gradient(90deg,rgba(30,90,70,.1)_1px,transparent_1px),linear-gradient(rgba(30,90,70,.1)_1px,transparent_1px)] bg-size-[42px_42px]">
+            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-blue-950">
+              <div className="rounded-full bg-blue-900 p-2 text-white shadow-lg"><LocateFixed size={18} /></div>
+              <span className="mt-1 rounded bg-white/90 px-2 py-1 text-xs font-bold shadow">You</span>
+            </div>
+            {hotels.map((hotel, index) => (
+              <button
+                key={hotel._id || hotel.id}
+                type="button"
+                onClick={() => navigate(`/book?hotel=${hotel._id || hotel.id}`)}
+                className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center text-blue-950"
+                style={{ left: `${22 + ((index * 29) % 60)}%`, top: `${24 + ((index * 37) % 52)}%` }}
+                title={`View ${hotel.name}`}
+              >
+                <MapPin className="fill-yellow-400 text-blue-950 drop-shadow" size={30} />
+                <span className="max-w-32 truncate rounded bg-white/95 px-2 py-1 text-xs font-bold shadow">{hotel.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-          {NEARBY_PROPERTIES.map((hotel) => (
+        {view === "list" && hotels.length > 0 && <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+          {hotels.map((hotel) => (
             <div
-              key={hotel.id}
-              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-xl backdrop-blur transition duration-300 hover:-translate-y-1 hover:bg-white/[0.13]"
+              key={hotel._id || hotel.id}
+              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/10 shadow-xl backdrop-blur transition duration-300 hover:-translate-y-1 hover:bg-white/13"
             >
 
               {/* ==================================================
@@ -247,12 +300,12 @@ const NearbyProperties = () => {
                 />
 
                 {/* Image overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
 
                 {/* Distance */}
                 <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-blue-900 shadow">
                   <MapPin size={13} />
-                  {hotel.distance}
+                  {hotel.distanceKm} km
                 </div>
 
                 {/* Favorite */}
@@ -309,11 +362,11 @@ const NearbyProperties = () => {
                         fill="currentColor"
                       />
 
-                      {hotel.rating}
+                      {hotel.rating || "New"}
                     </span>
 
                     <span className="text-xs text-blue-200">
-                      {hotel.reviews} reviews
+                      {hotel.reviews || 0} reviews
                     </span>
 
                   </div>
@@ -374,6 +427,15 @@ const NearbyProperties = () => {
             </div>
           ))}
         </div>
+        }
+
+        {!loading && hotels.length === 0 && (
+          <div className="mt-10 rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center text-blue-100">
+            <MapPin className="mx-auto mb-3 text-yellow-400" size={28} />
+            <p className="font-semibold">Use your location to discover nearby stays.</p>
+            <p className="mt-1 text-sm text-blue-200">Only properties with coordinates appear in this search.</p>
+          </div>
+        )}
 
         {/* ==================================================
             BOTTOM CTA

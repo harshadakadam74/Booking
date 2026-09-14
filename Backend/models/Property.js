@@ -4,6 +4,19 @@ const propertySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     location: { type: String, required: true, trim: true },
+    geoLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+      },
+      coordinates: {
+        type: [Number],
+        validate: {
+          validator: (coordinates) => !coordinates || coordinates.length === 2,
+          message: 'GeoJSON coordinates must contain longitude and latitude',
+        },
+      },
+    },
     type: { type: String, default: 'Hotel', trim: true },
     description: { type: String, default: '' },
     image: { type: String, default: '' },
@@ -15,6 +28,8 @@ const propertySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+propertySchema.index({ geoLocation: '2dsphere' });
 
 propertySchema.pre('validate', function validateAvailability(next) {
   if (this.availableRooms > this.totalRooms) {

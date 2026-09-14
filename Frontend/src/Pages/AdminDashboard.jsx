@@ -12,7 +12,7 @@ import {
 
 const emptyForm = { name: '', mobile: '', email: '', password: '' };
 const emptyPropertyForm = {
-  name: '', location: '', price: '', totalRooms: '', availableRooms: '', image: '', description: '',
+  name: '', location: '', price: '', totalRooms: '', availableRooms: '', image: '', description: '', latitude: '', longitude: '',
 };
 
 const AdminDashboard = () => {
@@ -230,6 +230,8 @@ const AdminDashboard = () => {
               ['totalRooms', 'Total rooms', 'number'],
               ['availableRooms', 'Available rooms', 'number'],
               ['image', 'Image URL', 'url'],
+              ['latitude', 'Latitude (optional)', 'number'],
+              ['longitude', 'Longitude (optional)', 'number'],
             ].map(([name, label, type]) => (
               <label key={name} className="text-sm font-semibold text-slate-700 lg:col-span-1">
                 {label}
