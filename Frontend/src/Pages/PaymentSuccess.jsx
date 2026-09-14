@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Clock,
 } from "lucide-react";
+import printReceipt from "../utils/printReceipt";
 
 const PaymentSuccess = () => {
   const location = useLocation();
@@ -222,7 +223,18 @@ const PaymentSuccess = () => {
   // --------------------------------------------------
 
   const handleDownloadReceipt = () => {
-    window.print();
+    printReceipt({
+      bookingId,
+      confirmationNumber: backendBooking?.confirmationNumber,
+      property: property.name,
+      location: property.location,
+      checkIn: formatDate(searchParams?.dates?.startDate),
+      checkOut: formatDate(searchParams?.dates?.endDate),
+      guests: searchParams?.guests,
+      rooms,
+      total: totalAmount,
+      currency: "$",
+    });
   };
 
   // --------------------------------------------------

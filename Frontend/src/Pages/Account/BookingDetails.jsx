@@ -26,6 +26,7 @@ import {
   cancelBooking,
   getBookingReview,
 } from "../../services/bookingService";
+import printReceipt from "../../utils/printReceipt";
 
 const BookingDetails = () => {
   const { id } = useParams();
@@ -162,51 +163,18 @@ const BookingDetails = () => {
   };
 
   const handleDownloadReceipt = () => {
-    const receipt = `
-FASTBOOKING
-================================
-
-BOOKING RECEIPT
-
-Booking ID:
-${booking?.id || id}
-
-Confirmation Number:
-${booking?.confirmationNumber || "N/A"}
-
-Property:
-${booking?.property || "Booking"}
-
-Location:
-${booking?.location || "N/A"}
-
-Status:
-${booking?.status || "Confirmed"}
-
-Check-in:
-${booking?.checkIn || "N/A"}
-
-Check-out:
-${booking?.checkOut || "N/A"}
-
-Guests:
-${booking?.guests?.adults || 0} Adults
-${booking?.guests?.children || 0} Children
-
-Rooms:
-${booking?.guests?.rooms || 1}
-
-Total:
-$${booking?.total || 0}
-
-================================
-Thank you for booking with FastBooking.
-`;
-
-    downloadTextFile(
-      receipt,
-      `fastbooking-receipt-${booking?.id || id}.txt`
-    );
+    printReceipt({
+      bookingId: booking?.id || booking?._id || id,
+      confirmationNumber: booking?.confirmationNumber,
+      property: booking?.property,
+      location: booking?.location,
+      status: booking?.status,
+      checkIn: booking?.checkIn,
+      checkOut: booking?.checkOut,
+      guests: booking?.guests,
+      rooms: booking?.guests?.rooms,
+      total: booking?.total,
+    });
   };
 
   const handleDownloadInvoice = () => {
