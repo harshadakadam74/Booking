@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Sparkles } from "lucide-react";
 import Logo from "../Logo/Logo";
 
 const Header = () => {
@@ -50,6 +50,13 @@ const Header = () => {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-8 md:flex">
+          <Link
+            to="/ai-assistant"
+            className="flex items-center gap-2 font-semibold text-blue-900 transition hover:text-[#C58A18]"
+          >
+            <Sparkles size={17} />
+            AI travel
+          </Link>
 
           {/* List Property */}
           <Link
@@ -118,6 +125,14 @@ const Header = () => {
         <div className="border-t border-blue-100 bg-white px-4 py-4 shadow-md md:hidden">
 
           <div className="mx-auto flex max-w-7xl flex-col gap-2">
+            <Link
+              to="/ai-assistant"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-4 py-3 font-semibold text-blue-900 transition hover:bg-blue-50 hover:text-[#C58A18]"
+            >
+              <Sparkles size={17} />
+              AI travel assistant
+            </Link>
 
             {/* List Property */}
             <Link

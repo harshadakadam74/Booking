@@ -2,8 +2,146 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Product = require('../models/Product');
 const Property = require('../models/Property');
+const mongoose = require('mongoose');
 const ApiResponse = require('../Utils/ApiResponse');
 const UserService = require('../services/UserService');
+
+const validId = (id) => mongoose.Types.ObjectId.isValid(id) && /^[a-f\d]{24}$/i.test(id);
+const escapedRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const statusValues = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'];
+
+const validatePropertyInput = (body, existing) => {
+  const fields = ['name', 'location', 'type', 'description', 'image', 'price', 'totalRooms', 'availableRooms', 'amenities', 'active'];
+  const values = {};
+  fields.forEach((field) => {
+    if (Object.hasOwn(body, field)) values[field] = body[field];
+  });
+
+  const name = values.name ?? existing?.name;
+  const location = values.location ?? existing?.location;
+  const price = values.price === undefined ? existing?.price : Number(values.price);
+  const totalRooms = values.totalRooms === undefined ? existing?.totalRooms : Number(values.totalRooms);
+  const availableRooms = values.availableRooms === undefined ? existing?.availableRooms : Number(values.availableRooms);
+
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120) {
+    return { error: 'Hotel name must contain between 2 and 120 characters.' };
+  }
+  if (typeof location !== 'string' || location.trim().length < 2 || location.trim().length > 200) {
+    return { error: 'Hotel location must contain between 2 and 200 characters.' };
+  }
+  if (!Number.isFinite(price) || price < 0 || price > 100000000) {
+    return { error: 'Price must be a non-negative number.' };
+  }
+  if (!Number.isInteger(totalRooms) || totalRooms < 1 || totalRooms > 100000) {
+    return { error: 'Total rooms must be a positive whole number.' };
+  }
+  if (!Number.isInteger(availableRooms) || availableRooms < 0 || availableRooms > totalRooms) {
+    return { error: 'Available rooms must be a whole number between zero and total rooms.' };
+  }
+  if (values.type !== undefined &&
+    (typeof values.type !== 'string' || values.type.trim().length < 2 || values.type.trim().length > 60)) {
+    return { error: 'Hotel type must contain between 2 and 60 characters.' };
+  }
+  if (values.description !== undefined &&
+    (typeof values.description !== 'string' || values.description.length > 4000)) {
+    return { error: 'Description cannot exceed 4000 characters.' };
+  }
+  if (values.image !== undefined) {
+    if (typeof values.image !== 'string' || values.image.length > 2048) {
+      return { error: 'Image must be a valid public URL.' };
+    }
+    if (values.image.trim()) {
+      try {
+        const url = new URL(values.image);
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported protocol');
+      } catch {
+        return { error: 'Image must be a valid HTTP or HTTPS URL.' };
+      }
+    }
+  }
+  if (values.amenities !== undefined &&
+    (!Array.isArray(values.amenities) || values.amenities.length > 40 ||
+      values.amenities.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 60))) {
+    return { error: 'Amenities must be a list of up to 40 non-empty strings (60 characters maximum each).' };
+  }
+  if (values.active !== undefined && typeof values.active !== 'boolean') {
+    return { error: 'Active status must be true or false.' };
+  }
+
+  const updates = {};
+  Object.entries(values).forEach(([field, value]) => {
+    if (['price', 'totalRooms', 'availableRooms'].includes(field)) updates[field] = Number(value);
+    else if (['name', 'location', 'type', 'description', 'image'].includes(field) && typeof value === 'string') {
+      updates[field] = value.trim();
+    } else if (field === 'amenities') updates.amenities = value.map((item) => item.trim());
+    else updates[field] = value;
+  });
+  if (existing) {
+    updates.price = price;
+    updates.totalRooms = totalRooms;
+    updates.availableRooms = availableRooms;
+  }
+  return { updates };
+};
+
+const getPagination = (query) => {
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(query.limit, 10) || 100));
+  return { page, limit, skip: (page - 1) * limit };
+};
+
+const getDashboard = async (req, res) => {
+  try {
+    const [
+      totalUsers,
+      totalHotels,
+      activeHotels,
+      inactiveHotels,
+      totalBookings,
+      pendingBookings,
+      confirmedBookings,
+      cancelledBookings,
+      revenueRows,
+      recentBookings,
+      recentUsers,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Property.countDocuments(),
+      Property.countDocuments({ active: { $ne: false } }),
+      Property.countDocuments({ active: false }),
+      Booking.countDocuments(),
+      Booking.countDocuments({ bookingStatus: 'PENDING' }),
+      Booking.countDocuments({ bookingStatus: 'CONFIRMED' }),
+      Booking.countDocuments({ bookingStatus: 'CANCELLED' }),
+      Booking.aggregate([
+        { $match: { paymentStatus: 'SUCCESS' } },
+        { $group: { _id: null, total: { $sum: '$totalPrice' } } },
+      ]),
+      Booking.find().populate('user', 'name email').sort({ createdAt: -1 }).limit(8).lean(),
+      User.find().select('name email role createdAt').sort({ createdAt: -1 }).limit(8).lean(),
+    ]);
+
+    return ApiResponse.success(res, {
+      metrics: {
+        totalUsers,
+        totalHotels,
+        activeHotels,
+        inactiveHotels,
+        pendingHotelApprovals: null,
+        totalBookings,
+        pendingBookings,
+        confirmedBookings,
+        cancelledBookings,
+        paidRevenue: revenueRows[0]?.total || 0,
+      },
+      recentBookings,
+      recentUsers,
+    }, 'Admin dashboard loaded successfully');
+  } catch (error) {
+    console.error('Admin dashboard query failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to load admin dashboard.');
+  }
+};
 
 const createAdmin = async (req, res) => {
   try {
@@ -31,51 +169,57 @@ const createAdmin = async (req, res) => {
 
 const getAllProperties = async (req, res) => {
   try {
-    const properties = await Property.find().sort({ createdAt: -1 });
-    return ApiResponse.success(res, { properties }, 'Properties fetched successfully');
+    const { page, limit, skip } = getPagination(req.query);
+    const filter = {};
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+    const city = typeof req.query.city === 'string' ? req.query.city.trim().slice(0, 100) : '';
+    if (search) {
+      const regex = new RegExp(escapedRegex(search), 'i');
+      filter.$or = [{ name: regex }, { location: regex }];
+    }
+    if (city) filter.location = new RegExp(escapedRegex(city), 'i');
+    if (req.query.status === 'active') filter.active = { $ne: false };
+    if (req.query.status === 'inactive') filter.active = false;
+
+    const [properties, total] = await Promise.all([
+      Property.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Property.countDocuments(filter),
+    ]);
+    return ApiResponse.success(res, {
+      properties,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    }, 'Properties fetched successfully');
   } catch (error) {
-    return ApiResponse.error(res, 500, error.message);
+    console.error('Admin hotel listing failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to load hotels.');
   }
 };
 
 const createProperty = async (req, res) => {
   try {
-    const {
-      name,
-      location,
-      type = 'Hotel',
-      description = '',
-      image = '',
-      price,
-      totalRooms,
-      availableRooms,
-      amenities = [],
-      latitude,
-      longitude,
-    } = req.body;
-
-    if (!name || !location || price === undefined || totalRooms === undefined || availableRooms === undefined) {
-      return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required');
+    const { latitude, longitude } = req.body;
+    const { updates, error } = validatePropertyInput(req.body);
+    if (error) return ApiResponse.error(res, 400, error);
+    if (!updates.name || !updates.location || updates.price === undefined ||
+      updates.totalRooms === undefined || updates.availableRooms === undefined) {
+      return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required.');
     }
-
     const hasCoordinates = latitude !== undefined && longitude !== undefined && latitude !== '' && longitude !== '';
     const parsedLatitude = Number(latitude);
     const parsedLongitude = Number(longitude);
-    if (hasCoordinates && (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+    if ((latitude !== undefined) !== (longitude !== undefined) ||
+      (hasCoordinates && (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
       !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180)) {
-      return ApiResponse.error(res, 400, 'Latitude and longitude must be valid coordinates');
+      return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together as valid coordinates.');
     }
 
     const property = await Property.create({
-      name,
-      location,
-      type,
-      description,
-      image,
-      price: Number(price),
-      totalRooms: Number(totalRooms),
-      availableRooms: Number(availableRooms),
-      amenities: Array.isArray(amenities) ? amenities : [],
+      ...updates,
+      type: updates.type || 'Hotel',
+      description: updates.description || '',
+      image: updates.image || '',
+      amenities: updates.amenities || [],
+      active: updates.active ?? true,
       ...(hasCoordinates ? { geoLocation: { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] } } : {}),
     });
 
@@ -87,46 +231,122 @@ const createProperty = async (req, res) => {
 
 const updateProperty = async (req, res) => {
   try {
+    if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid hotel ID.');
     const property = await Property.findById(req.params.id);
     if (!property) return ApiResponse.error(res, 404, 'Hotel not found');
 
-    const { availableRooms, totalRooms, active } = req.body;
-    if (availableRooms !== undefined) property.availableRooms = Number(availableRooms);
-    if (totalRooms !== undefined) property.totalRooms = Number(totalRooms);
-    if (active !== undefined) property.active = Boolean(active);
+    const { latitude, longitude } = req.body;
+    const { updates, error } = validatePropertyInput(req.body, property);
+    if (error) return ApiResponse.error(res, 400, error);
+    if ((latitude !== undefined) !== (longitude !== undefined)) {
+      return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together.');
+    }
+    if (latitude !== undefined) {
+      const parsedLatitude = Number(latitude);
+      const parsedLongitude = Number(longitude);
+      if (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+        !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180) {
+        return ApiResponse.error(res, 400, 'Latitude and longitude must be valid coordinates.');
+      }
+      property.geoLocation = { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] };
+    }
+    Object.assign(property, updates);
     await property.save();
 
-    return ApiResponse.success(res, { property }, 'Hotel availability updated successfully');
+    return ApiResponse.success(res, { property }, 'Hotel updated successfully');
   } catch (error) {
-    return ApiResponse.error(res, 400, error.message);
+    console.error('Admin hotel update failed:', error.message);
+    return ApiResponse.error(res, 400, 'Unable to update hotel. Check the submitted fields.');
   }
 };
 
 const deleteProperty = async (req, res) => {
   try {
-    const property = await Property.findByIdAndDelete(req.params.id);
+    if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid hotel ID.');
+    const property = await Property.findById(req.params.id);
     if (!property) return ApiResponse.error(res, 404, 'Hotel not found');
-    return ApiResponse.success(res, null, 'Hotel deleted successfully');
+
+    const existingBooking = await Booking.exists({
+      $or: [{ propertyId: property._id }, { property: property.name }],
+    });
+    if (existingBooking) {
+      property.active = false;
+      await property.save();
+      return ApiResponse.success(res, {
+        property,
+        deactivated: true,
+      }, 'Hotel has booking history and was deactivated instead of deleted.');
+    }
+
+    await property.deleteOne();
+    return ApiResponse.success(res, { deactivated: false }, 'Hotel deleted successfully.');
   } catch (error) {
-    return ApiResponse.error(res, 500, error.message);
+    console.error('Admin hotel deletion failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to safely delete hotel.');
   }
 };
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password -resetPasswordToken -resetPasswordExpires');
-    return ApiResponse.success(res, { users }, 'Users fetched successfully');
+    const { page, limit, skip } = getPagination(req.query);
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+    const filter = search ? {
+      $or: [
+        { name: new RegExp(escapedRegex(search), 'i') },
+        { email: new RegExp(escapedRegex(search), 'i') },
+      ],
+    } : {};
+    const [users, total] = await Promise.all([
+      User.find(filter).select('name firstname lastname email mobile role createdAt').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      User.countDocuments(filter),
+    ]);
+    return ApiResponse.success(res, {
+      users,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    }, 'Users fetched successfully');
   } catch (error) {
-    return ApiResponse.error(res, 500, error.message);
+    console.error('Admin user listing failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to load users.');
   }
 };
 
 const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('user', 'name email mobile').sort({ createdAt: -1 });
-    return ApiResponse.success(res, { bookings }, 'Bookings fetched successfully');
+    const { page, limit, skip } = getPagination(req.query);
+    const filter = {};
+    if (statusValues.includes(req.query.status)) filter.bookingStatus = req.query.status;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from && !Number.isNaN(Date.parse(req.query.from))) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to && !Number.isNaN(Date.parse(req.query.to))) filter.createdAt.$lte = new Date(req.query.to);
+      if (!Object.keys(filter.createdAt).length) delete filter.createdAt;
+    }
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+    if (search) {
+      const regex = new RegExp(escapedRegex(search), 'i');
+      const conditions = [
+        { property: regex },
+        { guestName: regex },
+        { guestEmail: regex },
+      ];
+      if (validId(search)) conditions.push({ _id: new mongoose.Types.ObjectId(search) });
+      const matchingUsers = await User.find({
+        $or: [{ name: regex }, { email: regex }],
+      }).select('_id').limit(100).lean();
+      if (matchingUsers.length) conditions.push({ user: { $in: matchingUsers.map((user) => user._id) } });
+      filter.$or = conditions;
+    }
+    const [bookings, total] = await Promise.all([
+      Booking.find(filter).populate('user', 'name email mobile').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Booking.countDocuments(filter),
+    ]);
+    return ApiResponse.success(res, {
+      bookings,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    }, 'Bookings fetched successfully');
   } catch (error) {
-    return ApiResponse.error(res, 500, error.message);
+    console.error('Admin booking listing failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to load bookings.');
   }
 };
 
@@ -141,9 +361,16 @@ const getAllProducts = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
+    if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid user ID.');
     const user = await User.findById(req.params.id);
     if (!user) return ApiResponse.error(res, 404, 'User not found');
-    await user.remove();
+    if (user.role === 'ADMIN' || user._id.equals(req.user._id)) {
+      return ApiResponse.error(res, 409, 'Administrator accounts cannot be deleted from this endpoint.');
+    }
+    if (await Booking.exists({ user: user._id })) {
+      return ApiResponse.error(res, 409, 'This user has booking history and cannot be deleted.');
+    }
+    await user.deleteOne();
     return ApiResponse.success(res, null, 'User deleted successfully');
   } catch (error) {
     return ApiResponse.error(res, 500, error.message);
@@ -163,22 +390,27 @@ const deleteProduct = async (req, res) => {
 
 const updateBookingStatus = async (req, res) => {
   try {
+    if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid booking ID.');
     const booking = await Booking.findById(req.params.id);
     if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
 
-    const { bookingStatus, paymentStatus } = req.body;
-    if (bookingStatus) booking.bookingStatus = bookingStatus;
-    if (paymentStatus) booking.paymentStatus = paymentStatus;
+    const { bookingStatus } = req.body;
+    if (!statusValues.includes(bookingStatus)) {
+      return ApiResponse.error(res, 400, 'Provide a valid bookingStatus.');
+    }
+    booking.bookingStatus = bookingStatus;
     await booking.save();
 
     return ApiResponse.success(res, { booking }, 'Booking updated successfully');
   } catch (error) {
-    return ApiResponse.error(res, 500, error.message);
+    console.error('Admin booking update failed:', error.message);
+    return ApiResponse.error(res, 400, 'Unable to update booking status.');
   }
 };
 
 module.exports = {
   createAdmin,
+  getDashboard,
   getAllProperties,
   createProperty,
   updateProperty,

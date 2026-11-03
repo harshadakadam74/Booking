@@ -32,6 +32,7 @@ import AccountSettings from "./Pages/Account/Settings";
 import PlaceholderPage from "./Pages/PlaceholderPage";
 import Logo from "./components/Logo/Logo";
 import AdminDashboard from "./Pages/AdminDashboard";
+import AIWorkspace from "./Pages/AIWorkspace";
 
 const App = () => {
   return (
@@ -63,6 +64,7 @@ const App = () => {
           <Route path="/book" element={<BookPage />}></Route>
           <Route path="/book-place" element={<BookPlace />}></Route>
           <Route path="/trip-planner" element={<TripPlanner />}></Route>
+          <Route path="/ai-assistant" element={<AIWorkspace />}></Route>
           <Route
             path="/account"
             element={

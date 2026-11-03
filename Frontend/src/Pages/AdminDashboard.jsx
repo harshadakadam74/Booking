@@ -9,6 +9,7 @@ import {
   fetchAdminUsers,
   updatePropertyAvailability,
 } from '../services/authService';
+import AIAnalyticsAssistant from '../components/admin/AIAnalyticsAssistant';
 
 const emptyForm = { name: '', mobile: '', email: '', password: '' };
 const emptyPropertyForm = {
@@ -135,6 +136,8 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+
+        <AIAnalyticsAssistant />
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
