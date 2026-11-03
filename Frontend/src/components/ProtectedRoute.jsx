@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredRole, loginPath = '/login' }) => {
   const location = useLocation();
   const token = localStorage.getItem("authToken");
   let user = null;
@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   if (!token) {
     return (
       <Navigate
-        to="/login"
+        to={loginPath}
         state={{ from: location }}
         replace
       />
@@ -24,7 +24,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/account" replace />;
   }
 
   // User is logged in

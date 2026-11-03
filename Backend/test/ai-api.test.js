@@ -11,6 +11,7 @@ const aiRateLimit = require('../middlewares/aiRateLimit');
 const { admin } = require('../middlewares/AdminMiddleware');
 const { authenticate } = require('../middlewares/Authenticate');
 const aiRouter = require('../routes/AIRoutes');
+const AdminController = require('../controllers/AdminController');
 
 const createResponse = () => ({
   statusCode: 200,
@@ -143,4 +144,62 @@ test('AI rate limit rejects the request after thirty calls from one IP', () => {
   assert.equal(passed, 30);
   assert.equal(response.statusCode, 429);
   assert.ok(response.headers['Retry-After']);
+});
+
+test('admin hotel creation rejects invalid data before database access', async () => {
+  const response = await callController(AdminController.createProperty, {
+    body: {
+      name: 'Valid Hotel',
+      location: 'Pune',
+      price: '',
+      totalRooms: 5,
+      availableRooms: 2,
+    },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin status update rejects malformed hotel IDs', async () => {
+  const response = await callController(AdminController.updatePropertyStatus, {
+    params: { id: 'bad-id' },
+    body: { active: true },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin status update requires a boolean active value', async () => {
+  const response = await callController(AdminController.updatePropertyStatus, {
+    params: { id: '507f1f77bcf86cd799439011' },
+    body: { active: 'false' },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin booking status update rejects invalid statuses before database access', async () => {
+  const response = await callController(AdminController.updateBookingStatus, {
+    params: { id: '507f1f77bcf86cd799439011' },
+    body: { bookingStatus: 'REFUNDED', paymentStatus: 'SUCCESS' },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin booking listing rejects invalid status filters before database access', async () => {
+  const response = await callController(AdminController.getAllBookings, {
+    query: { status: 'REFUNDED' },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin hotel listing rejects unsupported status filters before database access', async () => {
+  const response = await callController(AdminController.getAllProperties, {
+    query: { status: 'pending' },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin login provisioning validates inputs before database access', async () => {
+  const response = await callController(AdminController.createAdmin, {
+    body: { name: 'Test Admin', email: 'not-an-email', mobile: '12345', password: 'password123' },
+  });
+  assert.equal(response.statusCode, 400);
 });

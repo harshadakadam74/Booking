@@ -76,6 +76,14 @@ const Header = () => {
                 <User size={18} className="text-[#082B5C]" />
                 <span>{displayName}</span>
               </Link>
+              {user?.role === "ADMIN" && (
+                <Link
+                  to="/admin"
+                  className="font-semibold text-blue-900 transition hover:text-[#C58A18]"
+                >
+                  Admin
+                </Link>
+              )}
 
               {/* Logout */}
               <button
@@ -154,6 +162,15 @@ const Header = () => {
                   <User size={18} className="text-[#082B5C]" />
                   {displayName}
                 </Link>
+                {user?.role === "ADMIN" && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setOpen(false)}
+                    className="rounded-lg px-4 py-3 font-semibold text-blue-900 transition hover:bg-blue-50 hover:text-[#C58A18]"
+                  >
+                    Admin dashboard
+                  </Link>
+                )}
 
                 {/* Logout */}
                 <button

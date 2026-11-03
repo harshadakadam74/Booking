@@ -23,6 +23,12 @@ const validatePropertyInput = (body, existing) => {
   const totalRooms = values.totalRooms === undefined ? existing?.totalRooms : Number(values.totalRooms);
   const availableRooms = values.availableRooms === undefined ? existing?.availableRooms : Number(values.availableRooms);
 
+  for (const field of ['price', 'totalRooms', 'availableRooms']) {
+    if (values[field] !== undefined &&
+      (values[field] === null || values[field] === '' || !Number.isFinite(Number(values[field])))) {
+      return { error: `${field} must be a valid number.` };
+    }
+  }
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120) {
     return { error: 'Hotel name must contain between 2 and 120 characters.' };
   }
@@ -147,8 +153,11 @@ const createAdmin = async (req, res) => {
   try {
     const { name, mobile, email, password } = req.body;
 
-    if (!name || !mobile || !email || !password) {
-      return ApiResponse.error(res, 400, 'Name, mobile, email and password are required');
+    if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120 ||
+      typeof mobile !== 'string' || mobile.trim().length < 5 || mobile.trim().length > 30 ||
+      typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      typeof password !== 'string' || password.length < 8) {
+      return ApiResponse.error(res, 400, 'Enter a valid name, mobile, email, and password of at least 8 characters.');
     }
 
     const user = await UserService.createUser({
@@ -169,6 +178,9 @@ const createAdmin = async (req, res) => {
 
 const getAllProperties = async (req, res) => {
   try {
+    if (req.query.status && !['active', 'inactive'].includes(req.query.status)) {
+      return ApiResponse.error(res, 400, 'Status must be active or inactive.');
+    }
     const { page, limit, skip } = getPagination(req.query);
     const filter = {};
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
@@ -208,8 +220,10 @@ const createProperty = async (req, res) => {
     const parsedLatitude = Number(latitude);
     const parsedLongitude = Number(longitude);
     if ((latitude !== undefined) !== (longitude !== undefined) ||
-      (hasCoordinates && (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
-      !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180)) {
+      (hasCoordinates && (
+        !Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+        !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180
+      ))) {
       return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together as valid coordinates.');
     }
 
@@ -257,6 +271,25 @@ const updateProperty = async (req, res) => {
   } catch (error) {
     console.error('Admin hotel update failed:', error.message);
     return ApiResponse.error(res, 400, 'Unable to update hotel. Check the submitted fields.');
+  }
+};
+
+const updatePropertyStatus = async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid hotel ID.');
+    if (typeof req.body?.active !== 'boolean') {
+      return ApiResponse.error(res, 400, 'Active status must be true or false.');
+    }
+    const property = await Property.findByIdAndUpdate(
+      req.params.id,
+      { $set: { active: req.body.active } },
+      { new: true, runValidators: true },
+    );
+    if (!property) return ApiResponse.error(res, 404, 'Hotel not found.');
+    return ApiResponse.success(res, { property }, 'Hotel status updated successfully.');
+  } catch (error) {
+    console.error('Admin hotel status update failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to update hotel status.');
   }
 };
 
@@ -312,13 +345,28 @@ const getAllUsers = async (req, res) => {
 
 const getAllBookings = async (req, res) => {
   try {
+    if (req.query.status && !statusValues.includes(req.query.status)) {
+      return ApiResponse.error(res, 400, 'Invalid booking status.');
+    }
+    if ((req.query.from && Number.isNaN(Date.parse(req.query.from))) ||
+      (req.query.to && Number.isNaN(Date.parse(req.query.to)))) {
+      return ApiResponse.error(res, 400, 'Booking date filters must be valid dates.');
+    }
     const { page, limit, skip } = getPagination(req.query);
     const filter = {};
     if (statusValues.includes(req.query.status)) filter.bookingStatus = req.query.status;
     if (req.query.from || req.query.to) {
       filter.createdAt = {};
-      if (req.query.from && !Number.isNaN(Date.parse(req.query.from))) filter.createdAt.$gte = new Date(req.query.from);
-      if (req.query.to && !Number.isNaN(Date.parse(req.query.to))) filter.createdAt.$lte = new Date(req.query.to);
+      if (req.query.from && !Number.isNaN(Date.parse(req.query.from))) {
+        filter.createdAt.$gte = new Date(req.query.from);
+      }
+      if (req.query.to && !Number.isNaN(Date.parse(req.query.to))) {
+        const endDate = new Date(req.query.to);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.to)) {
+          endDate.setUTCHours(23, 59, 59, 999);
+        }
+        filter.createdAt.$lte = endDate;
+      }
       if (!Object.keys(filter.createdAt).length) delete filter.createdAt;
     }
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
@@ -391,15 +439,16 @@ const deleteProduct = async (req, res) => {
 const updateBookingStatus = async (req, res) => {
   try {
     if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid booking ID.');
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
-
     const { bookingStatus } = req.body;
     if (!statusValues.includes(bookingStatus)) {
       return ApiResponse.error(res, 400, 'Provide a valid bookingStatus.');
     }
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
+
     booking.bookingStatus = bookingStatus;
     await booking.save();
+    await booking.populate('user', 'name email mobile');
 
     return ApiResponse.success(res, { booking }, 'Booking updated successfully');
   } catch (error) {
@@ -414,6 +463,7 @@ module.exports = {
   getAllProperties,
   createProperty,
   updateProperty,
+  updatePropertyStatus,
   deleteProperty,
   getAllUsers,
   getAllBookings,

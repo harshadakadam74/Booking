@@ -57,7 +57,7 @@ const chat = async (req, res) => {
       .slice(0, 8);
     const matchingProperties = queryTerms.length
       ? await Property.find({
-        active: true,
+        active: { $ne: false },
         $or: queryTerms.flatMap((term) => ['name', 'location', 'description'].map((field) => ({
           [field]: { $regex: escapeRegex(term), $options: 'i' },
         }))),
@@ -69,7 +69,7 @@ const chat = async (req, res) => {
       : [];
     const propertyRecords = queryTerms.length
       ? matchingProperties
-      : await Property.find({ active: true })
+      : await Property.find({ active: { $ne: false } })
       .select('name location type description price amenities')
       .sort({ createdAt: -1 })
       .limit(12)
@@ -127,7 +127,7 @@ const recommendHotels = async (req, res) => {
     }
 
     const filter = {
-      active: true,
+      active: { $ne: false },
       availableRooms: { $gt: 0 },
       price: { $lte: budget },
       $or: [

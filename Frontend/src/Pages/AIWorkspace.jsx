@@ -162,7 +162,7 @@ const AIWorkspace = () => {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 rounded-3xl bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 p-6 text-white shadow-xl sm:p-9">
+        <header className="mb-8 rounded-3xl bg-gradient-to-r from-blue-950 via-blue-800 to-blue-600 p-6 text-white shadow-xl sm:p-9">
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-amber-400 p-3 text-blue-950"><Sparkles size={26} /></div>
             <div>
@@ -186,7 +186,7 @@ const AIWorkspace = () => {
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-3 border-b border-slate-100 p-5">
               <Bot className="text-blue-800" size={22} />
-              <div><h2 className="font-bold text-slate-900">Travel assistant</h2><p className="text-xs text-slate-500">English · हिंदी · मराठी</p></div>
+              <div><h2 className="font-bold text-slate-900">Travel assistant</h2></div>
             </div>
             <div aria-live="polite" className="max-h-[55vh] min-h-72 space-y-4 overflow-y-auto p-4 sm:p-6">
               {messages.map((message, index) => (
@@ -215,7 +215,7 @@ const AIWorkspace = () => {
               <label className="text-sm font-semibold text-slate-700">Guests<input required type="number" min="1" max="20" value={hotelForm.guests} onChange={(event) => setHotelForm({ ...hotelForm, guests: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Required amenities <span className="font-normal text-slate-500">(comma-separated, must match database)</span><input value={hotelForm.amenities} onChange={(event) => setHotelForm({ ...hotelForm, amenities: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Wi-Fi, Parking" /></label>
               <label className="text-sm font-semibold text-slate-700">Preferences<input value={hotelForm.preferences} onChange={(event) => setHotelForm({ ...hotelForm, preferences: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Quiet, near transit" /></label>
-              <button disabled={hotelLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-900 px-4 py-3 font-bold text-white hover:bg-blue-800 disabled:opacity-60 sm:col-span-2 lg:col-span-3">
+              <button disabled={hotelLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-950 px-4 py-3 font-bold text-white hover:bg-blue-800 disabled:opacity-60 sm:col-span-2 lg:col-span-3">
                 {hotelLoading ? <LoaderCircle size={18} className="animate-spin" /> : <Sparkles size={18} />}
                 {hotelLoading ? 'Finding hotel matches...' : 'Get recommendations'}
               </button>

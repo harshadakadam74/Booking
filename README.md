@@ -213,6 +213,52 @@ availability model, guest capacity and inventory snapshots are not booking
 guarantees. Trip plans and review summaries are AI-generated and should be
 treated as suggestions, not independently verified facts.
 
+### Admin login and management
+
+Open `/admin/login` and sign in with the existing account credentials. Only a
+user whose database role is `ADMIN` can use `/admin`; customers are redirected
+to `/account`. The backend independently applies the existing JWT
+authentication and `ADMIN` authorization middleware to every admin API.
+Public registration and profile updates cannot assign a role.
+
+To bootstrap the first administrator, first register the account normally,
+then use a trusted MongoDB administrative connection to promote that account:
+
+```javascript
+db.users.updateOne(
+  { email: "admin@example.com" },
+  { $set: { role: "ADMIN" } }
+)
+```
+
+Verify the matched account before proceeding. Once signed in, an administrator
+can create additional admin accounts in the dashboard. Never expose database
+credentials in the frontend.
+
+Admin API routes are mounted under `/api/v1/admin` and require a bearer token
+for an `ADMIN` user:
+
+| Method and path | Purpose |
+|---|---|
+| `GET /dashboard` | Live user, hotel, booking, and recorded paid-revenue metrics, plus recent activity |
+| `GET /hotels?page=1&limit=20&search=Pune&status=active` | Search/filter and paginate hotels |
+| `POST /hotels` | Create a property using the existing `Property` schema |
+| `PUT /hotels/:id` | Update supported property fields |
+| `PATCH /hotels/:id/status` | Set `{ "active": true }` or `{ "active": false }` |
+| `DELETE /hotels/:id` | Delete only when no booking history exists; otherwise deactivate |
+| `GET /bookings?page=1&limit=20&status=PENDING&from=2025-01-01&to=2025-12-31&search=Pune` | Search and filter booking records |
+| `PATCH /bookings/:id/status` | Set a valid `bookingStatus`; payment records are unchanged |
+| `GET /users?page=1&limit=20&search=admin@example.com` | Search users without returning password fields |
+| `POST /users` | Create an admin account (admin-only) |
+
+List responses include their records and `{ "pagination": { "page", "limit",
+"total", "pages" } }`. The existing schemas do not support hotel approval
+states or user activation, so those controls are intentionally not fabricated.
+Booking detail payment fields are read-only; the dashboard never processes
+refunds or changes payment status. Hotel location and prices are stored in the
+existing schema's fields/units, and room counts are inventory snapshots rather
+than date-specific availability guarantees.
+
 ## 🎨 UI Components
 
 - **Login**: User authentication form

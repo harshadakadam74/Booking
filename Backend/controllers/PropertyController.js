@@ -2,7 +2,7 @@ const Property = require('../models/Property');
 
 const getProperties = async (req, res) => {
   try {
-    const filter = { active: true };
+    const filter = { active: { $ne: false } };
     if (req.query.type) filter.type = req.query.type;
 
     const properties = await Property.find(filter).sort({ createdAt: -1 });
@@ -35,7 +35,7 @@ const getNearbyProperties = async (req, res) => {
           distanceField: 'distanceMeters',
           maxDistance: radiusKm * 1000,
           spherical: true,
-          query: { active: true, ...(req.query.type ? { type: req.query.type } : {}) },
+          query: { active: { $ne: false }, ...(req.query.type ? { type: req.query.type } : {}) },
         },
       },
       {

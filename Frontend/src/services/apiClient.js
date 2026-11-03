@@ -44,7 +44,10 @@ apiClient.interceptors.response.use(
       if (!shouldSkipRedirect) {
         localStorage.removeItem("authToken");
         localStorage.removeItem("user");
-        window.location.href = "/login";
+        const loginPath = window.location.pathname.startsWith("/admin")
+          ? "/admin/login"
+          : "/login";
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);

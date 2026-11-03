@@ -33,6 +33,7 @@ import PlaceholderPage from "./Pages/PlaceholderPage";
 import Logo from "./components/Logo/Logo";
 import AdminDashboard from "./Pages/AdminDashboard";
 import AIWorkspace from "./Pages/AIWorkspace";
+import AdminLogin from "./Pages/AdminLogin";
 
 const App = () => {
   return (
@@ -65,6 +66,7 @@ const App = () => {
           <Route path="/book-place" element={<BookPlace />}></Route>
           <Route path="/trip-planner" element={<TripPlanner />}></Route>
           <Route path="/ai-assistant" element={<AIWorkspace />}></Route>
+          <Route path="/admin/login" element={<AdminLogin />}></Route>
           <Route
             path="/account"
             element={
@@ -76,7 +78,7 @@ const App = () => {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute requiredRole="ADMIN">
+              <ProtectedRoute requiredRole="ADMIN" loginPath="/admin/login">
                 <AdminDashboard />
               </ProtectedRoute>
             }
