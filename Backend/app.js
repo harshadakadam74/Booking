@@ -16,6 +16,7 @@ const Review_Route = require('./routes/ReviewRoutes');
 const Admin_Route = require('./routes/AdminRoutes');
 const Property_Route = require('./routes/PropertyRoutes');
 const AI_Route = require('./routes/AIRoutes');
+const Destination_Route = require('./routes/DestinationRoutes');
 
 app.use('/api/v1/auth', Auth_Route);
 app.use('/api/v1/user', User_Route);
@@ -27,6 +28,7 @@ app.use('/api/v1/reviews', Review_Route);
 app.use('/api/v1/admin', Admin_Route);
 app.use('/api/v1/properties', Property_Route);
 app.use('/api/v1/hotels', Property_Route);
+app.use('/api/v1/destinations', Destination_Route);
 app.use('/api/v1/ai', AI_Route);
 
 app.use(errorHandler);

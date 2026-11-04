@@ -3,6 +3,27 @@ const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const ApiResponse = require('../Utils/ApiResponse');
 
+const recordSuccessfulBookingPayment = async (bookingId, paymentDetails) => {
+  const confirmedBooking = await Booking.findOneAndUpdate(
+    { _id: bookingId, bookingStatus: 'PENDING' },
+    {
+      $set: {
+        paymentStatus: 'SUCCESS',
+        bookingStatus: 'CONFIRMED',
+        paymentDetails,
+      },
+    },
+    { new: true }
+  );
+  if (confirmedBooking) return confirmedBooking;
+
+  return Booking.findByIdAndUpdate(
+    bookingId,
+    { $set: { paymentStatus: 'SUCCESS', paymentDetails } },
+    { new: true }
+  );
+};
+
 const createOrder = async (req, res) => {
   try {
     const { bookingId, paymentMethod = 'RAZORPAY' } = req.body;
@@ -17,6 +38,9 @@ const createOrder = async (req, res) => {
     }
     if (booking.paymentStatus === 'SUCCESS') {
       return ApiResponse.error(res, 400, 'Booking is already paid');
+    }
+    if (booking.bookingStatus !== 'PENDING') {
+      return ApiResponse.error(res, 409, 'Payment is only available for pending bookings.');
     }
 
     const amount = Number(booking.totalPrice);
@@ -100,17 +124,19 @@ const verifyPayment = async (req, res) => {
     pendingPayment.paymentStatus = 'SUCCESS';
     pendingPayment.metadata = { orderId, paymentId };
     const payment = await pendingPayment.save();
-    booking.paymentStatus = 'SUCCESS';
-    booking.bookingStatus = 'CONFIRMED';
-    booking.paymentDetails = {
+    const paymentDetails = {
       paymentMethod: 'RAZORPAY',
       paymentId,
       transactionId: paymentId,
       amount: booking.totalPrice,
     };
-    await booking.save();
+    const settledBooking = await recordSuccessfulBookingPayment(booking._id, paymentDetails);
+    if (!settledBooking) return ApiResponse.error(res, 404, 'Booking not found after payment verification.');
 
-    return ApiResponse.success(res, { payment, booking }, 'Payment verified successfully');
+    const message = settledBooking.bookingStatus === 'CANCELLED'
+      ? 'Payment was received after this booking was cancelled. Contact support to arrange a refund.'
+      : 'Payment verified successfully';
+    return ApiResponse.success(res, { payment, booking: settledBooking }, message);
   } catch (error) {
     return ApiResponse.error(res, 500, error.message);
   }
@@ -151,6 +177,9 @@ const createDummyPayment = async (req, res) => {
     if (booking.paymentStatus === 'SUCCESS') {
       return ApiResponse.error(res, 400, 'Booking is already paid');
     }
+    if (booking.bookingStatus !== 'PENDING') {
+      return ApiResponse.error(res, 409, 'Payment is only available for pending bookings.');
+    }
 
     const transactionId = `DUMMY_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     await new Promise((resolve) => setTimeout(resolve, 800));
@@ -165,17 +194,19 @@ const createDummyPayment = async (req, res) => {
       metadata: { dummy: true, method: 'Dummy Payment' },
     });
 
-    booking.paymentStatus = 'SUCCESS';
-    booking.bookingStatus = 'CONFIRMED';
-    booking.paymentDetails = {
+    const paymentDetails = {
       paymentMethod: 'DUMMY',
       paymentId: transactionId,
       transactionId,
       amount: booking.totalPrice,
     };
-    await booking.save();
+    const settledBooking = await recordSuccessfulBookingPayment(booking._id, paymentDetails);
+    if (!settledBooking) return ApiResponse.error(res, 404, 'Booking not found after payment.');
 
-    return ApiResponse.success(res, { payment, booking }, 'Dummy payment successful');
+    const message = settledBooking.bookingStatus === 'CANCELLED'
+      ? 'Payment was recorded after this booking was cancelled. Contact support to arrange a refund.'
+      : 'Dummy payment successful';
+    return ApiResponse.success(res, { payment, booking: settledBooking }, message);
   } catch (error) {
     return ApiResponse.error(res, 500, error.message || 'Dummy payment failed');
   }

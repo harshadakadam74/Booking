@@ -23,7 +23,8 @@ import TripPlanner from "./Pages/TripPlanner";
 import Payment from "./Pages/Payment";
 import PaymentSuccess from "./Pages/PaymentSuccess";
 import UserAccount from "./Pages/UserAccount";
-import ListProperty from "./Pages/ListProperty";
+import OwnerProperties from "./Pages/OwnerProperties";
+import AdminDestinations from "./Pages/AdminDestinations";
 import AccountBookings from "./Pages/Account/Bookings";
 import BookingDetails from "./Pages/Account/BookingDetails";
 import AccountFavorites from "./Pages/Account/Favorites";
@@ -84,6 +85,22 @@ const App = () => {
             }
           ></Route>
           <Route
+            path="/admin/destinations"
+            element={
+              <ProtectedRoute requiredRole="ADMIN" loginPath="/admin/login">
+                <AdminDestinations />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path="/owner/properties"
+            element={
+              <ProtectedRoute requiredRole="OWNER">
+                <OwnerProperties />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
             path="/account/bookings"
             element={
               <ProtectedRoute>
@@ -139,7 +156,14 @@ const App = () => {
               </ProtectedRoute>
             }
           ></Route>
-          <Route path="/list-property" element={<ListProperty />}></Route>
+          <Route
+            path="/list-property"
+            element={
+              <ProtectedRoute requiredRole="OWNER">
+                <OwnerProperties />
+              </ProtectedRoute>
+            }
+          ></Route>
 
           {/*Logo */}
           <Route path="/" element={<Logo />}></Route>

@@ -6,7 +6,10 @@
   "scripts": {
     "test": "node --test",
     "start": "nodemon index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed:destinations": "node scripts/seedDestinations.js",
+    "seed:demo-hotels": "node scripts/seedDemoHotels.js",
+    "import:verified-hotels": "node scripts/importVerifiedHotels.js"
   },
   "keywords": [],
   "author": "",

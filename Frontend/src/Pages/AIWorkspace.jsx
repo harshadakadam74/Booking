@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bot, CalendarDays, LoaderCircle, MapPin, MessageCircle, RefreshCw, Send, Sparkles, Star,
 } from 'lucide-react';
+import DestinationAutocomplete from '../components/DestinationAutocomplete';
 import {
   fetchAIRecommendations,
   fetchAIReviewSummary,
@@ -18,7 +19,7 @@ const tabs = [
 
 const initialChat = [{
   role: 'assistant',
-  content: 'Hi! Ask me about destinations, hotel amenities, or travel planning. I can chat in English, Hindi, or Marathi. Hotel facts are limited to verified FastBooking records.',
+  content: 'Hi! Ask me about destinations, hotel amenities, or travel planning. ',
 }];
 
 const getInitialDates = () => {
@@ -79,7 +80,21 @@ const AIWorkspace = () => {
   const [chatText, setChatText] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState('');
-  const [hotelForm, setHotelForm] = useState({ destination: '', budget: '', guests: '2', amenities: '', preferences: '' });
+  const [hotelForm, setHotelForm] = useState(() => {
+    const checkIn = new Date();
+    const checkOut = new Date(checkIn);
+    checkOut.setDate(checkOut.getDate() + 7);
+    return {
+      destination: '',
+      budget: '',
+      guests: '2',
+      rooms: '1',
+      checkIn: checkIn.toISOString().slice(0, 10),
+      checkOut: checkOut.toISOString().slice(0, 10),
+      amenities: '',
+      preferences: '',
+    };
+  });
   const [hotelLoading, setHotelLoading] = useState(false);
   const [hotelError, setHotelError] = useState('');
   const [hotelResults, setHotelResults] = useState(null);
@@ -116,8 +131,11 @@ const AIWorkspace = () => {
     try {
       setHotelResults(await fetchAIRecommendations({
         destination: hotelForm.destination,
-        budget: Number(hotelForm.budget),
         guests: Number(hotelForm.guests),
+        rooms: Number(hotelForm.rooms),
+        ...(hotelForm.budget ? { budget: Number(hotelForm.budget) } : {}),
+        checkIn: hotelForm.checkIn,
+        checkOut: hotelForm.checkOut,
         amenities: hotelForm.amenities.split(',').map((item) => item.trim()).filter(Boolean),
         preferences: hotelForm.preferences.split(',').map((item) => item.trim()).filter(Boolean),
       }));
@@ -151,8 +169,10 @@ const AIWorkspace = () => {
   const bookAreaSearch = (property, guests) => {
     navigate('/book-place', {
       state: {
-        location: property.location,
-        dates: getInitialDates(),
+        location: property.city || property.location,
+        dates: hotelForm.checkIn && hotelForm.checkOut
+          ? { startDate: new Date(hotelForm.checkIn), endDate: new Date(hotelForm.checkOut), key: 'selection' }
+          : getInitialDates(),
         guests: { adults: Number(guests), children: 0, rooms: 1 },
         workTrip: false,
       },
@@ -210,9 +230,12 @@ const AIWorkspace = () => {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <div className="mb-5"><h2 className="text-xl font-bold text-slate-900">Find matching hotels</h2><p className="mt-1 text-sm text-slate-500">Budget is the maximum nightly rate in the units stored by each property.</p></div>
             <form onSubmit={submitHotels} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="text-sm font-semibold text-slate-700">Destination<input required minLength={2} maxLength={100} value={hotelForm.destination} onChange={(event) => setHotelForm({ ...hotelForm, destination: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="City or area" /></label>
-              <label className="text-sm font-semibold text-slate-700">Max nightly budget<input required type="number" min="1" value={hotelForm.budget} onChange={(event) => setHotelForm({ ...hotelForm, budget: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Destination<DestinationAutocomplete value={hotelForm.destination} onChange={(destination) => setHotelForm({ ...hotelForm, destination })} onSelect={(place) => setHotelForm({ ...hotelForm, destination: place.name })} inputClassName="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Max nightly budget (optional)<input type="number" min="1" value={hotelForm.budget} onChange={(event) => setHotelForm({ ...hotelForm, budget: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700">Guests<input required type="number" min="1" max="20" value={hotelForm.guests} onChange={(event) => setHotelForm({ ...hotelForm, guests: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Rooms<input required type="number" min="1" max="10" value={hotelForm.rooms} onChange={(event) => setHotelForm({ ...hotelForm, rooms: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Check-in<input required type="date" min={new Date().toISOString().slice(0, 10)} value={hotelForm.checkIn} onChange={(event) => setHotelForm({ ...hotelForm, checkIn: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Check-out<input required type="date" min={hotelForm.checkIn} value={hotelForm.checkOut} onChange={(event) => setHotelForm({ ...hotelForm, checkOut: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Required amenities <span className="font-normal text-slate-500">(comma-separated, must match database)</span><input value={hotelForm.amenities} onChange={(event) => setHotelForm({ ...hotelForm, amenities: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Wi-Fi, Parking" /></label>
               <label className="text-sm font-semibold text-slate-700">Preferences<input value={hotelForm.preferences} onChange={(event) => setHotelForm({ ...hotelForm, preferences: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Quiet, near transit" /></label>
               <button disabled={hotelLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-950 px-4 py-3 font-bold text-white hover:bg-blue-800 disabled:opacity-60 sm:col-span-2 lg:col-span-3">
@@ -223,6 +246,7 @@ const AIWorkspace = () => {
             {hotelError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{hotelError}</p>}
             {hotelResults && (
               <div className="mt-7">
+                {hotelResults.ai && !hotelResults.ai.available && <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">Showing database-ranked matches. {hotelResults.ai.message || 'AI ranking is not configured.'}</p>}
                 {hotelResults.recommendations.length === 0 ? (
                   <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">No matching database hotels were found. Try a broader destination, budget, or amenity set.</p>
                 ) : (
@@ -233,11 +257,14 @@ const AIWorkspace = () => {
                         <div className="p-5">
                           <div className="flex items-start justify-between gap-3">
                             <div><p className="text-xs font-bold uppercase tracking-wide text-amber-700">{property.type}</p><h3 className="mt-1 text-lg font-bold text-slate-900">{property.name}</h3><p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={14} />{property.location}</p></div>
-                            <div className="shrink-0 text-right"><p className="font-extrabold text-blue-900">{Number(property.price).toLocaleString()}</p><p className="text-xs text-slate-500">per night*</p></div>
+                            <div className="shrink-0 text-right"><p className="font-extrabold text-blue-900">{property.currency || 'INR'} {Number(property.price).toLocaleString('en-IN')}</p><p className="text-xs text-slate-500">per room, per night</p></div>
                           </div>
+                          {property.isDemo && <p className="mt-3 rounded-lg bg-amber-100 px-3 py-2 text-xs font-bold text-amber-900">DEMO DATA — NOT A REAL HOTEL. Booking is disabled.</p>}
+                          {property.isVerified && !property.isDemo && <p className="mt-2 text-xs font-semibold text-emerald-800">Listing data verified by source.</p>}
+                          {property.ratingCount > 0 && <p className="mt-2 flex items-center gap-1 text-sm text-slate-700"><Star size={14} className="fill-amber-400 text-amber-500" />{property.rating} from {property.ratingCount} recorded ratings</p>}
                           <p className="mt-3 text-sm leading-6 text-slate-600">{property.description}</p>
                           <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-950"><Sparkles size={15} className="mr-1 inline" />{reason}</p>
-                          <p className="mt-3 text-xs text-slate-500">Amenities: {property.amenities.length ? property.amenities.join(', ') : 'Not listed'} · Inventory snapshot: {property.availableRooms} rooms shown available</p>
+                          <p className="mt-3 text-xs text-slate-500">Amenities: {property.amenities.length ? property.amenities.join(', ') : 'Not listed'} · {property.availableRooms} rooms matched these dates when searched; booking checks again.</p>
                           <button type="button" onClick={() => bookAreaSearch(property, hotelForm.guests)} className="mt-4 w-full rounded-xl border border-blue-900 px-4 py-2.5 text-sm font-bold text-blue-900 transition hover:bg-blue-900 hover:text-white">Search stays in this area</button>
                           <ReviewSummary hotelId={property._id} />
                         </div>
@@ -245,7 +272,7 @@ const AIWorkspace = () => {
                     ))}
                   </div>
                 )}
-                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">* Price uses the property's stored unit. {hotelResults.limitations}</p>
+                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">{hotelResults.limitations}</p>
               </div>
             )}
           </section>
@@ -255,7 +282,7 @@ const AIWorkspace = () => {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <div className="mb-5"><h2 className="text-xl font-bold text-slate-900">Build an itinerary</h2><p className="mt-1 text-sm text-slate-500">AI-generated ideas are not verified opening hours, prices, or bookings.</p></div>
             <form onSubmit={submitTripPlan} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="text-sm font-semibold text-slate-700">Destination<input required minLength={2} maxLength={100} value={tripForm.destination} onChange={(event) => setTripForm({ ...tripForm, destination: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Destination<DestinationAutocomplete value={tripForm.destination} onChange={(destination) => setTripForm({ ...tripForm, destination })} onSelect={(place) => setTripForm({ ...tripForm, destination: place.name })} inputClassName="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700">Days<input required type="number" min="1" max="14" value={tripForm.days} onChange={(event) => setTripForm({ ...tripForm, days: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700">Total budget (estimate units)<input required type="number" min="1" value={tripForm.budget} onChange={(event) => setTripForm({ ...tripForm, budget: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Interests <span className="font-normal text-slate-500">(comma-separated)</span><input value={tripForm.interests} onChange={(event) => setTripForm({ ...tripForm, interests: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Food, history, nature" /></label>

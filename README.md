@@ -56,6 +56,7 @@ Frontend runs on `http://localhost:5173`
 
 - **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Complete setup and testing guide
 - **[SETUP_COMPLETE.md](./SETUP_COMPLETE.md)** - Implementation summary and checklist
+- **[India discovery and inventory](./docs/india-discovery.md)** - Destination catalog, listings, search APIs, owner/admin workflows, tests, and deployment notes
 
 ## 🏗️ Architecture
 
@@ -92,7 +93,7 @@ Frontend/src/
 - User registration with validation
 - Secure login with JWT tokens
 - Password reset functionality
-- Role-based access control (ADMIN/CUSTOMER)
+- Role-based access control (ADMIN/OWNER/CUSTOMER)
 
 ### Booking Management
 - Create new bookings with automatic price calculation
@@ -171,7 +172,7 @@ NODE_ENV=development
 VITE_API_URL=http://localhost:4545
 ```
 
-Copy `Backend/.env.sample` to `Backend/.env` and `Frontend/.env.sample` to
+Copy `Backend/.env.example` to `Backend/.env` and `Frontend/.env.example` to
 `Frontend/.env` before starting the applications. Replace `JWT_SECRET` and
 the SMTP values with real deployment credentials; never commit either `.env`
 file.
@@ -181,16 +182,16 @@ file.
 The Gemini SDK is used only by the backend. Set `GEMINI_API_KEY` and, optionally,
 `GEMINI_MODEL` (defaults to `gemini-3.6-flash`) in `Backend/.env`. Keep the key
 out of frontend environment variables and source control. Restart the backend
-after changing these values. AI endpoints return a service error when Gemini
-is not configured or unavailable; admin booking statistics remain visible if
-only the AI insights request fails.
+after changing these values. Chat, trip planning, and review summaries require
+Gemini; hotel recommendations use database-ranked results when Gemini is not
+configured or unavailable. Admin booking statistics remain available if only
+the AI insights request fails.
 
-The `/ai-assistant` page provides the multilingual travel chat, database-backed
-hotel recommendations, trip planner, and review summaries on recommended hotel
-cards. Review summaries use up to the latest 50 property-linked reviews. Existing
-public hotel listings are static; AI recommendation results instead use active
-`Property` documents from MongoDB. The booking search flow still handles date
-and booking selection and must be checked before confirming a stay.
+The `/ai-assistant` page provides multilingual travel chat, database-backed
+hotel recommendations, trip planning, and review summaries on recommended hotel
+cards. Hotel recommendations only rank active, approved `Property` documents
+from MongoDB; database ranking remains available without Gemini. Review
+summaries use up to the latest 50 property-linked reviews.
 
 ### AI API
 
@@ -208,10 +209,11 @@ summaries are public; admin overview requires the existing Bearer JWT and
 | `GET /admin/overview` | Bearer JWT, `ADMIN` only | `{ "metrics": { "totalBookings": 0, "paidRevenue": 0, "monthlyTrends": [] }, "ai": { "available": true, "insights": [], "limitations": "..." } }` |
 
 Recommendation `budget` is a maximum nightly price in the property's stored
-units. Since properties have no per-room guest-capacity field or date-specific
-availability model, guest capacity and inventory snapshots are not booking
-guarantees. Trip plans and review summaries are AI-generated and should be
-treated as suggestions, not independently verified facts.
+units. Hotel search checks stored room capacity and overlapping active
+reservations, but provider inventory can be stale; final availability and
+pricing are rechecked when a booking is created. Trip plans and review
+summaries are AI-generated and should be treated as suggestions, not
+independently verified facts.
 
 ### Admin login and management
 

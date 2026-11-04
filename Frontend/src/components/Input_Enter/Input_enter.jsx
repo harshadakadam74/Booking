@@ -14,7 +14,7 @@ import {
   Clock3,
 } from "lucide-react";
 
-import { placeSuggestions } from "../../Data/Places";
+import DestinationAutocomplete from "../DestinationAutocomplete";
 
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -26,8 +26,7 @@ const Input_enter = () => {
   const searchRef = useRef(null);
 
   const [location, setLocation] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [budget, setBudget] = useState("");
 
   const [openDate, setOpenDate] = useState(false);
   const [openGuests, setOpenGuests] = useState(false);
@@ -43,13 +42,12 @@ const Input_enter = () => {
     }
   });
 
-  const [date, setDate] = useState([
-    {
-      startDate: new Date(),
-      endDate: new Date(),
-      key: "selection",
-    },
-  ]);
+  const [date, setDate] = useState(() => {
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 7);
+    return [{ startDate, endDate, key: "selection" }];
+  });
 
   const [guests, setGuests] = useState({
     adults: 2,
@@ -68,7 +66,6 @@ const Input_enter = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowSuggestions(false);
         setOpenDate(false);
         setOpenGuests(false);
       }
@@ -85,50 +82,8 @@ const Input_enter = () => {
   // LOCATION SEARCH
   // =====================================================
 
-  const handleLocationChange = (e) => {
-    const value = e.target.value;
-
-    setLocation(value);
-
-    if (!value.trim()) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const source = Array.isArray(placeSuggestions) ? placeSuggestions : [];
-
-    const searchValue = value.toLowerCase().trim();
-
-    const filtered = source.filter((place) => {
-      const name = String(place?.name || "").toLowerCase();
-      const city = String(place?.city || "").toLowerCase();
-      const country = String(place?.country || "").toLowerCase();
-
-      return (
-        name.includes(searchValue) ||
-        city.includes(searchValue) ||
-        country.includes(searchValue)
-      );
-    });
-
-    setSuggestions(filtered);
-    setShowSuggestions(true);
-  };
-
-  // =====================================================
-  // SELECT LOCATION
-  // =====================================================
-
   const handleSelectPlace = (place) => {
-    const selectedLocation =
-      place?.name || place?.city || place?.location || "";
-
-    if (!selectedLocation) return;
-
-    setLocation(selectedLocation);
-    setSuggestions([]);
-    setShowSuggestions(false);
+    setLocation(place.name);
   };
 
   // =====================================================
@@ -170,8 +125,13 @@ const Input_enter = () => {
   const handleSearch = () => {
     const trimmedLocation = location.trim();
 
-    if (!trimmedLocation) {
-      alert("Please enter a destination.");
+    if (trimmedLocation.length < 2) {
+      alert("Please enter a destination with at least two characters.");
+      return;
+    }
+
+    if (date[0].endDate <= date[0].startDate) {
+      alert("Check-out must be after check-in.");
       return;
     }
 
@@ -185,13 +145,12 @@ const Input_enter = () => {
         children: guests.children,
         rooms: guests.rooms,
       },
-
+      ...(budget ? { budget: Number(budget) } : {}),
       workTrip: isWorkTrip,
     };
 
     saveRecentSearch(trimmedLocation);
 
-    setShowSuggestions(false);
     setOpenDate(false);
     setOpenGuests(false);
 
@@ -206,7 +165,6 @@ const Input_enter = () => {
 
   const handleRecentSearch = (destination) => {
     setLocation(destination);
-    setShowSuggestions(false);
   };
 
   // =====================================================
@@ -321,61 +279,19 @@ const Input_enter = () => {
         <div className="relative flex flex-col gap-2 rounded-[2rem] border border-[#E3AE32]/50 bg-white p-2 shadow-2xl lg:flex-row">
           {/* LOCATION */}
 
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-slate-200 px-4 py-3 focus-within:border-[#C58A18]">
+          <div className="min-w-0 flex-1 rounded-full border border-slate-200 px-4 py-3 focus-within:border-[#C58A18]">
+            <div className="flex items-center gap-2">
             <MapPin size={20} className="shrink-0 text-[#082B5C]" />
-
-            <input
-              type="text"
+            <DestinationAutocomplete
               value={location}
-              onChange={handleLocationChange}
-              onFocus={() => {
-                if (location.trim()) {
-                  setShowSuggestions(true);
-                }
-              }}
+              onChange={setLocation}
+              onSelect={handleSelectPlace}
               placeholder="Where are you going?"
-              autoComplete="off"
-              className="w-full bg-transparent text-sm text-[#082B5C] outline-none placeholder:text-slate-400"
+              inputClassName="w-full bg-transparent text-sm text-[#082B5C] outline-none placeholder:text-slate-400"
+              menuClassName="left-0 right-auto w-full"
             />
-          </div>
-
-          {/* =================================================
-              LOCATION SUGGESTIONS
-          ================================================= */}
-
-          {showSuggestions && (
-            <div className="absolute left-2 right-2 top-[58px] z-[100] mt-2 max-h-64 overflow-y-auto rounded-2xl border border-[#E3AE32]/40 bg-white shadow-2xl lg:left-2 lg:right-auto lg:w-[420px]">
-              {suggestions.length > 0 ? (
-                suggestions.map((place, index) => (
-                  <button
-                    key={place?.id || `${place?.name || "place"}-${index}`}
-                    type="button"
-                    onClick={() => handleSelectPlace(place)}
-                    className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-blue-50"
-                  >
-                    <div className="rounded-full bg-blue-50 p-2">
-                      <MapPin size={16} className="text-[#C58A18]" />
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-[#082B5C]">
-                        {place?.name || place?.city || "Destination"}
-                      </p>
-
-                      <p className="text-xs text-slate-500">
-                        {place?.city || ""}
-                        {place?.country ? `, ${place.country}` : ""}
-                      </p>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="px-4 py-5 text-center text-sm text-slate-500">
-                  No destinations found.
-                </div>
-              )}
             </div>
-          )}
+          </div>
 
           {/* =================================================
               DATE
@@ -386,7 +302,6 @@ const Input_enter = () => {
             onClick={() => {
               setOpenDate((prev) => !prev);
               setOpenGuests(false);
-              setShowSuggestions(false);
             }}
             className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 px-4 py-3 text-left transition hover:border-[#C58A18]"
           >
@@ -399,6 +314,20 @@ const Input_enter = () => {
             </span>
           </button>
 
+          <label className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 px-4 py-3 text-sm text-[#082B5C] focus-within:border-[#C58A18]">
+            <span className="shrink-0">Max / night</span>
+            <input
+              type="number"
+              min="1"
+              max="100000000"
+              value={budget}
+              onChange={(event) => setBudget(event.target.value)}
+              placeholder="Any"
+              aria-label="Maximum nightly budget"
+              className="min-w-0 w-full bg-transparent outline-none"
+            />
+          </label>
+
           {/* =================================================
               GUESTS
           ================================================= */}
@@ -408,7 +337,6 @@ const Input_enter = () => {
             onClick={() => {
               setOpenGuests((prev) => !prev);
               setOpenDate(false);
-              setShowSuggestions(false);
             }}
             className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 px-4 py-3 text-left transition hover:border-[#C58A18]"
           >

@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
     // removed duplicate/typo field 'conformpassword'
     role:{
         type:String,
-        enum:['CUSTOMER','ADMIN'],
+        enum:['CUSTOMER','OWNER','ADMIN'],
         default:'CUSTOMER'
     },
    resetPasswordToken:{

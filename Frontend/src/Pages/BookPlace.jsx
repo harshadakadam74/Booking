@@ -1,1402 +1,272 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  Heart,
-  MapPin,
-  Sparkles,
-  Star,
-  SlidersHorizontal,
-  Utensils,
-  Wifi,
-  Car,
-  Waves,
-  Dumbbell,
-  Flame,
-  CookingPot,
-  Bath,
-} from "lucide-react";
-import { getPricePrediction } from "../utils/pricePrediction";
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Heart, MapPin, Search, Star } from 'lucide-react';
+import DestinationAutocomplete from '../components/DestinationAutocomplete';
+import { searchHotels } from '../services/destinationService';
 
-/* =========================================================
-   PROPERTY DATA
-========================================================= */
+const getDateValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+};
 
-const baseProperties = [
-  {
-    id: 1,
-    name: "Luxury Downtown Hotel",
-    location: "New York, USA",
-    rating: 4.8,
-    reviews: 1250,
-    price: 250,
-    originalPrice: 320,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "gym"],
-    type: "Hotel",
-    description:
-      "Modern luxury hotel in the heart of downtown with beautiful skyline views.",
-    highlight: "Free cancellation and breakfast included",
-    perks: [
-      "Free cancellation",
-      "Breakfast included",
-      "Airport shuttle",
-    ],
-  },
-  {
-    id: 2,
-    name: "Cozy Boutique Hotel",
-    location: "New York, USA",
-    rating: 4.6,
-    reviews: 890,
-    price: 180,
-    originalPrice: 230,
-    image:
-      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&h=600&fit=crop",
-    amenities: ["wifi", "restaurant", "spa"],
-    type: "Hotel",
-    description:
-      "Charming boutique hotel with personalized service and local charm.",
-    highlight: "Best for romantic weekend escapes",
-    perks: ["Late checkout", "Wellness access", "City guide"],
-  },
-  {
-    id: 3,
-    name: "City Center Apartment",
-    location: "New York, USA",
-    rating: 4.4,
-    reviews: 650,
-    price: 150,
-    originalPrice: 190,
-    image:
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "kitchen"],
-    type: "Apartment",
-    description:
-      "Spacious apartment with boutique interiors and a fully equipped kitchen.",
-    highlight: "Great for longer stays and families",
-    perks: ["Laundry access", "Full kitchen", "Self check-in"],
-  },
-  {
-    id: 4,
-    name: "Executive Suite",
-    location: "New York, USA",
-    rating: 4.7,
-    reviews: 420,
-    price: 300,
-    originalPrice: 380,
-    image:
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "gym", "spa"],
-    type: "Hotel",
-    description:
-      "Executive suite with premium amenities and a business-friendly setup.",
-    highlight: "Ideal for business trips and premium comfort",
-    perks: ["Workspace", "Concierge", "Priority check-in"],
-  },
-  {
-    id: 5,
-    name: "Beachfront Resort",
-    location: "Miami, USA",
-    rating: 4.9,
-    reviews: 2100,
-    price: 350,
-    originalPrice: 450,
-    image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "beach"],
-    type: "Resort",
-    description:
-      "Luxurious beachfront resort with ocean views and full-service amenities.",
-    highlight: "Top-rated escape with oceanfront lounging",
-    perks: ["Beach access", "Spa pass", "Ocean views"],
-  },
-  {
-    id: 6,
-    name: "Mountain View Cabin",
-    location: "Aspen, USA",
-    rating: 4.5,
-    reviews: 380,
-    price: 220,
-    originalPrice: 280,
-    image:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "kitchen", "fireplace"],
-    type: "Cabin",
-    description:
-      "Cozy mountain cabin with stunning views and fireplace evenings.",
-    highlight: "Perfect for ski weekends and nature retreats",
-    perks: ["Fireplace", "Mountain views", "Pet friendly"],
-  },
-  {
-    id: 7,
-    name: "Deccan Pearl Hotel",
-    location: "Hyderabad, India",
-    rating: 4.7,
-    reviews: 845,
-    price: 95,
-    originalPrice: 125,
-    image:
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "gym"],
-    type: "Hotel",
-    description:
-      "Contemporary stay near Hyderabad's historic landmarks and business districts.",
-    highlight: "Central location with breakfast included",
-    perks: ["Breakfast included", "Airport transfer", "City guide"],
-  },
-  {
-    id: 8,
-    name: "Lake View Residency",
-    location: "Bhopal, India",
-    rating: 4.5,
-    reviews: 412,
-    price: 68,
-    originalPrice: 90,
-    image:
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "Relaxed lakeside accommodation with easy access to Bhopal's cultural sights.",
-    highlight: "Peaceful stay by Upper Lake",
-    perks: ["Lake views", "Breakfast included", "Free parking"],
-  },
-  {
-    id: 9,
-    name: "Marine Drive Grand",
-    location: "Mumbai, India",
-    rating: 4.8,
-    reviews: 1640,
-    price: 180,
-    originalPrice: 230,
-    image:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "gym", "spa"],
-    type: "Hotel",
-    description:
-      "Stylish city hotel with quick access to Marine Drive, dining, and shopping.",
-    highlight: "Premium rooms in South Mumbai",
-    perks: ["Sea views", "Rooftop pool", "24-hour concierge"],
-  },
-  {
-    id: 10,
-    name: "Sabarmati Heritage Hotel",
-    location: "Ahmedabad, India",
-    rating: 4.6,
-    reviews: 635,
-    price: 78,
-    originalPrice: 105,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "gym"],
-    type: "Hotel",
-    description:
-      "Comfortable heritage-inspired hotel close to Ahmedabad's old city and riverfront.",
-    highlight: "A convenient base for heritage walks",
-    perks: ["Breakfast included", "Local tours", "Business center"],
-  },
-  {
-    id: 11,
-    name: "The Pink City Palace",
-    location: "Jaipur, India",
-    rating: 4.8,
-    reviews: 1280,
-    price: 115,
-    originalPrice: 150,
-    image:
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "spa"],
-    type: "Hotel",
-    description:
-      "Elegant Jaipur retreat with traditional design and modern comforts.",
-    highlight: "Royal hospitality near the city palace",
-    perks: ["Heritage rooms", "Pool access", "Cultural performances"],
-  },
-  {
-    id: 12,
-    name: "Taj View Retreat",
-    location: "Agra, India",
-    rating: 4.7,
-    reviews: 972,
-    price: 88,
-    originalPrice: 120,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool"],
-    type: "Hotel",
-    description:
-      "A welcoming stay near the Taj Mahal with comfortable rooms and local dining.",
-    highlight: "Ideal for Taj Mahal sunrise visits",
-    perks: ["Taj transfers", "Breakfast included", "Tour desk"],
-  },
-  {
-    id: 13,
-    name: "Ganges Riverside Inn",
-    location: "Varanasi, India",
-    rating: 4.5,
-    reviews: 704,
-    price: 62,
-    originalPrice: 84,
-    image:
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=600&fit=crop",
-    amenities: ["wifi", "restaurant"],
-    type: "Hotel",
-    description:
-      "A calm riverside base for exploring Varanasi's ghats and ancient lanes.",
-    highlight: "Close to the evening Ganga Aarti",
-    perks: ["River views", "Boat tour booking", "Breakfast included"],
-  },
-  {
-    id: 14,
-    name: "Awadh Courtyard Hotel",
-    location: "Lucknow, India",
-    rating: 4.6,
-    reviews: 528,
-    price: 74,
-    originalPrice: 98,
-    image:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "gym"],
-    type: "Hotel",
-    description:
-      "Polished city stay near Lucknow's historic monuments and famous food streets.",
-    highlight: "Comfortable rooms in the heart of Awadh",
-    perks: ["Local cuisine", "Airport transfer", "Free parking"],
-  },
-  {
-    id: 15,
-    name: "Capital Heights Hotel",
-    location: "New Delhi, India",
-    rating: 4.8,
-    reviews: 1895,
-    price: 130,
-    originalPrice: 175,
-    image:
-      "https://images.unsplash.com/photo-1549294413-26f195200c16?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool", "gym", "spa"],
-    type: "Hotel",
-    description:
-      "Modern capital-city hotel with easy metro access and premium amenities.",
-    highlight: "Well connected for business and sightseeing",
-    perks: ["Metro access", "Breakfast included", "Business lounge"],
-  },
-  {
-    id: 16,
-    name: "Bengal Heritage House",
-    location: "Kolkata, India",
-    rating: 4.6,
-    reviews: 681,
-    price: 72,
-    originalPrice: 96,
-    image:
-      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "Warm heritage-inspired accommodation close to Kolkata's arts and food districts.",
-    highlight: "A cultured stay in central Kolkata",
-    perks: ["Breakfast included", "Cultural walks", "Airport transfer"],
-  },
-  {
-    id: 17,
-    name: "Charminar Suites",
-    location: "Hyderabad, India",
-    rating: 4.4,
-    reviews: 376,
-    price: 72,
-    originalPrice: 98,
-    image:
-      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "A friendly city stay close to Hyderabad's bazaars, food, and historic sights.",
-    highlight: "Great value near the old city",
-    perks: ["Breakfast included", "Local food tours", "Free parking"],
-  },
-  {
-    id: 18,
-    name: "Van Vihar Lakeside Hotel",
-    location: "Bhopal, India",
-    rating: 4.3,
-    reviews: 294,
-    price: 58,
-    originalPrice: 78,
-    image:
-      "https://images.unsplash.com/photo-1568084680786-a84f91d1153c?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool"],
-    type: "Hotel",
-    description:
-      "An easygoing retreat surrounded by Bhopal's lakes, parks, and museums.",
-    highlight: "Relaxed rooms with outdoor space",
-    perks: ["Pool access", "Breakfast included", "Family rooms"],
-  },
-  {
-    id: 19,
-    name: "Bandra Harbour Hotel",
-    location: "Mumbai, India",
-    rating: 4.5,
-    reviews: 1187,
-    price: 145,
-    originalPrice: 190,
-    image:
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "gym"],
-    type: "Hotel",
-    description:
-      "A modern Mumbai base near Bandra's cafes, nightlife, and waterfront walks.",
-    highlight: "Smart rooms in a lively neighborhood",
-    perks: ["Workspace", "Airport transfer", "Late checkout"],
-  },
-  {
-    id: 20,
-    name: "Riverfront Residency",
-    location: "Ahmedabad, India",
-    rating: 4.4,
-    reviews: 448,
-    price: 64,
-    originalPrice: 86,
-    image:
-      "https://images.unsplash.com/photo-1566618500496-5c5f9a5c8d5a?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "A practical stay near the Sabarmati Riverfront and Ahmedabad's business areas.",
-    highlight: "Comfortable rooms for city breaks",
-    perks: ["Riverfront access", "Breakfast included", "Free parking"],
-  },
-  {
-    id: 21,
-    name: "Amber Fort View Hotel",
-    location: "Jaipur, India",
-    rating: 4.5,
-    reviews: 746,
-    price: 92,
-    originalPrice: 124,
-    image:
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "pool"],
-    type: "Hotel",
-    description:
-      "A colorful Jaipur hotel with spacious rooms and views toward the Aravalli hills.",
-    highlight: "A memorable base for fort visits",
-    perks: ["Rooftop dining", "Pool access", "Heritage tours"],
-  },
-  {
-    id: 22,
-    name: "Yamuna Garden Hotel",
-    location: "Agra, India",
-    rating: 4.4,
-    reviews: 516,
-    price: 65,
-    originalPrice: 88,
-    image:
-      "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "A comfortable Agra stay with a quiet garden, local cuisine, and sightseeing support.",
-    highlight: "Value stay for monument explorers",
-    perks: ["Garden seating", "Taj transfers", "Breakfast included"],
-  },
-  {
-    id: 23,
-    name: "Assi Ghat Courtyard",
-    location: "Varanasi, India",
-    rating: 4.3,
-    reviews: 389,
-    price: 55,
-    originalPrice: 74,
-    image:
-      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=600&fit=crop",
-    amenities: ["wifi", "restaurant"],
-    type: "Hotel",
-    description:
-      "A welcoming courtyard hotel within walking distance of Assi Ghat and riverside life.",
-    highlight: "Authentic neighborhood experience",
-    perks: ["Ghat walks", "Boat tour booking", "Vegetarian dining"],
-  },
-  {
-    id: 24,
-    name: "Hazratganj Central Hotel",
-    location: "Lucknow, India",
-    rating: 4.4,
-    reviews: 463,
-    price: 66,
-    originalPrice: 89,
-    image:
-      "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant"],
-    type: "Hotel",
-    description:
-      "A central Lucknow hotel surrounded by shopping, historic architecture, and food.",
-    highlight: "Walkable location in Hazratganj",
-    perks: ["Breakfast included", "Local dining guide", "Free parking"],
-  },
-  {
-    id: 25,
-    name: "India Gate Business Hotel",
-    location: "New Delhi, India",
-    rating: 4.5,
-    reviews: 1098,
-    price: 105,
-    originalPrice: 140,
-    image:
-      "https://images.unsplash.com/photo-1566618500496-5c5f9a5c8d5a?w=800&h=600&fit=crop",
-    amenities: ["wifi", "parking", "restaurant", "gym"],
-    type: "Hotel",
-    description:
-      "A business-friendly Delhi hotel with reliable amenities and quick city access.",
-    highlight: "Convenient for work and sightseeing",
-    perks: ["Business center", "Metro access", "Breakfast included"],
-  },
-  {
-    id: 26,
-    name: "Park Street Boutique Hotel",
-    location: "Kolkata, India",
-    rating: 4.4,
-    reviews: 573,
-    price: 69,
-    originalPrice: 92,
-    image:
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&h=600&fit=crop",
-    amenities: ["wifi", "restaurant", "gym"],
-    type: "Hotel",
-    description:
-      "A characterful Kolkata hotel near Park Street dining, music, and cultural landmarks.",
-    highlight: "Lively central location",
-    perks: ["Breakfast included", "City walks", "Late checkout"],
-  },
-];
-
-const amenityOptions = [
-  "wifi",
-  "parking",
-  "restaurant",
-  "pool",
-  "gym",
-  "spa",
-  "kitchen",
-  "beach",
-  "fireplace",
-];
-
-/* =========================================================
-   COMPONENT
-========================================================= */
+const formatPrice = (price, currency = 'INR') => {
+  try {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(price);
+  } catch {
+    return `${currency} ${Number(price).toLocaleString('en-IN')}`;
+  }
+};
 
 const BookPlace = () => {
-  const location = useLocation();
+  const routeLocation = useLocation();
   const navigate = useNavigate();
-
-  const searchParams = location.state || {};
-
-  const [properties, setProperties] = useState([]);
+  const searchParams = routeLocation.state || {};
+  const [destination, setDestination] = useState(searchParams.location || '');
+  const [filters, setFilters] = useState(() => ({
+    checkIn: getDateValue(searchParams.checkIn || searchParams.dates?.startDate),
+    checkOut: getDateValue(searchParams.checkOut || searchParams.dates?.endDate),
+    guests: Number(searchParams.guests?.adults || 2) + Number(searchParams.guests?.children || 0),
+    rooms: Number(searchParams.guests?.rooms || 1),
+    budget: searchParams.budget ? String(searchParams.budget) : '',
+    propertyType: '',
+    minRating: '',
+    amenities: '',
+  }));
+  const [results, setResults] = useState({ properties: [], pagination: null, alternatives: [] });
   const [loading, setLoading] = useState(true);
-
-  const [filters, setFilters] = useState({
-    priceRange: [0, 1000],
-    rating: 0,
-    amenities: [],
-  });
-
-  const [showFilters, setShowFilters] = useState(false);
-
+  const [error, setError] = useState('');
   const [favorites, setFavorites] = useState(() => {
     try {
-      return JSON.parse(
-        localStorage.getItem("fastBookingFavorites") || "[]"
-      );
-    } catch {
+      const saved = JSON.parse(localStorage.getItem('fastBookingFavorites') || '[]');
+      return Array.isArray(saved) ? saved.map(String) : [];
+    } catch (storageError) {
+      console.error('Unable to load saved favorites:', storageError);
       return [];
     }
   });
+  const [page, setPage] = useState(1);
 
-  const [sortBy, setSortBy] = useState("recommended");
-  const [activeDetailsId, setActiveDetailsId] = useState(null);
-
-  /* =========================================================
-     SAVE FAVORITES
-  ========================================================= */
+  const query = useMemo(() => ({
+    destination,
+    ...(filters.checkIn && filters.checkOut ? { checkIn: filters.checkIn, checkOut: filters.checkOut } : {}),
+    guests: filters.guests,
+    rooms: filters.rooms,
+    ...(filters.budget ? { budget: filters.budget } : {}),
+    ...(filters.propertyType ? { propertyType: filters.propertyType } : {}),
+    ...(filters.minRating ? { minRating: filters.minRating } : {}),
+    ...(filters.amenities.trim() ? { amenities: filters.amenities } : {}),
+    page,
+    limit: 12,
+  }), [destination, filters, page]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "fastBookingFavorites",
-      JSON.stringify(favorites)
-    );
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await searchHotels(query);
+        if (active) setResults(response);
+      } catch (requestError) {
+        if (active) {
+          setResults({ properties: [], pagination: null, alternatives: [] });
+          setError(requestError.response?.data?.message || requestError.message || 'Unable to load hotels.');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fastBookingFavorites', JSON.stringify(favorites));
+    } catch (storageError) {
+      console.error('Unable to save favorites:', storageError);
+    }
   }, [favorites]);
 
-  /* =========================================================
-     LOAD PROPERTIES
-  ========================================================= */
-
-  useEffect(() => {
-    const searchLocation =
-      searchParams.location?.trim() || "New York, USA";
-
-    const timer = window.setTimeout(() => {
-      const normalizedSearch = searchLocation.toLowerCase();
-
-      const matchedProperties = baseProperties.filter((property) => {
-        const propertyLocation = property.location.toLowerCase();
-
-        const city = propertyLocation
-          .split(",")[0]
-          .trim();
-
-        return (
-          propertyLocation.includes(normalizedSearch) ||
-          normalizedSearch.includes(city)
-        );
-      });
-
-      setProperties(matchedProperties);
-      setLoading(false);
-
-      /* Save recent search */
-
-      if (searchParams.location) {
-        try {
-          const stored = JSON.parse(
-            localStorage.getItem("fastBookingRecentSearches") ||
-              "[]"
-          );
-
-          const nextSearches = [
-            {
-              destination: searchParams.location,
-              savedAt: new Date().toISOString(),
-            },
-            ...stored.filter(
-              (item) =>
-                item.destination !== searchParams.location
-            ),
-          ].slice(0, 6);
-
-          localStorage.setItem(
-            "fastBookingRecentSearches",
-            JSON.stringify(nextSearches)
-          );
-        } catch (error) {
-          console.error(
-            "Unable to save recent search:",
-            error
-          );
-        }
-      }
-    }, 500);
-
-    return () => window.clearTimeout(timer);
-  }, [searchParams.location]);
-
-  /* =========================================================
-     FILTER + SORT
-  ========================================================= */
-
-  const filteredProperties = useMemo(() => {
-    const filtered = [...properties]
-      .filter((property) => {
-        const priceMatch =
-          property.price >= filters.priceRange[0] &&
-          property.price <= filters.priceRange[1];
-
-        const ratingMatch =
-          property.rating >= filters.rating;
-
-        const amenitiesMatch =
-          filters.amenities.length === 0 ||
-          filters.amenities.every((amenity) =>
-            property.amenities.includes(amenity)
-          );
-
-        return (
-          priceMatch &&
-          ratingMatch &&
-          amenitiesMatch
-        );
-      })
-      .sort((a, b) => {
-        if (sortBy === "price") {
-          return a.price - b.price;
-        }
-
-        if (sortBy === "rating") {
-          return b.rating - a.rating;
-        }
-
-        return b.rating - a.rating;
-      });
-
-    return filtered;
-  }, [filters, properties, sortBy]);
-
-  /* =========================================================
-     AMENITY ICON
-  ========================================================= */
-
-  const getAmenityIcon = (amenity) => {
-    const iconClass = "h-3.5 w-3.5";
-
-    switch (amenity) {
-      case "wifi":
-        return <Wifi className={iconClass} />;
-
-      case "parking":
-        return <Car className={iconClass} />;
-
-      case "restaurant":
-        return <Utensils className={iconClass} />;
-
-      case "pool":
-        return <Waves className={iconClass} />;
-
-      case "gym":
-        return <Dumbbell className={iconClass} />;
-
-      case "spa":
-        return <Bath className={iconClass} />;
-
-      case "kitchen":
-        return <CookingPot className={iconClass} />;
-
-      case "beach":
-        return <Waves className={iconClass} />;
-
-      case "fireplace":
-        return <Flame className={iconClass} />;
-
-      default:
-        return null;
-    }
+  const updateFilter = (key, value) => {
+    setPage(1);
+    setFilters((current) => ({ ...current, [key]: value }));
   };
 
-  /* =========================================================
-     FAVORITE
-  ========================================================= */
-
-  const toggleFavorite = (propertyId, event) => {
-    event.stopPropagation();
-
-    setFavorites((prev) =>
-      prev.includes(propertyId)
-        ? prev.filter((id) => id !== propertyId)
-        : [...prev, propertyId]
-    );
+  const toggleFavorite = (hotelId) => {
+    const id = String(hotelId);
+    setFavorites((current) => (
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
+    ));
   };
 
-  /* =========================================================
-     BOOK NOW
-  ========================================================= */
-
-  const handleBookNow = (property) => {
-    const authToken = localStorage.getItem("authToken");
-    const prediction = getPricePrediction({
-      price: property.price,
-      checkInDate: searchParams?.dates?.startDate,
-      availableRooms: property.availableRooms,
-      totalRooms: property.totalRooms,
-    });
-
+  const startBooking = (property) => {
+    const dates = filters.checkIn && filters.checkOut
+      ? { startDate: new Date(filters.checkIn), endDate: new Date(filters.checkOut), key: 'selection' }
+      : (() => {
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
+        return { startDate, endDate, key: 'selection' };
+      })();
     const bookingState = {
-      property: { ...property, price: prediction.predictedPrice, basePrice: property.price },
-      searchParams,
-      pricePrediction: prediction,
+      property,
+      searchParams: {
+        location: destination,
+        dates,
+        guests: { adults: Number(filters.guests), children: 0, rooms: Number(filters.rooms) },
+      },
     };
-
-    if (!authToken) {
-      navigate("/login", {
-        state: {
-          from: "/payment",
-          ...bookingState,
-        },
-      });
-
+    if (!localStorage.getItem('authToken')) {
+      navigate('/login', { state: { from: '/payment', ...bookingState } });
       return;
     }
-
-    navigate("/payment", {
-      state: bookingState,
-    });
+    navigate('/payment', { state: bookingState });
   };
-
-  /* =========================================================
-     AMENITY FILTER
-  ========================================================= */
-
-  const toggleAmenity = (amenity) => {
-    setFilters((prev) => ({
-      ...prev,
-
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter(
-            (item) => item !== amenity
-          )
-        : [...prev.amenities, amenity],
-    }));
-  };
-
-  /* =========================================================
-     DETAILS
-  ========================================================= */
-
-  const toggleDetails = (propertyId, event) => {
-    event.stopPropagation();
-
-    setActiveDetailsId((prev) =>
-      prev === propertyId ? null : propertyId
-    );
-  };
-
-  /* =========================================================
-     LOADING
-  ========================================================= */
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 px-4 pt-28">
-        <div className="mx-auto max-w-7xl">
-
-          <div className="mb-8 h-52 animate-pulse rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-800" />
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {[1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="overflow-hidden rounded-3xl bg-white shadow-sm"
-              >
-                <div className="h-48 animate-pulse bg-slate-200" />
-
-                <div className="space-y-4 p-6">
-                  <div className="h-6 w-2/3 animate-pulse rounded bg-slate-200" />
-
-                  <div className="h-4 w-1/3 animate-pulse rounded bg-slate-200" />
-
-                  <div className="h-12 animate-pulse rounded bg-slate-200" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  /* =========================================================
-     MAIN UI
-  ========================================================= */
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pb-12 pt-28 sm:px-6 lg:px-8">
-
+    <main className="min-h-screen bg-slate-50 px-4 pb-14 pt-28 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <header className="mb-7 rounded-3xl bg-gradient-to-r from-blue-950 via-blue-800 to-blue-600 p-6 text-white shadow-xl sm:p-9">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-300">FastBooking stays</p>
+          <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">
+            {destination ? `Stays in ${destination}` : 'Explore available stays'}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
+            Results come from approved database listings. Demo records are marked and cannot be booked.
+            Prices and room inventory are rechecked when you book.
+          </p>
+        </header>
 
-        {/* LOGIN / REGISTER NOTICE */}
-
-        {!localStorage.getItem("authToken") && (
-          <div className="mb-6 overflow-hidden rounded-3xl border border-yellow-200 bg-gradient-to-r from-yellow-50 via-white to-blue-50 shadow-sm">
-
-            <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-
-              <div>
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-800">
-                  <Sparkles size={14} />
-                  FastBooking
-                </div>
-
-                <h2 className="text-xl font-bold text-slate-900">
-                  Create your account to book
-                </h2>
-
-                <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                  Browse available properties freely.
-                  Sign in or create an account when
-                  you're ready to book.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-
-                <button
-                  onClick={() =>
-                    navigate("/login", {
-                      state: {
-                        from: "/book-place",
-                        searchParams,
-                      },
-                    })
-                  }
-                  className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-800"
-                >
-                  Log in
-                </button>
-
-                <button
-                  onClick={() =>
-                    navigate("/register", {
-                      state: {
-                        from: "/book-place",
-                        searchParams,
-                      },
-                    })
-                  }
-                  className="rounded-full border-2 border-yellow-500 bg-white px-6 py-3 text-sm font-semibold text-yellow-700 transition hover:bg-yellow-50"
-                >
-                  Create account
-                </button>
-
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* HERO */}
-
-        <div className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-800 via-blue-700 to-indigo-800 p-6 text-white shadow-xl sm:p-8">
-
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-
-            <div>
-
-              <button
-                onClick={() => navigate("/book")}
-                className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-blue-100 transition hover:text-white"
-              >
-                <ArrowLeft size={18} />
-                Back to Search
-              </button>
-
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-300/30 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-200">
-                <Sparkles size={14} />
-                Premium stays
-              </div>
-
-              <h1 className="text-3xl font-bold sm:text-4xl">
-                {searchParams.location
-                  ? `Stays in ${searchParams.location}`
-                  : "Available Properties"}
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-                Discover handpicked stays with flexible
-                booking, premium amenities and special
-                perks for your trip.
-              </p>
-
-            </div>
-
-            <div className="w-fit rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur">
-
-              <p className="text-sm text-blue-100">
-                Showing
-              </p>
-
-              <p className="text-2xl font-bold">
-                {filteredProperties.length}
-
-                <span className="ml-1 text-sm font-medium text-blue-100">
-                  stays
-                </span>
-              </p>
-
-            </div>
-
-          </div>
-        </div>
-
-        {/* FILTER BAR */}
-
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-            <button
-              onClick={() =>
-                setShowFilters((prev) => !prev)
-              }
-              className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-            >
-              <SlidersHorizontal size={17} />
-
-              {showFilters
-                ? "Hide filters"
-                : "Filters & sorting"}
-            </button>
-
-            <div className="flex items-center gap-3">
-
-              <span className="hidden text-sm text-slate-500 sm:block">
-                Sort by
-              </span>
-
-              <select
-                value={sortBy}
-                onChange={(event) =>
-                  setSortBy(event.target.value)
-                }
-                className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500"
-              >
-                <option value="recommended">
-                  Recommended
-                </option>
-
-                <option value="price">
-                  Price: low to high
-                </option>
-
-                <option value="rating">
-                  Top rated
-                </option>
+        <section className="mb-7 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+              Destination
+              <DestinationAutocomplete
+                value={destination}
+                onChange={(value) => { setDestination(value); setPage(1); }}
+                onSelect={(place) => { setDestination(place.name); setPage(1); }}
+                inputClassName="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700"
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Check-in
+              <input type="date" value={filters.checkIn} min={new Date().toISOString().slice(0, 10)} onChange={(event) => updateFilter('checkIn', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Check-out
+              <input type="date" value={filters.checkOut} min={filters.checkIn || new Date().toISOString().slice(0, 10)} onChange={(event) => updateFilter('checkOut', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Guests
+              <input type="number" min="1" max="20" value={filters.guests} onChange={(event) => updateFilter('guests', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Rooms
+              <input type="number" min="1" max="10" value={filters.rooms} onChange={(event) => updateFilter('rooms', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Max nightly budget
+              <input type="number" min="1" value={filters.budget} onChange={(event) => updateFilter('budget', event.target.value)} placeholder="Any budget" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Property type
+              <select value={filters.propertyType} onChange={(event) => updateFilter('propertyType', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                <option value="">All types</option><option>Hotel</option><option>Resort</option><option>Apartment</option><option>Homestay</option><option>Villa</option><option>Hostel</option>
               </select>
-
-            </div>
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Genuine minimum rating
+              <select value={filters.minRating} onChange={(event) => updateFilter('minRating', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                <option value="">Any / unrated</option><option value="3">3+</option><option value="4">4+</option><option value="4.5">4.5+</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700 sm:col-span-2 lg:col-span-4">
+              Amenities <span className="font-normal text-slate-500">(comma-separated)</span>
+              <input value={filters.amenities} onChange={(event) => updateFilter('amenities', event.target.value)} placeholder="Wi-Fi, Parking" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
           </div>
+          <p className="mt-4 flex items-center gap-2 text-xs text-slate-500"><Search size={14} /> Search updates as you change filters.</p>
+        </section>
 
-          {/* FILTER PANEL */}
+        {error && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
 
-          {showFilters && (
-            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
-
-              <div className="grid gap-6 md:grid-cols-3">
-
-                {/* Rating */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Minimum rating
-                  </label>
-
-                  <select
-                    value={filters.rating}
-                    onChange={(event) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        rating: Number(event.target.value),
-                      }))
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-blue-500"
-                  >
-                    <option value={0}>
-                      Any rating
-                    </option>
-
-                    <option value={3}>
-                      3+ stars
-                    </option>
-
-                    <option value={4}>
-                      4+ stars
-                    </option>
-
-                    <option value={4.5}>
-                      4.5+ stars
-                    </option>
-                  </select>
-                </div>
-
-                {/* Price */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Maximum price: $
-                    {filters.priceRange[1]}
-                  </label>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="1000"
-                    step="10"
-                    value={filters.priceRange[1]}
-                    onChange={(event) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        priceRange: [
-                          0,
-                          Number(event.target.value),
-                        ],
-                      }))
-                    }
-                    className="w-full accent-blue-600"
-                  />
-
-                  <div className="mt-1 flex justify-between text-xs text-slate-500">
-                    <span>$0</span>
-                    <span>$1000+</span>
-                  </div>
-                </div>
-
-                {/* Amenities */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Amenities
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-
-                    {amenityOptions.map((amenity) => {
-                      const selected =
-                        filters.amenities.includes(amenity);
-
-                      return (
-                        <button
-                          key={amenity}
-                          type="button"
-                          onClick={() =>
-                            toggleAmenity(amenity)
-                          }
-                          className={`rounded-full px-3 py-2 text-xs font-semibold capitalize transition ${
-                            selected
-                              ? "bg-blue-700 text-white shadow-sm"
-                              : "bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                          }`}
-                        >
-                          {amenity}
-                        </button>
-                      );
-                    })}
-
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* PROPERTY GRID */}
-
-        {filteredProperties.length > 0 ? (
-          <div className="grid gap-6 lg:grid-cols-2">
-
-            {filteredProperties.map((property) => {
-              const isFavorite =
-                favorites.includes(property.id);
-
-              const isExpanded =
-                activeDetailsId === property.id;
-
-              return (
-                <div
-                  key={property.id}
-                  className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-                >
-
-                  {/* IMAGE */}
-
-                  <div className="relative">
-
-                    <img
-                      src={property.image}
-                      alt={property.name}
-                      className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.02]"
-                    />
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent to-transparent" />
-
-                    {/* TYPE */}
-
-                    <div className="absolute left-4 top-4 rounded-full bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow">
-                      {property.type}
-                    </div>
-
-                    {/* FAVORITE */}
-
-                    <button
-                      onClick={(event) =>
-                        toggleFavorite(
-                          property.id,
-                          event
-                        )
-                      }
-                      aria-label="Add to favorites"
-                      className={`absolute right-4 top-4 rounded-full p-2.5 shadow-md backdrop-blur transition ${
-                        isFavorite
-                          ? "bg-red-500 text-white"
-                          : "bg-white/90 text-slate-700 hover:bg-white"
-                      }`}
-                    >
-                      <Heart
-                        size={18}
-                        fill={
-                          isFavorite
-                            ? "currentColor"
-                            : "none"
-                        }
-                      />
-                    </button>
-
-                    {/* SAVING */}
-
-                    {property.originalPrice && (
-                      <div className="absolute bottom-4 left-4 rounded-full bg-yellow-500 px-3 py-1.5 text-xs font-bold text-slate-950 shadow">
-                        Save $
-                        {(
-                          property.originalPrice -
-                          property.price
-                        ).toLocaleString()}
-                      </div>
-                    )}
-
-                  </div>
-
-                  {/* CONTENT */}
-
-                  <div className="p-6">
-
-                    <div className="flex items-start justify-between gap-4">
-
-                      <div>
-
-                        <h3 className="text-xl font-bold text-slate-900">
-                          {property.name}
-                        </h3>
-
-                        <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
-                          <MapPin
-                            size={15}
-                            className="text-red-500"
-                          />
-                          {property.location}
-                        </div>
-
-                      </div>
-
-                      {/* RATING */}
-
-                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-3 py-1.5 text-sm font-bold text-green-700">
-                        <Star
-                          size={14}
-                          className="fill-current"
-                        />
-                        {property.rating}
-                      </div>
-
-                    </div>
-
-                    <p className="mt-4 text-sm leading-6 text-slate-600">
-                      {property.description}
-                    </p>
-
-                    {/* HIGHLIGHT */}
-
-                    <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-3">
-
-                      <div className="flex items-start gap-2 text-sm font-semibold text-blue-700">
-
-                        <Sparkles
-                          size={17}
-                          className="mt-0.5 shrink-0"
-                        />
-
-                        <span>
-                          {property.highlight}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    {/* AMENITIES */}
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-
-                      {property.amenities
-                        .slice(0, 4)
-                        .map((amenity) => (
-                          <div
-                            key={`${property.id}-${amenity}`}
-                            className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600"
-                          >
-                            {getAmenityIcon(amenity)}
-
-                            <span className="capitalize">
-                              {amenity}
-                            </span>
+        {loading ? (
+          <div aria-live="polite" className="grid gap-5 md:grid-cols-2">
+            {[1, 2, 3, 4].map((item) => <div key={item} className="h-72 animate-pulse rounded-3xl bg-white shadow-sm" />)}
+          </div>
+        ) : results.properties.length ? (
+          <>
+            <p className="mb-4 text-sm text-slate-600">{results.pagination?.total || results.properties.length} matching listings</p>
+            <div className="grid gap-5 md:grid-cols-2">
+              {results.properties.map((property) => {
+                const id = String(property._id);
+                const image = property.image || property.images?.[0];
+                const address = [property.streetAddress, property.city || property.location, property.state, property.country]
+                  .filter(Boolean).join(', ');
+                return (
+                  <article key={id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    {image ? <img src={image} alt="" loading="lazy" className="h-52 w-full object-cover" /> : <div className="h-52 bg-gradient-to-br from-blue-900 to-amber-500" />}
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-900">{property.propertyType || property.type || 'Stay'}</span>
+                            {property.isDemo && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">DEMO DATA · NOT A REAL LISTING</span>}
+                            {property.isVerified && !property.isDemo && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Verified source</span>}
                           </div>
-                        ))}
-
-                      {property.amenities.length > 4 && (
-                        <span className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-500">
-                          +
-                          {property.amenities.length -
-                            4}{" "}
-                          more
-                        </span>
+                          <h2 className="mt-2 text-xl font-bold text-slate-900">{property.name}</h2>
+                          <p className="mt-1 flex items-start gap-1 text-sm text-slate-500"><MapPin size={15} className="mt-0.5 shrink-0" />{address}</p>
+                        </div>
+                        <button type="button" onClick={() => toggleFavorite(id)} aria-label={favorites.includes(id) ? 'Remove favorite' : 'Add favorite'} className="rounded-full border border-slate-200 p-2 text-rose-600 hover:bg-rose-50">
+                          <Heart size={18} fill={favorites.includes(id) ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                      {property.ratingCount > 0 && Number.isFinite(property.rating) && (
+                        <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-slate-700">
+                          <Star size={15} className="fill-amber-400 text-amber-500" />{property.rating.toFixed(1)}
+                          <span className="font-normal text-slate-500">from {property.ratingCount} recorded ratings</span>
+                        </p>
                       )}
-
-                    </div>
-
-                    {/* PRICE + ACTIONS */}
-
-                    <div className="mt-6 flex flex-col gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-between">
-
-                      <div>
-
-                            {(() => {
-                              const prediction = getPricePrediction({
-                                price: property.price,
-                                checkInDate: searchParams?.dates?.startDate,
-                                availableRooms: property.availableRooms,
-                                totalRooms: property.totalRooms,
-                              });
-
-                              return (
-                                <div className={`mb-2 text-xs font-semibold ${prediction.direction === "increase" ? "text-amber-700" : prediction.direction === "decrease" ? "text-green-700" : "text-slate-500"}`}>
-                                  {prediction.message}
-                                </div>
-                              );
-                            })()}
-
-                        <div className="flex items-baseline gap-2">
-
-                          <span className="text-2xl font-bold text-blue-700">
-                            $
-                            {property.price.toLocaleString()}
-                          </span>
-
-                          <span className="text-sm text-slate-500">
-                            / night
-                          </span>
-
+                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{property.description || 'No description supplied.'}</p>
+                      <p className="mt-3 text-sm text-slate-600">Amenities: {property.amenities?.length ? property.amenities.join(', ') : 'Not listed'}</p>
+                      <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-4">
+                        <div>
+                          <p className="text-xl font-extrabold text-blue-950">{formatPrice(property.price, property.currency)}</p>
+                          <p className="text-xs text-slate-500">per room, per night · listing price</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {filters.checkIn && filters.checkOut ? `${property.availableRoomsForStay} rooms for these dates before final recheck` : `${property.availableRooms} rooms listed; dates not checked`}
+                          </p>
                         </div>
-
-                        {property.originalPrice && (
-                          <span className="text-sm text-slate-400 line-through">
-                            $
-                            {property.originalPrice.toLocaleString()}
-                          </span>
-                        )}
-
-                        <div className="mt-1 text-xs text-slate-500">
-                          {property.reviews.toLocaleString()}{" "}
-                          verified reviews
-                        </div>
-
-                      </div>
-
-                      <div className="flex gap-2">
-
-                        <button
-                          onClick={(event) =>
-                            toggleDetails(
-                              property.id,
-                              event
-                            )
-                          }
-                          className="rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                        >
-                          {isExpanded ? (
-                            <span className="inline-flex items-center gap-1">
-                              <ChevronUp size={16} />
-                              Hide
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              <ChevronDown size={16} />
-                              Details
-                            </span>
-                          )}
+                        <button type="button" disabled={property.isDemo} onClick={() => startBooking(property)} className="rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                          {property.isDemo ? 'Demo only · booking disabled' : 'Continue to booking'}
                         </button>
-
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleBookNow(property);
-                          }}
-                          className="rounded-full bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:from-blue-800 hover:to-blue-700"
-                        >
-                          Book Now
-                        </button>
-
                       </div>
                     </div>
-
-                    {/* DETAILS */}
-
-                    {isExpanded && (
-                      <div className="mt-5 rounded-2xl border border-yellow-200 bg-gradient-to-r from-yellow-50 to-blue-50 p-4">
-
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-
-                          <Sparkles
-                            size={17}
-                            className="text-yellow-600"
-                          />
-
-                          What makes this stay special
-
-                        </div>
-
-                        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-
-                          {property.perks.map((perk) => (
-                            <li
-                              key={perk}
-                              className="rounded-xl bg-white px-3 py-2.5 text-sm text-slate-600 shadow-sm"
-                            >
-                              ✓ {perk}
-                            </li>
-                          ))}
-
-                        </ul>
-
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-              );
-            })}
-
-          </div>
-        ) : (
-
-          /* NO RESULTS */
-
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <MapPin size={28} />
+                  </article>
+                );
+              })}
             </div>
-
-            <h2 className="mt-5 text-xl font-bold text-slate-900">
-              No properties found
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              We couldn't find a property matching
-              your destination and selected filters.
-              Try another destination or clear some
-              filters.
-            </p>
-
-            <button
-              onClick={() => {
-                setFilters({
-                  priceRange: [0, 1000],
-                  rating: 0,
-                  amenities: [],
-                });
-
-                navigate("/book");
-              }}
-              className="mt-6 rounded-full bg-blue-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-blue-800"
-            >
-              Back to Search
-            </button>
-
+            {(results.pagination?.pages || 0) > 1 && (
+              <nav aria-label="Hotel results pages" className="mt-7 flex items-center justify-center gap-4">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+                <span className="text-sm text-slate-600">Page {page} of {results.pagination.pages}</span>
+                <button type="button" disabled={page >= results.pagination.pages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40">Next</button>
+              </nav>
+            )}
+          </>
+        ) : (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-7 text-center">
+            <h2 className="text-lg font-bold text-blue-950">{destination.length < 2 ? 'Enter a destination to begin' : 'No hotels match those filters'}</h2>
+            <p className="mt-2 text-sm text-slate-700">Try a nearby destination, increase your budget, or remove amenities, property type, or rating filters.</p>
+            {results.alternatives?.length > 0 && <ul className="mt-3 space-y-1 text-sm text-slate-600">{results.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}</ul>}
           </div>
         )}
-
       </div>
-    </div>
+    </main>
   );
 };
 

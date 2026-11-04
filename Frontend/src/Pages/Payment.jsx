@@ -19,19 +19,12 @@ import {
   createPaymentOrder,
   verifyPayment,
 } from "../services/bookingService";
-import { getPricePrediction } from "../utils/pricePrediction";
 
 const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const { property, searchParams } = location.state || {};
-  const pricePrediction = location.state?.pricePrediction || getPricePrediction({
-    price: property?.price,
-    checkInDate: searchParams?.dates?.startDate,
-    availableRooms: property?.availableRooms,
-    totalRooms: property?.totalRooms,
-  });
 
   const [paymentMethod, setPaymentMethod] = useState("card");
 
@@ -1257,17 +1250,13 @@ const Payment = () => {
 
                 <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
 
-                  <p className={`mb-3 text-xs font-semibold ${pricePrediction.direction === "increase" ? "text-amber-700" : pricePrediction.direction === "decrease" ? "text-green-700" : "text-slate-500"}`}>
-                    {pricePrediction.message}
-                  </p>
-
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">
-                      ₹{Number(property.price || 0).toLocaleString("en-IN")} × {nights} nights
+                      {property.currency || "INR"} {Number(property.price || 0).toLocaleString("en-IN")} × {nights} nights × {rooms} rooms
                     </span>
 
                     <span className="font-semibold text-slate-800">
-                      ₹{(Number(property.price || 0) * nights).toLocaleString("en-IN")}
+                      {property.currency || "INR"} {(Number(property.price || 0) * nights * rooms).toLocaleString("en-IN")}
                     </span>
                   </div>
 

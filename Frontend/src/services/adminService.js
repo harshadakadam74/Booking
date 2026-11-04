@@ -38,6 +38,11 @@ export const setAdminHotelStatus = (hotelId, active) => request(
   'Unable to update hotel status.',
 );
 
+export const setAdminHotelApproval = (hotelId, approvalStatus) => request(
+  () => apiClient.patch(`/api/v1/admin/hotels/${hotelId}/approval`, { approvalStatus }),
+  'Unable to update hotel approval.',
+);
+
 export const deleteAdminHotel = (hotelId) => request(
   () => apiClient.delete(`/api/v1/admin/hotels/${hotelId}`),
   'Unable to safely delete hotel.',
@@ -61,6 +66,11 @@ export const fetchAdminUsers = (params = {}) => request(
 export const createAdminAccount = (payload) => request(
   () => apiClient.post('/api/v1/admin/users', payload),
   'Unable to create administrator account.',
+);
+
+export const setAdminUserRole = (userId, role) => request(
+  () => apiClient.patch(`/api/v1/admin/users/${userId}/role`, { role }),
+  'Unable to update user role.',
 );
 
 export const logoutAdmin = () => {

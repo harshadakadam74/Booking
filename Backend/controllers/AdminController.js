@@ -5,13 +5,23 @@ const Property = require('../models/Property');
 const mongoose = require('mongoose');
 const ApiResponse = require('../Utils/ApiResponse');
 const UserService = require('../services/UserService');
+const {
+  activeBookingStatuses,
+  acquireBookingStatusLock,
+  releasePropertyBookingLock,
+} = require('../services/bookingInventory');
 
 const validId = (id) => mongoose.Types.ObjectId.isValid(id) && /^[a-f\d]{24}$/i.test(id);
 const escapedRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const statusValues = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'];
 
 const validatePropertyInput = (body, existing) => {
-  const fields = ['name', 'location', 'type', 'description', 'image', 'price', 'totalRooms', 'availableRooms', 'amenities', 'active'];
+  const fields = [
+    'name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency',
+    'type', 'propertyType', 'description', 'image', 'images', 'price', 'totalRooms',
+    'availableRooms', 'maxGuestsPerRoom', 'amenities', 'rating', 'ratingCount',
+    'ratingSource', 'isVerified', 'isDemo', 'active',
+  ];
   const values = {};
   fields.forEach((field) => {
     if (Object.hasOwn(body, field)) values[field] = body[field];
@@ -23,7 +33,7 @@ const validatePropertyInput = (body, existing) => {
   const totalRooms = values.totalRooms === undefined ? existing?.totalRooms : Number(values.totalRooms);
   const availableRooms = values.availableRooms === undefined ? existing?.availableRooms : Number(values.availableRooms);
 
-  for (const field of ['price', 'totalRooms', 'availableRooms']) {
+  for (const field of ['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'rating', 'ratingCount']) {
     if (values[field] !== undefined &&
       (values[field] === null || values[field] === '' || !Number.isFinite(Number(values[field])))) {
       return { error: `${field} must be a valid number.` };
@@ -48,6 +58,21 @@ const validatePropertyInput = (body, existing) => {
     (typeof values.type !== 'string' || values.type.trim().length < 2 || values.type.trim().length > 60)) {
     return { error: 'Hotel type must contain between 2 and 60 characters.' };
   }
+  for (const field of ['address', 'streetAddress', 'city', 'state', 'country', 'propertyType', 'ratingSource']) {
+    if (values[field] !== undefined &&
+      (typeof values[field] !== 'string' ||
+        values[field].trim().length > (['address', 'streetAddress'].includes(field) ? 250 : 100))) {
+      return { error: `${field} must be a valid string.` };
+    }
+  }
+  if (values.currency !== undefined &&
+    (typeof values.currency !== 'string' || !/^[A-Za-z]{3}$/.test(values.currency.trim()))) {
+    return { error: 'Currency must be a three-letter currency code.' };
+  }
+  if (values.propertyType !== undefined &&
+    (typeof values.propertyType !== 'string' || values.propertyType.trim().length < 2 || values.propertyType.trim().length > 60)) {
+    return { error: 'Property type must contain between 2 and 60 characters.' };
+  }
   if (values.description !== undefined &&
     (typeof values.description !== 'string' || values.description.length > 4000)) {
     return { error: 'Description cannot exceed 4000 characters.' };
@@ -70,16 +95,47 @@ const validatePropertyInput = (body, existing) => {
       values.amenities.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 60))) {
     return { error: 'Amenities must be a list of up to 40 non-empty strings (60 characters maximum each).' };
   }
+  if (values.images !== undefined &&
+    (!Array.isArray(values.images) || values.images.length > 20 ||
+      values.images.some((image) => typeof image !== 'string' || image.length > 2048))) {
+    return { error: 'Images must be a list of up to 20 public URLs.' };
+  }
+  if (values.images?.some((image) => {
+    if (!image.trim()) return false;
+    try {
+      return !['http:', 'https:'].includes(new URL(image).protocol);
+    } catch {
+      return true;
+    }
+  })) return { error: 'Images must contain valid HTTP or HTTPS URLs.' };
+  if (values.maxGuestsPerRoom !== undefined &&
+    (!Number.isInteger(Number(values.maxGuestsPerRoom)) || Number(values.maxGuestsPerRoom) < 1 || Number(values.maxGuestsPerRoom) > 20)) {
+    return { error: 'Maximum guests per room must be a whole number between 1 and 20.' };
+  }
+  if (values.rating !== undefined &&
+    (Number(values.rating) < 0 || Number(values.rating) > 5)) {
+    return { error: 'Rating must be between 0 and 5.' };
+  }
+  if (values.ratingCount !== undefined &&
+    (!Number.isInteger(Number(values.ratingCount)) || Number(values.ratingCount) < 0)) {
+    return { error: 'Rating count must be a non-negative whole number.' };
+  }
+  for (const field of ['isVerified', 'isDemo']) {
+    if (values[field] !== undefined && typeof values[field] !== 'boolean') {
+      return { error: `${field} must be true or false.` };
+    }
+  }
   if (values.active !== undefined && typeof values.active !== 'boolean') {
     return { error: 'Active status must be true or false.' };
   }
 
   const updates = {};
   Object.entries(values).forEach(([field, value]) => {
-    if (['price', 'totalRooms', 'availableRooms'].includes(field)) updates[field] = Number(value);
-    else if (['name', 'location', 'type', 'description', 'image'].includes(field) && typeof value === 'string') {
+    if (['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'rating', 'ratingCount'].includes(field)) updates[field] = Number(value);
+    else if (['name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
       updates[field] = value.trim();
     } else if (field === 'amenities') updates.amenities = value.map((item) => item.trim());
+    else if (field === 'images') updates.images = value.map((item) => item.trim());
     else updates[field] = value;
   });
   if (existing) {
@@ -103,6 +159,7 @@ const getDashboard = async (req, res) => {
       totalHotels,
       activeHotels,
       inactiveHotels,
+      pendingHotelApprovals,
       totalBookings,
       pendingBookings,
       confirmedBookings,
@@ -115,6 +172,7 @@ const getDashboard = async (req, res) => {
       Property.countDocuments(),
       Property.countDocuments({ active: { $ne: false } }),
       Property.countDocuments({ active: false }),
+      Property.countDocuments({ approvalStatus: 'pending' }),
       Booking.countDocuments(),
       Booking.countDocuments({ bookingStatus: 'PENDING' }),
       Booking.countDocuments({ bookingStatus: 'CONFIRMED' }),
@@ -133,7 +191,7 @@ const getDashboard = async (req, res) => {
         totalHotels,
         activeHotels,
         inactiveHotels,
-        pendingHotelApprovals: null,
+        pendingHotelApprovals,
         totalBookings,
         pendingBookings,
         confirmedBookings,
@@ -181,6 +239,9 @@ const getAllProperties = async (req, res) => {
     if (req.query.status && !['active', 'inactive'].includes(req.query.status)) {
       return ApiResponse.error(res, 400, 'Status must be active or inactive.');
     }
+    if (req.query.approvalStatus && !['pending', 'approved', 'rejected'].includes(req.query.approvalStatus)) {
+      return ApiResponse.error(res, 400, 'Approval status must be pending, approved, or rejected.');
+    }
     const { page, limit, skip } = getPagination(req.query);
     const filter = {};
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
@@ -192,6 +253,7 @@ const getAllProperties = async (req, res) => {
     if (city) filter.location = new RegExp(escapedRegex(city), 'i');
     if (req.query.status === 'active') filter.active = { $ne: false };
     if (req.query.status === 'inactive') filter.active = false;
+    if (req.query.approvalStatus) filter.approvalStatus = req.query.approvalStatus;
 
     const [properties, total] = await Promise.all([
       Property.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -216,14 +278,18 @@ const createProperty = async (req, res) => {
       updates.totalRooms === undefined || updates.availableRooms === undefined) {
       return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required.');
     }
-    const hasCoordinates = latitude !== undefined && longitude !== undefined && latitude !== '' && longitude !== '';
+    const hasLatitude = latitude !== undefined && latitude !== '';
+    const hasLongitude = longitude !== undefined && longitude !== '';
+    if (hasLatitude !== hasLongitude) {
+      return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together as valid coordinates.');
+    }
+    const hasCoordinates = hasLatitude && hasLongitude;
     const parsedLatitude = Number(latitude);
     const parsedLongitude = Number(longitude);
-    if ((latitude !== undefined) !== (longitude !== undefined) ||
-      (hasCoordinates && (
-        !Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
-        !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180
-      ))) {
+    if (hasCoordinates && (
+      !Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+      !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180
+    )) {
       return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together as valid coordinates.');
     }
 
@@ -233,6 +299,12 @@ const createProperty = async (req, res) => {
       description: updates.description || '',
       image: updates.image || '',
       amenities: updates.amenities || [],
+      images: updates.images || (updates.image ? [updates.image] : []),
+      city: updates.city || updates.location.split(',')[0].trim(),
+      country: updates.country || 'India',
+      propertyType: updates.propertyType || updates.type || 'Hotel',
+      listingSource: 'admin',
+      approvalStatus: 'approved',
       active: updates.active ?? true,
       ...(hasCoordinates ? { geoLocation: { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] } } : {}),
     });
@@ -252,10 +324,12 @@ const updateProperty = async (req, res) => {
     const { latitude, longitude } = req.body;
     const { updates, error } = validatePropertyInput(req.body, property);
     if (error) return ApiResponse.error(res, 400, error);
-    if ((latitude !== undefined) !== (longitude !== undefined)) {
+    const hasLatitude = latitude !== undefined && latitude !== '';
+    const hasLongitude = longitude !== undefined && longitude !== '';
+    if (hasLatitude !== hasLongitude) {
       return ApiResponse.error(res, 400, 'Latitude and longitude must be supplied together.');
     }
-    if (latitude !== undefined) {
+    if (hasLatitude && hasLongitude) {
       const parsedLatitude = Number(latitude);
       const parsedLongitude = Number(longitude);
       if (!Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
@@ -290,6 +364,31 @@ const updatePropertyStatus = async (req, res) => {
   } catch (error) {
     console.error('Admin hotel status update failed:', error.message);
     return ApiResponse.error(res, 500, 'Unable to update hotel status.');
+  }
+};
+
+const updatePropertyApprovalStatus = async (req, res) => {
+  if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid hotel ID.');
+  const { approvalStatus } = req.body || {};
+  if (!['pending', 'approved', 'rejected'].includes(approvalStatus)) {
+    return ApiResponse.error(res, 400, 'Approval status must be pending, approved, or rejected.');
+  }
+  try {
+    const property = await Property.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          approvalStatus,
+          active: approvalStatus === 'approved',
+        },
+      },
+      { new: true, runValidators: true }
+    );
+    if (!property) return ApiResponse.error(res, 404, 'Hotel not found.');
+    return ApiResponse.success(res, { property }, 'Hotel approval status updated.');
+  } catch (error) {
+    console.error('Admin hotel approval update failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to update hotel approval status.');
   }
 };
 
@@ -340,6 +439,25 @@ const getAllUsers = async (req, res) => {
   } catch (error) {
     console.error('Admin user listing failed:', error.message);
     return ApiResponse.error(res, 500, 'Unable to load users.');
+  }
+};
+
+const setUserRole = async (req, res) => {
+  if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid user ID.');
+  const { role } = req.body || {};
+  if (!['CUSTOMER', 'OWNER'].includes(role)) {
+    return ApiResponse.error(res, 400, 'Role must be CUSTOMER or OWNER.');
+  }
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return ApiResponse.error(res, 404, 'User not found.');
+    if (user.role === 'ADMIN') return ApiResponse.error(res, 409, 'Administrator role cannot be changed here.');
+    user.role = role;
+    await user.save();
+    return ApiResponse.success(res, { user }, 'User role updated.');
+  } catch (error) {
+    console.error('Admin user role update failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to update user role.');
   }
 };
 
@@ -437,35 +555,63 @@ const deleteProduct = async (req, res) => {
 };
 
 const updateBookingStatus = async (req, res) => {
+  let bookingLock;
   try {
     if (!validId(req.params.id)) return ApiResponse.error(res, 400, 'Invalid booking ID.');
-    const { bookingStatus } = req.body;
+    const { bookingStatus } = req.body || {};
     if (!statusValues.includes(bookingStatus)) {
       return ApiResponse.error(res, 400, 'Provide a valid bookingStatus.');
     }
     const booking = await Booking.findById(req.params.id);
     if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
+    const previousStatus = booking.bookingStatus;
 
-    booking.bookingStatus = bookingStatus;
-    await booking.save();
-    await booking.populate('user', 'name email mobile');
+    if (activeBookingStatuses.includes(bookingStatus)) {
+      const inventory = await acquireBookingStatusLock(booking);
+      bookingLock = inventory.bookingLock;
+      if (inventory.error) return ApiResponse.error(res, 409, inventory.error);
+    }
 
-    return ApiResponse.success(res, { booking }, 'Booking updated successfully');
+    if (bookingStatus === 'COMPLETED' && booking.checkOutDate > new Date()) {
+      return ApiResponse.error(res, 409, 'A booking cannot be completed before its check-out date.');
+    }
+    const updatedBooking = await Booking.findOneAndUpdate(
+      { _id: booking._id, bookingStatus: previousStatus },
+      { $set: { bookingStatus } },
+      { new: true }
+    );
+    if (!updatedBooking) {
+      return ApiResponse.error(res, 409, 'The booking status changed. Refresh and try again.');
+    }
+    await updatedBooking.populate('user', 'name email mobile');
+
+    return ApiResponse.success(res, { booking: updatedBooking }, 'Booking updated successfully');
   } catch (error) {
     console.error('Admin booking update failed:', error.message);
-    return ApiResponse.error(res, 400, 'Unable to update booking status.');
+    return ApiResponse.error(res, 500, 'Unable to update booking status.');
+  } finally {
+    if (bookingLock) {
+      try {
+        await releasePropertyBookingLock(bookingLock.property._id, bookingLock.token);
+      } catch (error) {
+        console.error('Unable to release hotel booking lock:', error.message);
+      }
+    }
   }
 };
 
 module.exports = {
+  validatePropertyInput,
   createAdmin,
   getDashboard,
   getAllProperties,
   createProperty,
   updateProperty,
   updatePropertyStatus,
+  updatePropertyApprovalStatus,
   deleteProperty,
   getAllUsers,
+  setUserRole,
   getAllBookings,
   getAllProducts,
   deleteUser,

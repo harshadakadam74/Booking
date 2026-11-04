@@ -2,9 +2,9 @@ import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, BedDouble, Building2, CalendarDays, Check, ChevronLeft, ChevronRight,
   CircleDollarSign, DoorOpen, LayoutDashboard, LoaderCircle, LogOut, Pencil,
-  Plus, Search, ShieldCheck, Trash2, Users, X,
+  MapPin, Plus, Search, ShieldCheck, Trash2, Users, X,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AIAnalyticsAssistant from '../components/admin/AIAnalyticsAssistant';
 import {
   createAdminAccount,
@@ -16,7 +16,9 @@ import {
   fetchAdminUsers,
   logoutAdmin,
   setAdminBookingStatus,
+  setAdminHotelApproval,
   setAdminHotelStatus,
+  setAdminUserRole,
   updateAdminHotel,
 } from '../services/adminService';
 
@@ -184,6 +186,7 @@ const AdminPanel = () => {
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
   const [hotelStatus, setHotelStatus] = useState('all');
+  const [approvalStatus, setApprovalStatus] = useState('all');
   const [bookingStatus, setBookingStatus] = useState('all');
   const [bookingFrom, setBookingFrom] = useState('');
   const [bookingTo, setBookingTo] = useState('');
@@ -203,6 +206,7 @@ const AdminPanel = () => {
         ...listParams,
         city: city.trim(),
         ...(hotelStatus !== 'all' ? { status: hotelStatus } : {}),
+        ...(approvalStatus !== 'all' ? { approvalStatus } : {}),
       });
     } else if (section === 'bookings') {
       listRequest = fetchAdminBookings({
@@ -238,7 +242,7 @@ const AdminPanel = () => {
     const rejected = results.filter((result) => result.status === 'rejected');
     if (rejected.length) setError(rejected.map((result) => result.reason.message).join(' '));
     setLoading(false);
-  }, [bookingFrom, bookingStatus, bookingTo, city, hotelStatus, page, search, section]);
+  }, [approvalStatus, bookingFrom, bookingStatus, bookingTo, city, hotelStatus, page, search, section]);
 
   useEffect(() => {
     const timer = window.setTimeout(loadData, 250);
@@ -297,6 +301,16 @@ const AdminPanel = () => {
     }
   };
 
+  const changeHotelApproval = async (hotel, nextApprovalStatus) => {
+    try {
+      await setAdminHotelApproval(hotel._id, nextApprovalStatus);
+      setNotice(`Hotel listing ${nextApprovalStatus}.`);
+      await loadData();
+    } catch (requestError) {
+      notifyError(requestError);
+    }
+  };
+
   const removeHotel = async (hotel) => {
     if (!window.confirm(`Delete "${hotel.name}"? Hotels with booking history will be deactivated instead.`)) return;
     try {
@@ -331,6 +345,16 @@ const AdminPanel = () => {
       notifyError(requestError);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const changeUserRole = async (user, role) => {
+    try {
+      await setAdminUserRole(user._id, role);
+      setNotice(`${user.name}'s role changed to ${role}.`);
+      await loadData();
+    } catch (requestError) {
+      notifyError(requestError);
     }
   };
 
@@ -378,6 +402,9 @@ const AdminPanel = () => {
               {createElement(Icon, { size: 18 })}{label}
             </button>
           ))}
+          <Link to="/admin/destinations" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-blue-100 hover:bg-white/10">
+            <MapPin size={18} />Destinations
+          </Link>
         </nav>
         <button type="button" onClick={logout} className="mt-auto hidden items-center gap-3 border-t border-white/10 px-7 py-5 text-sm font-semibold text-blue-100 hover:text-white md:flex"><LogOut size={18} />Sign out</button>
       </aside>
@@ -432,6 +459,7 @@ const AdminPanel = () => {
                     <input aria-label="Filter hotels by city" value={city} onChange={(event) => { setCity(event.target.value); setPage(1); }} className="w-36 py-2.5 text-sm text-slate-900 outline-none" placeholder="Any city" />
                   </label>
                   <select value={hotelStatus} onChange={(event) => { setHotelStatus(event.target.value); setPage(1); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+                  <select aria-label="Filter by hotel approval" value={approvalStatus} onChange={(event) => { setApprovalStatus(event.target.value); setPage(1); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="all">All approval states</option><option value="pending">Pending approval</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -441,8 +469,8 @@ const AdminPanel = () => {
                     {pageItems.map((hotel) => <tr key={hotel._id}>
                       <td className="px-4 py-3"><div className="flex items-center gap-3">{hotel.image ? <img src={hotel.image} alt="" className="h-11 w-14 rounded-lg object-cover" /> : <span className="flex h-11 w-14 items-center justify-center rounded-lg bg-slate-100"><Building2 size={18} /></span>}<div><p className="font-bold text-slate-800">{hotel.name}</p><p className="text-xs text-slate-500">{hotel.type || 'Hotel'}</p></div></div></td>
                       <td className="px-4 py-3 text-slate-600">{hotel.location}</td><td className="px-4 py-3">{numberText(hotel.price)}</td><td className="px-4 py-3">{hotel.availableRooms} / {hotel.totalRooms}</td>
-                      <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${hotel.active === false ? 'bg-slate-100 text-slate-600' : 'bg-green-100 text-green-800'}`}>{hotel.active === false ? 'Inactive' : 'Active'}</span></td>
-                      <td className="px-4 py-3"><div className="flex items-center gap-1"><button type="button" title="Edit hotel" onClick={() => setHotelEditor(hotel)} className="rounded-lg p-2 text-blue-900 hover:bg-blue-50"><Pencil size={17} /></button><button type="button" onClick={() => changeHotelStatus(hotel)} className="rounded-lg px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50">{hotel.active === false ? 'Activate' : 'Deactivate'}</button><button type="button" title="Delete hotel" onClick={() => removeHotel(hotel)} className="rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17} /></button></div></td>
+                      <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${hotel.active === false ? 'bg-slate-100 text-slate-600' : 'bg-green-100 text-green-800'}`}>{hotel.active === false ? 'Inactive' : 'Active'}</span><p className="mt-1 text-xs capitalize text-slate-500">Approval: {hotel.approvalStatus || 'approved'}</p></td>
+                      <td className="px-4 py-3"><div className="flex flex-wrap items-center gap-1"><button type="button" title="Edit hotel" onClick={() => setHotelEditor(hotel)} className="rounded-lg p-2 text-blue-900 hover:bg-blue-50"><Pencil size={17} /></button><button type="button" onClick={() => changeHotelStatus(hotel)} className="rounded-lg px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50">{hotel.active === false ? 'Activate' : 'Deactivate'}</button>{(hotel.approvalStatus || 'approved') !== 'approved' && <button type="button" onClick={() => changeHotelApproval(hotel, 'approved')} className="rounded-lg px-2 py-1 text-xs font-semibold text-green-800 hover:bg-green-50">Approve</button>}{hotel.approvalStatus !== 'rejected' && <button type="button" onClick={() => changeHotelApproval(hotel, 'rejected')} className="rounded-lg px-2 py-1 text-xs font-semibold text-red-800 hover:bg-red-50">Reject</button>}<button type="button" title="Delete hotel" onClick={() => removeHotel(hotel)} className="rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17} /></button></div></td>
                     </tr>)}
                     {!pageItems.length && <tr><td colSpan="6" className="px-4 py-12 text-center text-slate-500">{loading ? 'Loading hotels…' : 'No hotels match this search.'}</td></tr>}
                   </tbody>
@@ -488,9 +516,9 @@ const AdminPanel = () => {
                 {header('User management', 'Browse registered accounts. Password and credential fields are never returned.')}
                 <div className="mb-4">{searchBar('Search by name or email')}</div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">
-                    {pageItems.map((user) => <tr key={user._id}><td className="px-4 py-3 font-semibold">{user.name}</td><td className="px-4 py-3">{user.email}</td><td className="px-4 py-3">{user.mobile || '—'}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${user.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'}`}>{user.role}</span></td><td className="px-4 py-3">{dateText(user.createdAt)}</td></tr>)}
-                    {!pageItems.length && <tr><td colSpan="5" className="px-4 py-12 text-center text-slate-500">{loading ? 'Loading users…' : 'No users match this search.'}</td></tr>}
+                  <table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Mobile</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Joined</th><th className="px-4 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">
+                    {pageItems.map((user) => <tr key={user._id}><td className="px-4 py-3 font-semibold">{user.name}</td><td className="px-4 py-3">{user.email}</td><td className="px-4 py-3">{user.mobile || '—'}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${user.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'}`}>{user.role}</span></td><td className="px-4 py-3">{dateText(user.createdAt)}</td><td className="px-4 py-3">{user.role !== 'ADMIN' && <button type="button" onClick={() => changeUserRole(user, user.role === 'OWNER' ? 'CUSTOMER' : 'OWNER')} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold hover:bg-slate-50">{user.role === 'OWNER' ? 'Make customer' : 'Make owner'}</button>}</td></tr>)}
+                    {!pageItems.length && <tr><td colSpan="6" className="px-4 py-12 text-center text-slate-500">{loading ? 'Loading users…' : 'No users match this search.'}</td></tr>}
                   </tbody></table>
                 </div>
                 <Pagination page={page} pages={listPages} onChange={setPage} />

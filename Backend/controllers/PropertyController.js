@@ -1,12 +1,15 @@
 const Property = require('../models/Property');
+const { parseHotelSearch, searchHotels } = require('../services/hotelSearch');
 
 const getProperties = async (req, res) => {
   try {
-    const filter = { active: { $ne: false } };
-    if (req.query.type) filter.type = req.query.type;
-
-    const properties = await Property.find(filter).sort({ createdAt: -1 });
-    return res.status(200).json({ message: 'Properties fetched successfully', properties });
+    const parsed = parseHotelSearch(req.query);
+    if (parsed.error) return res.status(400).json({ message: parsed.error });
+    const result = await searchHotels(parsed.criteria);
+    return res.status(200).json({
+      message: result.properties.length ? 'Hotels fetched successfully.' : 'No hotels matched these filters.',
+      ...result,
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -35,7 +38,13 @@ const getNearbyProperties = async (req, res) => {
           distanceField: 'distanceMeters',
           maxDistance: radiusKm * 1000,
           spherical: true,
-          query: { active: { $ne: false }, ...(req.query.type ? { type: req.query.type } : {}) },
+          query: {
+            active: { $ne: false },
+            $and: [
+              { $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }] },
+              ...(req.query.type ? [{ $or: [{ type: req.query.type }, { propertyType: req.query.type }] }] : []),
+            ],
+          },
         },
       },
       {

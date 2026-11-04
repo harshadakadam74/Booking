@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -14,17 +14,15 @@ import {
 } from "lucide-react";
 import { DateRange } from "react-date-range";
 import { format } from "date-fns";
+import DestinationAutocomplete from "../components/DestinationAutocomplete";
 
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
 const BookPage = () => {
   const navigate = useNavigate();
-  const locationInputRef = useRef(null);
 
   const [location, setLocation] = useState("");
-  const [locationSuggestions, setLocationSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [openDate, setOpenDate] = useState(false);
   const [openGuests, setOpenGuests] = useState(false);
@@ -59,88 +57,60 @@ const BookPage = () => {
     rooms: 1,
   });
 
-  const popularDestinations = [
-    "New York, USA",
-    "Los Angeles, USA",
-    "Chicago, USA",
-    "Houston, USA",
-    "Phoenix, USA",
-    "Philadelphia, USA",
-    "San Antonio, USA",
-    "San Diego, USA",
-    "Dallas, USA",
-    "San Jose, USA",
-    "London, UK",
-    "Paris, France",
-    "Tokyo, Japan",
-    "Sydney, Australia",
-    "Toronto, Canada",
-    "Berlin, Germany",
-    "Rome, Italy",
-    "Barcelona, Spain",
-    "Amsterdam, Netherlands",
-    "Vienna, Austria",
-    "Zurich, Switzerland",
-    "Bali, Indonesia",
-    "Bangkok, Thailand",
-    "Dubai, UAE",
-    
-  ];
-
   const quickSearches = [
     {
       label: "Beach escape",
-      destination: "Malibu, USA",
+      destination: "Goa",
     },
     {
       label: "City break",
-      destination: "Chicago, USA",
+      destination: "Mumbai",
     },
     {
-      label: "Weekend retreat",
-      destination: "Asheville, USA",
+      label: "Hill station",
+      destination: "Munnar",
     },
   ];
 
   const highlights = [
     {
-      title: "Flexible stays",
-      copy: "Free cancellation on many properties",
+      title: "Clear listing sources",
+      copy: "Demo and verified-source records are labeled",
     },
     {
-      title: "Verified comfort",
-      copy: "Trusted hosts and spotless reviews",
+      title: "Current inventory checks",
+      copy: "Dates and room counts are checked before booking",
     },
     {
-      title: "Fast support",
-      copy: "Help whenever your plans change",
+      title: "Real hotel data",
+      copy: "Search only approved records in the database",
     },
   ];
 
   const popularPlaces = [
     {
-      name: "New York",
-      location: "New York, USA",
+      name: "Mumbai",
+      location: "Maharashtra, India",
       image:
-        "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80",
+        "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80",
     },
     {
-      name: "Paris",
-      location: "Paris, France",
+      name: "Jaipur",
+      location: "Rajasthan, India",
       image:
-        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80",
+        "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&q=80",
     },
     {
-      name: "Tokyo",
-      location: "Tokyo, Japan",
+      name: "Kochi",
+      location: "Kerala, India",
       image:
-        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80",
+        "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80",
     },
     {
-      name: "London",
-      location: "London, UK",
+      name: "Srinagar",
+      location: "Jammu and Kashmir, India",
       image:
-        "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80",
+        "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=800&q=80",
     },
   ];
 
@@ -154,23 +124,6 @@ const BookPage = () => {
       console.error("Unable to save recent searches", error);
     }
   }, [recentSearches]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        locationInputRef.current &&
-        !locationInputRef.current.contains(event.target)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const getGuestSummary = (value) => {
     const totalGuests = value.adults + value.children;
@@ -202,41 +155,21 @@ const BookPage = () => {
     return Math.max(1, nights);
   };
 
-  const handleLocationChange = (event) => {
-    const value = event.target.value;
-
-    setLocation(value);
-
-    if (!value.trim()) {
-      setLocationSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const filtered = popularDestinations.filter((destination) =>
-      destination.toLowerCase().includes(value.toLowerCase())
-    );
-
-    setLocationSuggestions(filtered);
-    setShowSuggestions(true);
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setLocation(suggestion);
-    setShowSuggestions(false);
-  };
-
   const handleSearch = () => {
     const trimmedLocation = location.trim();
 
-    if (!trimmedLocation) {
-      alert("Please enter a destination.");
+    if (trimmedLocation.length < 2) {
+      alert("Please enter a destination with at least two characters.");
+      return;
+    }
+
+    if (date[0].endDate <= date[0].startDate) {
+      alert("Check-out must be after check-in.");
       return;
     }
 
     setOpenDate(false);
     setOpenGuests(false);
-    setShowSuggestions(false);
 
     const searchItem = {
       location: trimmedLocation,
@@ -262,16 +195,6 @@ const BookPage = () => {
         guests,
       },
     });
-  };
-
-  const handleKeyDown = (event) => {
-    if (event.key === "Enter") {
-      handleSearch();
-    }
-
-    if (event.key === "Escape") {
-      setShowSuggestions(false);
-    }
   };
 
   const updateGuests = (type, amount) => {
@@ -384,10 +307,7 @@ const BookPage = () => {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_0.95fr_0.8fr_auto]">
 
             {/* LOCATION */}
-            <div
-              className="relative"
-              ref={locationInputRef}
-            >
+            <div className="relative">
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Where are you going?
               </label>
@@ -398,18 +318,12 @@ const BookPage = () => {
                   size={20}
                 />
 
-                <input
-                  type="text"
+                <DestinationAutocomplete
                   value={location}
-                  onChange={handleLocationChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => {
-                    if (location.trim()) {
-                      setShowSuggestions(true);
-                    }
-                  }}
-                  placeholder="Enter destination"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                  onChange={setLocation}
+                  onSelect={(place) => setLocation(place.name)}
+                  placeholder="Enter an Indian destination"
+                  inputClassName="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                 />
 
                 {location && (
@@ -417,8 +331,6 @@ const BookPage = () => {
                     type="button"
                     onClick={() => {
                       setLocation("");
-                      setLocationSuggestions([]);
-                      setShowSuggestions(false);
                     }}
                     className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-700"
                   >
@@ -427,31 +339,6 @@ const BookPage = () => {
                 )}
               </div>
 
-              {showSuggestions &&
-                locationSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                    {locationSuggestions.map(
-                      (suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() =>
-                            handleSuggestionClick(
-                              suggestion
-                            )
-                          }
-                          className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm text-slate-700 transition last:border-0 hover:bg-blue-50 hover:text-blue-700"
-                        >
-                          <MapPin
-                            size={16}
-                            className="text-yellow-500"
-                          />
-                          {suggestion}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
             </div>
 
             {/* DATE */}
@@ -465,7 +352,6 @@ const BookPage = () => {
                 onClick={() => {
                   setOpenDate((previous) => !previous);
                   setOpenGuests(false);
-                  setShowSuggestions(false);
                 }}
                 className="relative w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-left text-sm text-slate-700 transition hover:border-blue-400 hover:bg-white"
               >
@@ -520,7 +406,6 @@ const BookPage = () => {
                 onClick={() => {
                   setOpenGuests((previous) => !previous);
                   setOpenDate(false);
-                  setShowSuggestions(false);
                 }}
                 className="relative w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-left text-sm text-slate-700 transition hover:border-blue-400 hover:bg-white"
               >
@@ -640,7 +525,6 @@ const BookPage = () => {
                     type="button"
                     onClick={() => {
                       setLocation(item.location);
-                      setShowSuggestions(false);
                     }}
                     className="rounded-full border border-blue-100 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
                   >
