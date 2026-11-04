@@ -56,6 +56,14 @@ test('recommendations reject incomplete or invalid search criteria', async () =>
   assert.equal(response.statusCode, 400);
 });
 
+test('recommendations require a destination instead of searching every hotel', async () => {
+  const response = await callController(AIController.recommendHotels, {
+    body: { destination: '  ', guests: 2 },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.message, /destination/i);
+});
+
 test('trip planner rejects more than fourteen days', async () => {
   const response = await callController(AIController.planTrip, {
     body: { destination: 'Pune', days: 15, budget: 10000, interests: [], language: 'English' },

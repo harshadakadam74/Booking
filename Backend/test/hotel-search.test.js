@@ -1,13 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const destinations = require('../data/indiaDestinations');
-const { parseHotelSearch } = require('../services/hotelSearch');
+const { parseHotelSearch, normalize, buildHotelPipeline } = require('../services/hotelSearch');
 const { activeBookingStatuses, getRemainingRooms } = require('../services/bookingInventory');
 const BookingController = require('../controllers/BookingController');
 const { propertyOwner } = require('../middlewares/PropertyOwnerMiddleware');
 const { validateDestination } = require('../controllers/DestinationController');
 const Booking = require('../models/Booking');
 const mongoose = require('mongoose');
+const Destination = require('../models/Destination');
 
 const expectedStatesAndTerritories = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
@@ -88,6 +89,68 @@ test('hotel search accepts optional filters and normalizes amenities case-insens
   assert.equal(parsed.criteria.includeDemo, true);
 });
 
+test('all requested amenities remain required and are whitespace-normalized', () => {
+  const parsed = parseHotelSearch({
+    destination: 'Delhi',
+    amenities: [' WiFi ', ' parking '],
+  });
+  assert.deepEqual(parsed.criteria.amenities, ['wifi', 'parking']);
+});
+
+test('destination, currency, type, and all amenity constraints combine without broad hotel-name matching', async () => {
+  const originalFindOne = Destination.findOne;
+  Destination.findOne = () => ({
+    lean: async () => ({
+      name: 'New Delhi',
+      state: 'Delhi',
+      aliases: ['Delhi', 'NCR'],
+    }),
+  });
+  try {
+    const parsed = parseHotelSearch({
+      destination: ' DELHI ',
+      budget: '3000',
+      currency: 'INR',
+      propertyType: 'Hotel',
+      amenities: ['WiFi', ' Parking '],
+      guests: '2',
+      rooms: '1',
+    });
+    const pipeline = await buildHotelPipeline(parsed.criteria);
+    const match = pipeline[0].$match;
+    assert.equal(match.price.$lte, 3000);
+    assert.ok(match.$and.some((clause) => clause.$or?.some((part) => part.currency)));
+    assert.ok(match.$and.some((clause) => clause.$or?.some((part) => part.propertyType)));
+    assert.equal(match.$and.filter((clause) => clause.$or?.some((part) => part.amenities)).length, 2);
+    assert.ok(match.$and.some((clause) => clause.$or?.some((part) => part.normalizedCity)));
+    assert.equal(match.$and.some((clause) => clause.$or?.some((part) => part.name)), false);
+    assert.equal(pipeline.some((stage) => stage.$lookup), false);
+  } finally {
+    Destination.findOne = originalFindOne;
+  }
+});
+
+test('budget is used as entered in its stated currency without conversion', () => {
+  for (const budget of [2, 2000, 3000, 5000]) {
+    const parsed = parseHotelSearch({
+      destination: ' Delhi ',
+      budget: String(budget),
+      currency: 'inr',
+      guests: '2',
+      rooms: '1',
+    });
+    assert.equal(parsed.error, undefined);
+    assert.equal(parsed.criteria.destination, 'Delhi');
+    assert.equal(parsed.criteria.budget, budget);
+    assert.equal(parsed.criteria.currency, 'INR');
+  }
+});
+
+test('destination normalization ignores case and surrounding whitespace', () => {
+  assert.equal(normalize('  DELHI '), normalize('delhi'));
+  assert.equal(normalize('  Delhi  '), 'delhi');
+});
+
 test('hotel search rejects malformed dates, budgets, guest counts, and amenity lists', () => {
   assert.match(parseHotelSearch({ destination: 'Pune', budget: '-1' }).error, /Budget/);
   assert.match(parseHotelSearch({ destination: 'Pune', guests: '0' }).error, /Guests/);
@@ -119,7 +182,7 @@ test('pending, confirmed, and checked-in bookings all consume inventory', () => 
   assert.deepEqual(activeBookingStatuses, ['PENDING', 'CONFIRMED', 'CHECKED_IN']);
 });
 
-test('legacy bookings remain valid without the optional property reference', () => {
+test('legacy bookings remain valid without the optional property reference', async () => {
   const booking = new Booking({
     user: new mongoose.Types.ObjectId(),
     property: 'Legacy Hotel',
@@ -131,7 +194,7 @@ test('legacy bookings remain valid without the optional property reference', () 
     pricePerNight: 100,
     numberOfNights: 1,
   });
-  assert.equal(booking.validateSync(), undefined);
+  await booking.validate();
   assert.equal(booking.propertyId, undefined);
 });
 

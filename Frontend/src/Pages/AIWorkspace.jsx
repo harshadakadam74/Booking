@@ -22,12 +22,6 @@ const initialChat = [{
   content: 'Hi! Ask me about destinations, hotel amenities, or travel planning. ',
 }];
 
-const getInitialDates = () => {
-  const startDate = new Date();
-  const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-  return { startDate, endDate, key: 'selection' };
-};
-
 const ReviewSummary = ({ hotelId }) => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -80,20 +74,15 @@ const AIWorkspace = () => {
   const [chatText, setChatText] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState('');
-  const [hotelForm, setHotelForm] = useState(() => {
-    const checkIn = new Date();
-    const checkOut = new Date(checkIn);
-    checkOut.setDate(checkOut.getDate() + 7);
-    return {
-      destination: '',
-      budget: '',
-      guests: '2',
-      rooms: '1',
-      checkIn: checkIn.toISOString().slice(0, 10),
-      checkOut: checkOut.toISOString().slice(0, 10),
-      amenities: '',
-      preferences: '',
-    };
+  const [hotelForm, setHotelForm] = useState({
+    destination: '',
+    budget: '',
+    guests: '2',
+    rooms: '1',
+    checkIn: '',
+    checkOut: '',
+    amenities: '',
+    preferences: '',
   });
   const [hotelLoading, setHotelLoading] = useState(false);
   const [hotelError, setHotelError] = useState('');
@@ -123,19 +112,47 @@ const AIWorkspace = () => {
     }
   };
 
-  const submitHotels = async (event) => {
-    event.preventDefault();
+  const runHotelSearch = async () => {
+    if (hotelLoading) return;
+    const destination = hotelForm.destination.trim();
+    const guests = Number(hotelForm.guests);
+    const rooms = Number(hotelForm.rooms);
+    const budget = hotelForm.budget === '' ? undefined : Number(hotelForm.budget);
+    if (destination.length < 2) {
+      setHotelError('Enter a destination with at least two characters.');
+      setHotelResults(null);
+      return;
+    }
+    if (!Number.isInteger(guests) || guests < 1 || guests > 20 ||
+      !Number.isInteger(rooms) || rooms < 1 || rooms > 10 || rooms > guests) {
+      setHotelError('Enter 1–20 guests and 1–10 rooms; rooms cannot exceed guests.');
+      setHotelResults(null);
+      return;
+    }
+    if (budget !== undefined && (!Number.isFinite(budget) || budget <= 0 || budget > 100000000)) {
+      setHotelError('Enter a positive nightly budget in INR, or leave it blank.');
+      setHotelResults(null);
+      return;
+    }
+    if (Boolean(hotelForm.checkIn) !== Boolean(hotelForm.checkOut) ||
+      (hotelForm.checkIn && hotelForm.checkOut <= hotelForm.checkIn)) {
+      setHotelError('Choose both check-in and check-out dates, with check-out after check-in, or leave both blank.');
+      setHotelResults(null);
+      return;
+    }
+
     setHotelLoading(true);
     setHotelError('');
     setHotelResults(null);
     try {
       setHotelResults(await fetchAIRecommendations({
-        destination: hotelForm.destination,
-        guests: Number(hotelForm.guests),
-        rooms: Number(hotelForm.rooms),
-        ...(hotelForm.budget ? { budget: Number(hotelForm.budget) } : {}),
-        checkIn: hotelForm.checkIn,
-        checkOut: hotelForm.checkOut,
+        destination,
+        guests,
+        rooms,
+        ...(budget !== undefined ? { budget, currency: 'INR' } : {}),
+        ...(hotelForm.checkIn && hotelForm.checkOut
+          ? { checkIn: hotelForm.checkIn, checkOut: hotelForm.checkOut }
+          : {}),
         amenities: hotelForm.amenities.split(',').map((item) => item.trim()).filter(Boolean),
         preferences: hotelForm.preferences.split(',').map((item) => item.trim()).filter(Boolean),
       }));
@@ -144,6 +161,24 @@ const AIWorkspace = () => {
     } finally {
       setHotelLoading(false);
     }
+  };
+
+  const submitHotels = async (event) => {
+    event.preventDefault();
+    await runHotelSearch();
+  };
+
+  const resetHotelFilters = () => {
+    setHotelForm((current) => ({
+      ...current,
+      budget: '',
+      checkIn: '',
+      checkOut: '',
+      amenities: '',
+      preferences: '',
+    }));
+    setHotelError('');
+    setHotelResults(null);
   };
 
   const submitTripPlan = async (event) => {
@@ -166,14 +201,14 @@ const AIWorkspace = () => {
     }
   };
 
-  const bookAreaSearch = (property, guests) => {
+  const bookAreaSearch = (property, guests, rooms) => {
     navigate('/book-place', {
       state: {
         location: property.city || property.location,
-        dates: hotelForm.checkIn && hotelForm.checkOut
-          ? { startDate: new Date(hotelForm.checkIn), endDate: new Date(hotelForm.checkOut), key: 'selection' }
-          : getInitialDates(),
-        guests: { adults: Number(guests), children: 0, rooms: 1 },
+        ...(hotelForm.checkIn && hotelForm.checkOut
+          ? { dates: { startDate: new Date(hotelForm.checkIn), endDate: new Date(hotelForm.checkOut), key: 'selection' } }
+          : {}),
+        guests: { adults: Number(guests), children: 0, rooms: Number(rooms) },
         workTrip: false,
       },
     });
@@ -228,19 +263,22 @@ const AIWorkspace = () => {
 
         {activeTab === 'hotels' && (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-            <div className="mb-5"><h2 className="text-xl font-bold text-slate-900">Find matching hotels</h2><p className="mt-1 text-sm text-slate-500">Budget is the maximum nightly rate in the units stored by each property.</p></div>
+            <div className="mb-5"><h2 className="text-xl font-bold text-slate-900">Find matching hotels</h2><p className="mt-1 text-sm text-slate-500">The nightly budget is an amount in INR per room. It is compared as entered; no currency conversion is applied. Most existing FastBooking listings default to INR, and a budget of 2 means ₹2, not ₹2,000.</p></div>
             <form onSubmit={submitHotels} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="text-sm font-semibold text-slate-700">Destination<DestinationAutocomplete value={hotelForm.destination} onChange={(destination) => setHotelForm({ ...hotelForm, destination })} onSelect={(place) => setHotelForm({ ...hotelForm, destination: place.name })} inputClassName="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
-              <label className="text-sm font-semibold text-slate-700">Max nightly budget (optional)<input type="number" min="1" value={hotelForm.budget} onChange={(event) => setHotelForm({ ...hotelForm, budget: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Maximum nightly budget in INR (optional)<input type="number" min="0.01" max="100000000" step="0.01" inputMode="decimal" value={hotelForm.budget} onChange={(event) => setHotelForm({ ...hotelForm, budget: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="e.g. 2000, 3000, 5000" /></label>
               <label className="text-sm font-semibold text-slate-700">Guests<input required type="number" min="1" max="20" value={hotelForm.guests} onChange={(event) => setHotelForm({ ...hotelForm, guests: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
               <label className="text-sm font-semibold text-slate-700">Rooms<input required type="number" min="1" max="10" value={hotelForm.rooms} onChange={(event) => setHotelForm({ ...hotelForm, rooms: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
-              <label className="text-sm font-semibold text-slate-700">Check-in<input required type="date" min={new Date().toISOString().slice(0, 10)} value={hotelForm.checkIn} onChange={(event) => setHotelForm({ ...hotelForm, checkIn: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
-              <label className="text-sm font-semibold text-slate-700">Check-out<input required type="date" min={hotelForm.checkIn} value={hotelForm.checkOut} onChange={(event) => setHotelForm({ ...hotelForm, checkOut: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
-              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Required amenities <span className="font-normal text-slate-500">(comma-separated, must match database)</span><input value={hotelForm.amenities} onChange={(event) => setHotelForm({ ...hotelForm, amenities: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Wi-Fi, Parking" /></label>
+              <label className="text-sm font-semibold text-slate-700">Check-in (optional)<input type="date" min={new Date().toISOString().slice(0, 10)} value={hotelForm.checkIn} onChange={(event) => setHotelForm({ ...hotelForm, checkIn: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700">Check-out (optional)<input type="date" min={hotelForm.checkIn || new Date().toISOString().slice(0, 10)} value={hotelForm.checkOut} onChange={(event) => setHotelForm({ ...hotelForm, checkOut: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" /></label>
+              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">All required amenities <span className="font-normal text-slate-500">(comma-separated; every item must match, case-insensitively)</span><input value={hotelForm.amenities} onChange={(event) => setHotelForm({ ...hotelForm, amenities: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Wi-Fi, Parking" /></label>
               <label className="text-sm font-semibold text-slate-700">Preferences<input value={hotelForm.preferences} onChange={(event) => setHotelForm({ ...hotelForm, preferences: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" placeholder="Quiet, near transit" /></label>
               <button disabled={hotelLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-950 px-4 py-3 font-bold text-white hover:bg-blue-800 disabled:opacity-60 sm:col-span-2 lg:col-span-3">
                 {hotelLoading ? <LoaderCircle size={18} className="animate-spin" /> : <Sparkles size={18} />}
                 {hotelLoading ? 'Finding hotel matches...' : 'Get recommendations'}
+              </button>
+              <button type="button" onClick={resetHotelFilters} disabled={hotelLoading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 sm:col-span-2 lg:col-span-3">
+                <RefreshCw size={17} />Clear optional filters
               </button>
             </form>
             {hotelError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{hotelError}</p>}
@@ -248,7 +286,17 @@ const AIWorkspace = () => {
               <div className="mt-7">
                 {hotelResults.ai && !hotelResults.ai.available && <p className="mb-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">Showing database-ranked matches. {hotelResults.ai.message || 'AI ranking is not configured.'}</p>}
                 {hotelResults.recommendations.length === 0 ? (
-                  <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">No matching database hotels were found. Try a broader destination, budget, or amenity set.</p>
+                  <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-950">
+                    <p className="font-bold">No eligible database listings matched these filters.</p>
+                    <p className="mt-1">This is a genuine empty search result, not a Gemini failure. A very low budget such as ₹2 can exclude most hotels. Relax one filter at a time; no filter is silently removed.</p>
+                    {hotelResults.alternatives?.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5">{hotelResults.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}</ul>}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setHotelForm((current) => ({ ...current, budget: '' }))} className="rounded-lg border border-amber-800 px-3 py-2 text-xs font-bold hover:bg-amber-100">Remove budget limit</button>
+                      <button type="button" onClick={() => setHotelForm((current) => ({ ...current, amenities: '' }))} className="rounded-lg border border-amber-800 px-3 py-2 text-xs font-bold hover:bg-amber-100">Remove amenity requirements</button>
+                      <button type="button" onClick={resetHotelFilters} className="rounded-lg border border-amber-800 px-3 py-2 text-xs font-bold hover:bg-amber-100">Clear optional filters</button>
+                      <button type="button" onClick={runHotelSearch} disabled={hotelLoading} className="rounded-lg bg-amber-900 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Retry search</button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {hotelResults.recommendations.map(({ property, reason }) => (
@@ -264,8 +312,8 @@ const AIWorkspace = () => {
                           {property.ratingCount > 0 && <p className="mt-2 flex items-center gap-1 text-sm text-slate-700"><Star size={14} className="fill-amber-400 text-amber-500" />{property.rating} from {property.ratingCount} recorded ratings</p>}
                           <p className="mt-3 text-sm leading-6 text-slate-600">{property.description}</p>
                           <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-950"><Sparkles size={15} className="mr-1 inline" />{reason}</p>
-                          <p className="mt-3 text-xs text-slate-500">Amenities: {property.amenities.length ? property.amenities.join(', ') : 'Not listed'} · {property.availableRooms} rooms matched these dates when searched; booking checks again.</p>
-                          <button type="button" onClick={() => bookAreaSearch(property, hotelForm.guests)} className="mt-4 w-full rounded-xl border border-blue-900 px-4 py-2.5 text-sm font-bold text-blue-900 transition hover:bg-blue-900 hover:text-white">Search stays in this area</button>
+                          <p className="mt-3 text-xs text-slate-500">Amenities: {property.amenities?.length ? property.amenities.join(', ') : 'Not listed'} · {hotelForm.checkIn && hotelForm.checkOut ? `${property.availableRooms} rooms matched these dates when searched; booking checks again.` : `${property.availableRooms} rooms listed; dates and availability were not checked.`}</p>
+                          <button type="button" onClick={() => bookAreaSearch(property, hotelForm.guests, hotelForm.rooms)} className="mt-4 w-full rounded-xl border border-blue-900 px-4 py-2.5 text-sm font-bold text-blue-900 transition hover:bg-blue-900 hover:text-white">Search stays in this area</button>
                           <ReviewSummary hotelId={property._id} />
                         </div>
                       </article>

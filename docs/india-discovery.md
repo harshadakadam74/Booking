@@ -117,7 +117,11 @@ All paths below are relative to `/api/v1`.
 Search query parameters: `destination`, `checkIn`, `checkOut`, `guests`,
 `rooms`, `budget` (maximum nightly amount), `amenities` (comma-separated),
 `propertyType` (or `type`), `minRating`, `page`, `limit` (maximum 30), and
-`includeDemo`. Dates must be supplied together and must describe a valid
+`includeDemo`. `currency` may be supplied with a budget; its value must be a
+three-letter currency code. Without currency selection, the general search
+continues its existing numeric-price behavior. The AI recommendation form
+labels its budget in INR and filters to INR listings (plus legacy listings with
+no stored currency); it never converts amounts. Dates must be supplied together and must describe a valid
 non-past range. Guests, rooms, dates, and budget are validated. With no matches,
 the search response contains an empty result page; the UI suggests relaxing
 filters. Admin endpoints require the existing authenticated `ADMIN` role.
@@ -134,24 +138,88 @@ Successful payment callbacks do not resurrect cancelled bookings; if a payment
 arrives after cancellation, the payment is recorded and support must arrange any
 refund through the payment provider.
 
-## Verification
+## Read-only inventory diagnosis
 
-Backend tests include destination coverage and aliases, search input/filter
-normalization, room-capacity calculations, invalid booking dates, and owner
-role middleware:
+The recommendation request with `budget: 2` compares the stored numeric nightly
+price to `2`; it does not mean ₹2,000 and the backend does not convert it. New
+and owner-created properties default to INR, but this diagnosis does not assume
+every existing record has the same currency. For a read-only local inventory
+summary, run:
 
 ```powershell
 Set-Location Backend
-npm test
+npm run inventory:inspect
+```
+
+The script reports record counts, price ranges grouped by stored currency,
+field types, destination groups, and a limited sample of Delhi-related listings.
+It does not modify records. Run it only in a trusted local terminal because
+the sample includes listing names, locations, and stored amenities. Confirm
+that `Backend/.env` points to the intended development or staging database
+before running it; never paste credentials or raw output containing private
+owner data into a public issue.
+
+For a manual read-only check in `mongosh`:
+
+```powershell
+mongosh $env:MONGO_URI --eval 'db.properties.countDocuments({})'
+mongosh $env:MONGO_URI --eval 'db.properties.aggregate([{ $match: { $or: [{ city: /delhi/i }, { state: /^delhi$/i }, { location: /delhi/i }] } }, { $project: { name: 1, city: 1, state: 1, location: 1, price: 1, currency: 1, amenities: 1, active: 1, approvalStatus: 1, availableRooms: 1, totalRooms: 1, maxGuestsPerRoom: 1, isDemo: 1 } }, { $limit: 20 }]).toArray()'
+```
+
+The recommendation pipeline logs normalized destination, budget and currency,
+guest/room/amenity constraints, whether dates are present, match count, duration,
+and Gemini ranking outcome in development mode only. It never logs API keys,
+tokens, user identity, or full listing documents. Database failures return an
+actionable service-unavailable message rather than an empty-match response.
+
+To exercise the recommendation API locally, start the backend, then use
+PowerShell:
+
+```powershell
+$body = '{"destination":"Delhi","budget":3000,"currency":"INR","guests":2,"rooms":1,"amenities":["wifi"],"preferences":["Quiet","near transit"]}'
+Invoke-RestMethod -Uri "http://localhost:4545/api/v1/ai/recommendations" -Method Post -ContentType "application/json" -Body $body
+```
+
+Try budget values `2000`, `3000`, and `5000` without changing the currency.
+With `budget: 2`, only listings priced at 2 INR/night or less (and legacy
+listings with no currency field) qualify. Try no amenity filter and then
+`["wifi","parking"]`; every requested amenity is required, with case and
+surrounding whitespace ignored. `Delhi`, `delhi`, and ` DELHI ` normalize to
+the same destination. Omit both stay dates for general recommendations; when
+both are supplied, room availability is checked for those dates. A zero-result
+response has `recommendations: []` plus explanatory alternatives; a successful
+response has recommendations backed by database listing IDs and an `ai`
+availability indicator. Gemini failure with eligible records returns
+database-ranked recommendations instead.
+
+## Verification
+
+The automated backend tests cover destination coverage and aliases,
+case/whitespace normalization, strict destination query constraints, explicit
+currency and budget semantics, multiple required amenities, malformed
+budget/date/guest input, legacy booking compatibility, room inventory helpers,
+owner/admin authorization, and missing Gemini configuration.
+
+```powershell
+npm test --prefix Backend
 ```
 
 Run client lint and production build:
 
 ```powershell
-Set-Location Frontend
-npm run lint
-npm run build
+npm run lint --prefix Frontend
+npm run build --prefix Frontend
 ```
+
+Manual regression checks still require configured MongoDB and a browser: search
+Delhi with `2000`, `3000`, and `5000`; try lowercase and uppercase destination
+text; remove amenities and dates separately; test an intentionally tiny budget;
+follow a recommendation's “Search stays in this area” action and verify the
+existing booking page receives guest/room counts and only dates actually
+selected. Also exercise registration/login, hotel search, booking
+creation/cancellation, favorites, admin review, and payment in a non-production
+environment. No live database inventory, provider feed, or payment workflow is
+claimed as tested by the automated unit suite.
 
 For production, deploy the backend and frontend separately, use managed MongoDB
 with backups and network restrictions, set environment variables in the hosting

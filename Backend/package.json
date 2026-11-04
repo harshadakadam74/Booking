@@ -9,7 +9,8 @@
     "dev": "nodemon index.js",
     "seed:destinations": "node scripts/seedDestinations.js",
     "seed:demo-hotels": "node scripts/seedDemoHotels.js",
-    "import:verified-hotels": "node scripts/importVerifiedHotels.js"
+    "import:verified-hotels": "node scripts/importVerifiedHotels.js",
+    "inventory:inspect": "node scripts/inspectHotelInventory.js"
   },
   "keywords": [],
   "author": "",

@@ -67,6 +67,10 @@ const parseHotelSearch = (query = {}) => {
     ? String(query.propertyType ?? query.type).trim()
     : '';
   if (propertyType.length > 60) return { error: 'Property type cannot exceed 60 characters.' };
+  const currency = typeof query.currency === 'string' ? query.currency.trim().toUpperCase() : '';
+  if (currency && !/^[A-Z]{3}$/.test(currency)) {
+    return { error: 'Currency must be a three-letter currency code.' };
+  }
 
   const page = query.page === undefined ? 1 : Number(query.page);
   const limit = query.limit === undefined ? 12 : Number(query.limit);
@@ -88,6 +92,7 @@ const parseHotelSearch = (query = {}) => {
       minRating,
       amenities: [...new Set(amenities)],
       propertyType,
+      currency,
       checkIn,
       checkOut,
       page,
@@ -98,13 +103,13 @@ const parseHotelSearch = (query = {}) => {
 };
 
 const buildHotelPipeline = async (criteria) => {
-  const destinationRegex = new RegExp(escapeRegex(criteria.destination), 'i');
+  const normalizedDestination = normalize(criteria.destination);
   const destination = criteria.destination ? await Destination.findOne({
     active: true,
     $or: [
-      { normalizedName: destinationRegex },
-      { aliases: { $elemMatch: { $regex: escapeRegex(criteria.destination), $options: 'i' } } },
-      { state: destinationRegex },
+      { normalizedName: normalizedDestination },
+      { aliases: { $elemMatch: { $regex: `^${escapeRegex(criteria.destination)}$`, $options: 'i' } } },
+      { state: new RegExp(`^${escapeRegex(criteria.destination)}$`, 'i') },
     ],
   }).lean() : null;
   const cityTerms = destination
@@ -112,19 +117,35 @@ const buildHotelPipeline = async (criteria) => {
     : criteria.destination ? [normalize(criteria.destination)] : [];
   const stateTerm = destination ? normalize(destination.state) : '';
   const legacyRegex = criteria.destination ? new RegExp(escapeRegex(criteria.destination), 'i') : null;
+  const exactCityRegex = cityTerms.length
+    ? new RegExp(`^(?:${cityTerms.map(escapeRegex).join('|')})$`, 'i')
+    : legacyRegex;
+  const locationRegex = cityTerms.length
+    ? new RegExp(`(?:^|[,\\s])(?:${cityTerms.map(escapeRegex).join('|')})(?=$|[,\\s])`, 'i')
+    : legacyRegex;
   const filter = {
     active: { $ne: false },
     $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
   };
   if (!criteria.includeDemo) filter.isDemo = { $ne: true };
   if (criteria.budget !== undefined) filter.price = { $lte: criteria.budget };
+  if (criteria.currency) {
+    filter.$and ||= [];
+    filter.$and.push({
+      $or: [
+        { currency: new RegExp(`^${escapeRegex(criteria.currency)}$`, 'i') },
+        { currency: { $exists: false } },
+      ],
+    });
+  }
   if (criteria.propertyType) {
-    filter.$and = [{
+    filter.$and ||= [];
+    filter.$and.push({
       $or: [
         { propertyType: new RegExp(`^${escapeRegex(criteria.propertyType)}$`, 'i') },
         { type: new RegExp(`^${escapeRegex(criteria.propertyType)}$`, 'i') },
       ],
-    }];
+    });
   }
   if (criteria.minRating !== undefined) {
     filter.$and ||= [];
@@ -136,7 +157,14 @@ const buildHotelPipeline = async (criteria) => {
       filter.$and.push({
         $or: [
           { normalizedAmenities: amenity },
-          { amenities: { $elemMatch: { $regex: escapeRegex(amenity), $options: 'i' } } },
+          {
+            amenities: {
+              $elemMatch: {
+                $regex: `^\\s*${escapeRegex(amenity)}\\s*$`,
+                $options: 'i',
+              },
+            },
+          },
         ],
       });
     });
@@ -148,17 +176,16 @@ const buildHotelPipeline = async (criteria) => {
       $or: [
         { normalizedCity: { $in: cityTerms } },
         ...(stateTerm ? [{ normalizedState: stateTerm }] : []),
-        { city: legacyRegex },
-        { state: legacyRegex },
-        { location: legacyRegex },
-        { name: legacyRegex },
+        { city: exactCityRegex },
+        { state: stateTerm ? new RegExp(`^${escapeRegex(stateTerm)}$`, 'i') : legacyRegex },
+        { location: locationRegex },
       ],
     });
   }
 
   const pipeline = [
     { $match: filter },
-    {
+    ...(criteria.checkIn && criteria.checkOut ? [{
       $lookup: {
         from: Booking.collection.name,
         let: { propertyId: '$_id', propertyName: '$name' },
@@ -186,8 +213,7 @@ const buildHotelPipeline = async (criteria) => {
         ],
         as: 'stayUsage',
       },
-    },
-    {
+    }, {
       $addFields: {
         roomsBooked: { $ifNull: [{ $arrayElemAt: ['$stayUsage.roomsBooked', 0] }, 0] },
         remainingRooms: {
@@ -208,7 +234,7 @@ const buildHotelPipeline = async (criteria) => {
         },
         guestsPerRoom: { $ifNull: ['$maxGuestsPerRoom', 4] },
       },
-    },
+    }] : []),
     {
       $match: criteria.checkIn && criteria.checkOut
         ? { remainingRooms: { $gte: criteria.rooms }, $expr: { $gte: [{ $multiply: ['$guestsPerRoom', criteria.rooms] }, criteria.guests] } }
@@ -253,4 +279,4 @@ const searchHotels = async (criteria) => {
   };
 };
 
-module.exports = { parseHotelSearch, searchHotels, normalize };
+module.exports = { parseHotelSearch, searchHotels, buildHotelPipeline, normalize };

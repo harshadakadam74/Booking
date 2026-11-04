@@ -1,8 +1,12 @@
-import apiClient from './apiClient';
+import apiClient, { API_BASE_URL } from './apiClient';
 
-const getMessage = (error, fallback) => (
-  error?.response?.data?.message || error?.message || fallback
-);
+const getMessage = (error, fallback) => {
+  if (error?.response?.data?.message) return error.response.data.message;
+  if (error?.code === 'ERR_NETWORK' || !error?.response) {
+    return `Cannot reach the FastBooking API at ${API_BASE_URL}. Check that the backend is running and VITE_API_URL is correct.`;
+  }
+  return error?.message || fallback;
+};
 
 export const sendAIChatMessage = async (messages) => {
   try {

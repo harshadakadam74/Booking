@@ -25,7 +25,10 @@ const sendAIError = (res, error) => {
   if (error instanceof AIServiceError) {
     return res.status(statusByCode[error.code] || 503).json({ message: error.message });
   }
-  console.error('AI endpoint failed:', error.message);
+  console.error('AI endpoint failed:', {
+    name: error.name,
+    code: error.code,
+  });
   return res.status(500).json({ message: 'Unable to complete this AI request.' });
 };
 
@@ -83,7 +86,7 @@ const chat = async (req, res) => {
       description: property.description,
       listedPricePerNight: property.price,
       currency: property.currency || 'INR',
-      amenities: property.amenities,
+      amenities: property.amenities || [],
       isDemo: property.isDemo,
       isVerified: property.isVerified,
       listingSource: property.listingSource,
@@ -106,10 +109,14 @@ const chat = async (req, res) => {
 };
 
 const recommendHotels = async (req, res) => {
+  const startedAt = Date.now();
   try {
     const destination = cleanString(req.body?.destination, 100);
     const amenities = req.body?.amenities ?? [];
     const preferences = req.body?.preferences ?? [];
+    if (typeof req.body?.destination !== 'string' || destination.length < 2) {
+      return res.status(400).json({ message: 'Enter a destination with at least two characters.' });
+    }
     if (!Array.isArray(preferences) || preferences.length > 10 ||
       preferences.some((value) => typeof value !== 'string' || value.trim().length === 0 || value.length > 120)) {
       return res.status(400).json({ message: 'Preferences must be a list of up to 10 short strings.' });
@@ -120,13 +127,36 @@ const recommendHotels = async (req, res) => {
       destination,
       guests: req.body?.guests ?? 2,
       rooms: req.body?.rooms ?? 1,
+      ...(req.body?.budget !== undefined && req.body?.budget !== ''
+        ? { currency: req.body?.currency || 'INR' }
+        : {}),
       amenities,
       page: 1,
       limit: 20,
     });
     if (parsed.error) return res.status(400).json({ message: parsed.error });
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('AI hotel search started:', {
+        destination: parsed.criteria.destination,
+        budget: parsed.criteria.budget ?? null,
+        currency: parsed.criteria.currency || null,
+        guests: parsed.criteria.guests,
+        rooms: parsed.criteria.rooms,
+        amenities: parsed.criteria.amenities,
+        hasStayDates: Boolean(parsed.criteria.checkIn && parsed.criteria.checkOut),
+        propertyType: parsed.criteria.propertyType || null,
+        minRating: parsed.criteria.minRating ?? null,
+      });
+    }
     const result = await searchHotels(parsed.criteria);
     const properties = result.properties;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('AI hotel search completed:', {
+        destination: parsed.criteria.destination,
+        matchingHotels: result.pagination.total,
+        durationMs: Date.now() - startedAt,
+      });
+    }
     if (!properties.length) {
       return res.status(200).json({
         recommendations: [],
@@ -145,7 +175,7 @@ const recommendHotels = async (req, res) => {
       currency: property.currency || 'INR',
       demoListing: property.isDemo === true,
       verified: property.isVerified === true,
-      amenities: property.amenities,
+      amenities: property.amenities || [],
     }));
     const recordsById = new Map(properties.map((property) => [property._id.toString(), property]));
     let rankedReasons = new Map();
@@ -169,9 +199,19 @@ const recommendHotels = async (req, res) => {
         .filter((item) => typeof item?.id === 'string' && typeof item.reason === 'string' && recordsById.has(item.id))
         .map((item) => [item.id, cleanString(item.reason, 500)]));
       aiAvailable = rankedReasons.size > 0;
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('AI hotel ranking completed:', {
+          candidateCount: candidates.length,
+          rankedCount: rankedReasons.size,
+          durationMs: Date.now() - startedAt,
+        });
+      }
     } catch (error) {
-      if (!(error instanceof AIServiceError)) {
-        console.error('AI hotel ranking failed:', error.message);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('AI hotel ranking failed:', {
+          name: error.name,
+          code: error.code,
+        });
       }
       aiMessage = error.message || 'AI ranking is unavailable.';
     }
@@ -180,7 +220,7 @@ const recommendHotels = async (req, res) => {
       ? [...rankedReasons.keys()].map((id) => recordsById.get(id))
       : [...properties].sort((a, b) => {
         const score = (property) => (preferences || []).reduce((value, preference) => (
-          `${property.name} ${property.description} ${property.location} ${property.amenities.join(' ')}`
+          `${property.name} ${property.description || ''} ${property.location} ${(property.amenities || []).join(' ')}`
             .toLowerCase().includes(preference.toLowerCase()) ? value + 1 : value
         ), 0);
         return score(b) - score(a) || a.price - b.price;
@@ -202,7 +242,7 @@ const recommendHotels = async (req, res) => {
           currency: property.currency || 'INR',
           totalRooms: property.totalRooms,
           availableRooms: property.availableRoomsForStay,
-          amenities: property.amenities,
+          amenities: property.amenities || [],
           rating: property.rating,
           ratingCount: property.ratingCount,
           isDemo: property.isDemo === true,
@@ -220,6 +260,23 @@ const recommendHotels = async (req, res) => {
       limitations: 'Recommendations contain only active approved database listings. Demo records are not real listings. Prices come from stored records; date-specific availability is rechecked when booking.',
     });
   } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('AI hotel recommendation search failed:', {
+        name: error.name,
+        code: error.code,
+        durationMs: Date.now() - startedAt,
+      });
+    }
+    if ([
+      'MongoServerSelectionError',
+      'MongooseServerSelectionError',
+      'MongoNetworkError',
+      'MongoTimeoutError',
+    ].includes(error.name) || mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        message: 'Hotel recommendations are temporarily unavailable because the database connection is not ready.',
+      });
+    }
     return sendAIError(res, error);
   }
 };
