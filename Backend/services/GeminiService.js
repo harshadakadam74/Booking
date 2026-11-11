@@ -9,6 +9,7 @@ class AIServiceError extends Error {
 }
 
 let client;
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 const getClient = () => {
   if (!process.env.GEMINI_API_KEY) {
@@ -18,7 +19,7 @@ const getClient = () => {
   if (!client) {
     client = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: { timeout: 30000 },
+      httpOptions: { timeout: 60000 },
     });
   }
 
@@ -38,7 +39,7 @@ const getGeminiErrorStatus = (error) => {
   return 0;
 };
 
-const getConfiguredModel = () => process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
+const getConfiguredModel = () => process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
 
 const generateContent = async (contents, responseMimeType, maxOutputTokens = 1024) => {
   const model = getConfiguredModel();
@@ -56,28 +57,30 @@ const generateContent = async (contents, responseMimeType, maxOutputTokens = 102
 
     const status = getGeminiErrorStatus(error);
     const apiCode = String(error.code || '').toUpperCase();
+    const message = error.message || '';
     console.error('Gemini request failed:', {
       status: status || 'unknown',
       code: apiCode || 'unknown',
       name: error.name,
+      message,
     });
 
     if (status === 401 || status === 403) {
       throw new AIServiceError('AI_INVALID_KEY', 'Gemini rejected the server credentials or model access. Check the API key and its model permissions.');
     }
-    if (status === 400 && /api.?key|credential|auth/i.test(error.message || '')) {
+    if (status === 400 && /api.?key|credential|auth/i.test(message)) {
       throw new AIServiceError('AI_INVALID_KEY', 'Gemini rejected the server API key. Check GEMINI_API_KEY.');
     }
     if (status === 429) {
       throw new AIServiceError('AI_QUOTA', 'Gemini request quota is temporarily unavailable.');
     }
-    if (status === 404) {
+    if (status === 404 || /model.*not.*found|not.*supported|unsupported.*model/i.test(message)) {
       throw new AIServiceError(
         'AI_MODEL_UNAVAILABLE',
         `Gemini model "${model}" is unavailable. Set GEMINI_MODEL to a currently supported model.`,
       );
     }
-    if (error.name === 'TimeoutError' || error.name === 'AbortError' || /timeout/i.test(error.message || '')) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError' || /timeout/i.test(message)) {
       throw new AIServiceError('AI_TIMEOUT', 'Gemini did not respond before the request timed out.');
     }
     throw new AIServiceError('AI_UNAVAILABLE', 'Gemini is temporarily unavailable. Please try again.');

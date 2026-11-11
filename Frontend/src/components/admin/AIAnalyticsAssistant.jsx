@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react';
-import { fetchAIAdminOverview } from '../../services/aiService';
+import { BarChart3, LoaderCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { askAIAdminInsight, fetchAIAdminOverview } from '../../services/aiService';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 
@@ -8,6 +8,10 @@ const AIAnalyticsAssistant = () => {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [question, setQuestion] = useState('');
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [questionError, setQuestionError] = useState('');
+  const [questionResult, setQuestionResult] = useState(null);
 
   const loadOverview = useCallback(async () => {
     setLoading(true);
@@ -24,6 +28,21 @@ const AIAnalyticsAssistant = () => {
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  const askQuestion = async (event) => {
+    event.preventDefault();
+    if (question.trim().length < 3 || questionLoading) return;
+    setQuestionLoading(true);
+    setQuestionError('');
+    setQuestionResult(null);
+    try {
+      setQuestionResult(await askAIAdminInsight(question.trim()));
+    } catch (requestError) {
+      setQuestionError(requestError.message);
+    } finally {
+      setQuestionLoading(false);
+    }
+  };
 
   const metrics = overview?.metrics;
 
@@ -79,6 +98,28 @@ const AIAnalyticsAssistant = () => {
                 </>
               ) : <p role="status" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{overview.ai.message} Actual statistics above remain available.</p>}
             </div>
+          </div>
+          <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+            <h3 className="font-bold text-slate-900">Ask about booking analytics</h3>
+            <p className="mt-1 text-xs text-slate-500">Answers use aggregate booking/payment metrics only. Customer identities and unsupported reports are not exposed.</p>
+            <form onSubmit={askQuestion} className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <label className="sr-only" htmlFor="admin-ai-question">Ask an analytics question</label>
+              <input id="admin-ai-question" value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={500} minLength={3} required placeholder="How has paid revenue changed over the available months?" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <button type="submit" disabled={questionLoading || question.trim().length < 3} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+                {questionLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
+                Ask
+              </button>
+            </form>
+            {questionError && <p role="alert" className="mt-3 text-sm text-red-700">{questionError}</p>}
+            {questionResult && (
+              <div className="mt-3 rounded-xl bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-950">{questionResult.ai.question || question}</p>
+                {questionResult.ai.available
+                  ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">{questionResult.ai.insights.map((insight, index) => <li key={`${index}-${insight}`}>{insight}</li>)}</ul>
+                  : <p role="status" className="mt-2 text-sm text-amber-900">{questionResult.ai.message}</p>}
+                {questionResult.ai.limitations && <p className="mt-2 text-xs text-slate-600">{questionResult.ai.limitations}</p>}
+              </div>
+            )}
           </div>
           <p className="mt-4 text-xs text-slate-500">Revenue includes only bookings with paymentStatus SUCCESS. AI suggestions are advisory and cannot modify booking or payment records.</p>
         </>

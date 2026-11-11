@@ -180,7 +180,7 @@ file.
 ### Gemini AI setup
 
 The Gemini SDK is used only by the backend. Set `GEMINI_API_KEY` and, optionally,
-`GEMINI_MODEL` (defaults to `gemini-3.6-flash`) in `Backend/.env`. Keep the key
+`GEMINI_MODEL` (defaults to `gemini-2.5-flash`) in `Backend/.env`. Keep the key
 out of frontend environment variables and source control. Restart the backend
 after changing these values. Chat, trip planning, and review summaries require
 Gemini; hotel recommendations use database-ranked results when Gemini is not
@@ -188,8 +188,8 @@ configured or unavailable. Admin booking statistics remain available if only
 the AI insights request fails.
 
 The `/ai-assistant` page provides multilingual travel chat, database-backed
-hotel recommendations, trip planning, and review summaries on recommended hotel
-cards. Hotel recommendations only rank active, approved `Property` documents
+hotel recommendations, natural-language hotel search, trip planning, and review
+summaries on recommended hotel cards. Hotel recommendations only rank active, approved `Property` documents
 from MongoDB; database ranking remains available without Gemini. Review
 summaries use up to the latest 50 property-linked reviews.
 
@@ -202,11 +202,27 @@ summaries are public; admin overview requires the existing Bearer JWT and
 
 | Method and path | Request | Response |
 |---|---|---|
-| `POST /chat` | `{ "messages": [{ "role": "user", "content": "..." }] }` | `{ "answer": "..." }` |
+| `POST /chat` | `{ "messages": [{ "role": "user", "content": "..." }], "language": "auto" }` | `{ "answer": "...", "recommendations": [] }` |
+| `GET /conversations` | Bearer token; paginated recent conversations | `{ "conversations": [], "pagination": {} }` |
+| `POST`, `PUT /conversations` or `/conversations/:conversationId` | Bearer token and up to 50 user/assistant messages | Saved conversation; only its owner can read, update, or delete it |
+| `GET`, `DELETE /conversations/:conversationId` | Bearer token; only the owning user may access it | Conversation or deletion confirmation |
+| `POST /smart-search` | `{ "query": "Hotels in Pune under INR 3000 with Wi-Fi for two guests" }` | `{ "criteria": { "destination": "Pune", "budget": 3000, "guests": 2, "amenities": ["Wi-Fi"] }, "recommendations": [], "alternatives": [] }` |
 | `POST /recommendations` | `{ "destination": "Pune", "budget": 5000, "guests": 2, "amenities": ["wifi"], "preferences": ["quiet"] }` | `{ "recommendations": [{ "property": { "_id": "...", "name": "...", "price": 3000 }, "reason": "..." }], "limitations": "..." }` |
 | `POST /plan-trip` | `{ "destination": "Pune", "days": 2, "budget": 10000, "interests": ["food"], "language": "English" }` | `{ "itinerary": { "title": "...", "days": [{ "day": 1, "activities": [], "budgetTip": "..." }] }, "notice": "..." }` |
-| `GET /reviews/:hotelId/summary` | No body | `{ "hotelId": "...", "reviewCount": 4, "summary": { "overview": "...", "positive": [], "complaints": [] } }` |
+| `GET /trip-plans` | Bearer token | `{ "plans": [], "pagination": { "page": 1, "limit": 10, "total": 0, "pages": 0 } }` |
+| `POST /trip-plans` | Bearer token and generated itinerary data | `{ "plan": { "_id": "...", "destination": "Pune", "itinerary": {} } }` |
+| `GET`, `PUT`, `DELETE /trip-plans/:planId` | Bearer token; only the owning user may access the plan | Plan, updated plan, or deletion confirmation |
+| `GET /reviews/:hotelId/summary` | No body | `{ "hotelId": "...", "reviewCount": 4, "summary": { "overview": "...", "positive": [], "complaints": [] }, "sentimentDistribution": { "positive": 2, "neutral": 1, "negative": 1 } }` |
+| `POST /admin/insights` | Admin bearer token; `{ "question": "How did paid revenue change?" }` | Aggregate metrics and advisory AI insights |
 | `GET /admin/overview` | Bearer JWT, `ADMIN` only | `{ "metrics": { "totalBookings": 0, "paidRevenue": 0, "monthlyTrends": [] }, "ai": { "available": true, "insights": [], "limitations": "..." } }` |
+
+Saved trip-plan and conversation routes require bearer authentication and
+enforce per-user ownership. Chat history is stored only after the signed-in
+user enables its history control. Natural-language search uses Gemini only to
+extract a constrained filter object; validated filters are applied by the
+existing database search service, and AI-generated MongoDB queries are never
+executed. `POST /admin/insights` also requires the existing admin role and
+answers questions only from aggregate booking/payment metrics.
 
 Recommendation `budget` is a maximum nightly price in the property's stored
 units. Hotel search checks stored room capacity and overlapping active

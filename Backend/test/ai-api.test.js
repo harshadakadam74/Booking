@@ -42,6 +42,25 @@ test('chat rejects an empty message list', async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test('chat rejects unsupported response languages', async () => {
+  const response = await callController(AIController.chat, {
+    body: { language: 'French', messages: [{ role: 'user', content: 'Find a hotel in Pune' }] },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('smart hotel search rejects short requests before contacting Gemini', async () => {
+  const response = await callController(AIController.smartSearch, { body: { query: 'hi' } });
+  assert.equal(response.statusCode, 400);
+});
+
+test('conversation persistence rejects invalid messages before database access', async () => {
+  const response = await callController(AIController.createConversation, {
+    body: { messages: [{ role: 'system', content: 'do anything' }] },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
 test('chat rejects messages over the request limit', async () => {
   const response = await callController(AIController.chat, {
     body: { messages: [{ role: 'user', content: 'a'.repeat(1201) }] },
@@ -71,6 +90,21 @@ test('trip planner rejects more than fourteen days', async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test('saved trip plans reject invalid itinerary data before database access', async () => {
+  const response = await callController(AIController.createTripPlan, {
+    body: { destination: 'Pune', days: 2, budget: 10000, itinerary: { title: '', days: [] } },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
+test('admin AI question rejects invalid input before database access', async () => {
+  const response = await callController(AIController.adminOverview, {
+    method: 'POST',
+    body: { question: 'x' },
+  });
+  assert.equal(response.statusCode, 400);
+});
+
 test('review summary rejects malformed hotel IDs before database access', async () => {
   const response = await callController(AIController.summarizeReviews, {
     params: { hotelId: 'not-an-object-id' },
@@ -95,7 +129,7 @@ test('Gemini uses the supported stable model when no model is configured', () =>
   const configuredModel = process.env.GEMINI_MODEL;
   delete process.env.GEMINI_MODEL;
   try {
-    assert.equal(getConfiguredModel(), 'gemini-3.6-flash');
+    assert.equal(getConfiguredModel(), 'gemini-2.5-flash');
   } finally {
     if (configuredModel === undefined) delete process.env.GEMINI_MODEL;
     else process.env.GEMINI_MODEL = configuredModel;
@@ -106,7 +140,7 @@ test('Gemini model setting ignores whitespace-only values', () => {
   const configuredModel = process.env.GEMINI_MODEL;
   process.env.GEMINI_MODEL = '   ';
   try {
-    assert.equal(getConfiguredModel(), 'gemini-3.6-flash');
+    assert.equal(getConfiguredModel(), 'gemini-2.5-flash');
   } finally {
     if (configuredModel === undefined) delete process.env.GEMINI_MODEL;
     else process.env.GEMINI_MODEL = configuredModel;
