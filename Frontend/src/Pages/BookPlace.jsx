@@ -28,10 +28,14 @@ const BookPlace = () => {
     checkOut: getDateValue(searchParams.checkOut || searchParams.dates?.endDate),
     guests: Number(searchParams.guests?.adults || 2) + Number(searchParams.guests?.children || 0),
     rooms: Number(searchParams.guests?.rooms || 1),
-    budget: searchParams.budget ? String(searchParams.budget) : '',
+    minPrice: '',
+    maxPrice: searchParams.budget ? String(searchParams.budget) : '',
     propertyType: '',
     minRating: '',
     amenities: '',
+    workTrip: Boolean(searchParams.workTrip),
+    sortBy: 'price',
+    hotelName: '',
   }));
   const [results, setResults] = useState({ properties: [], pagination: null, alternatives: [] });
   const [loading, setLoading] = useState(true);
@@ -46,16 +50,21 @@ const BookPlace = () => {
     }
   });
   const [page, setPage] = useState(1);
+  const [detailsId, setDetailsId] = useState('');
 
   const query = useMemo(() => ({
     destination,
     ...(filters.checkIn && filters.checkOut ? { checkIn: filters.checkIn, checkOut: filters.checkOut } : {}),
     guests: filters.guests,
     rooms: filters.rooms,
-    ...(filters.budget ? { budget: filters.budget } : {}),
+    ...(filters.minPrice !== '' ? { minPrice: filters.minPrice } : {}),
+    ...(filters.maxPrice !== '' ? { maxPrice: filters.maxPrice } : {}),
     ...(filters.propertyType ? { propertyType: filters.propertyType } : {}),
     ...(filters.minRating ? { minRating: filters.minRating } : {}),
     ...(filters.amenities.trim() ? { amenities: filters.amenities } : {}),
+    ...(filters.workTrip ? { workTrip: true } : {}),
+    ...(filters.hotelName.trim() ? { hotelName: filters.hotelName.trim() } : {}),
+    sortBy: filters.sortBy,
     page,
     limit: 12,
   }), [destination, filters, page]);
@@ -144,6 +153,10 @@ const BookPlace = () => {
         <section className="mb-7 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+              Hotel name
+              <input value={filters.hotelName} onChange={(event) => updateFilter('hotelName', event.target.value)} placeholder="Search hotel name" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
               Destination
               <DestinationAutocomplete
                 value={destination}
@@ -169,8 +182,12 @@ const BookPlace = () => {
               <input type="number" min="1" max="10" value={filters.rooms} onChange={(event) => updateFilter('rooms', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
             </label>
             <label className="text-sm font-semibold text-slate-700">
-              Max nightly budget
-              <input type="number" min="1" value={filters.budget} onChange={(event) => updateFilter('budget', event.target.value)} placeholder="Any budget" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+              Minimum price
+              <input type="number" min="0" value={filters.minPrice} onChange={(event) => updateFilter('minPrice', event.target.value)} placeholder="No minimum" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Maximum price
+              <input type="number" min="0" value={filters.maxPrice} onChange={(event) => updateFilter('maxPrice', event.target.value)} placeholder="No maximum" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
             </label>
             <label className="text-sm font-semibold text-slate-700">
               Property type
@@ -183,6 +200,19 @@ const BookPlace = () => {
               <select value={filters.minRating} onChange={(event) => updateFilter('minRating', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
                 <option value="">Any / unrated</option><option value="3">3+</option><option value="4">4+</option><option value="4.5">4.5+</option>
               </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Sort by
+              <select value={filters.sortBy} onChange={(event) => updateFilter('sortBy', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                <option value="price">Price: low to high</option>
+                <option value="price_desc">Price: high to low</option>
+                <option value="rating">Rating</option>
+                <option value="popularity">Popularity</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input type="checkbox" checked={filters.workTrip} onChange={(event) => updateFilter('workTrip', event.target.checked)} className="h-4 w-4 accent-blue-900" />
+              Suitable for work trips
             </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2 lg:col-span-4">
               Amenities <span className="font-normal text-slate-500">(comma-separated)</span>
@@ -233,6 +263,13 @@ const BookPlace = () => {
                       )}
                       <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{property.description || 'No description supplied.'}</p>
                       <p className="mt-3 text-sm text-slate-600">Amenities: {property.amenities?.length ? property.amenities.join(', ') : 'Not listed'}</p>
+                      {detailsId === id && (
+                        <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                          <p>Facilities: {property.facilities?.length ? property.facilities.join(', ') : 'Not listed'}</p>
+                          <p>Check-in: {property.checkInTime || '15:00'} · Check-out: {property.checkOutTime || '11:00'}</p>
+                          <p>Room types: {property.roomTypes?.length ? property.roomTypes.map((room) => `${room.name} (${room.availableRooms ?? 0} available)`).join(', ') : 'Contact property for room details'}</p>
+                        </div>
+                      )}
                       <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-4">
                         <div>
                           <p className="text-xl font-extrabold text-blue-950">{formatPrice(property.price, property.currency)}</p>
@@ -241,9 +278,14 @@ const BookPlace = () => {
                             {filters.checkIn && filters.checkOut ? `${property.availableRoomsForStay} rooms for these dates before final recheck` : `${property.availableRooms} rooms listed; dates not checked`}
                           </p>
                         </div>
-                        <button type="button" disabled={property.isDemo} onClick={() => startBooking(property)} className="rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400">
-                          {property.isDemo ? 'Demo only · booking disabled' : 'Continue to booking'}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => setDetailsId((current) => current === id ? '' : id)} className="rounded-xl border border-blue-900 px-4 py-3 text-sm font-bold text-blue-900">
+                            {detailsId === id ? 'Hide details' : 'View details'}
+                          </button>
+                          <button type="button" disabled={property.isDemo} onClick={() => startBooking(property)} className="rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+                            {property.isDemo ? 'Demo only · booking disabled' : 'Book now'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </article>

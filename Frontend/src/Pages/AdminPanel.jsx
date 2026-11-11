@@ -19,12 +19,19 @@ import {
   setAdminHotelApproval,
   setAdminHotelStatus,
   setAdminUserRole,
+  exportAdminHotels,
+  importAdminHotels,
+  uploadAdminHotelImage,
   updateAdminHotel,
 } from '../services/adminService';
 
 const emptyHotel = {
-  name: '', location: '', type: 'Hotel', description: '', image: '',
-  price: '', totalRooms: '', availableRooms: '', amenities: '', active: true,
+  name: '', location: '', address: '', city: '', state: '', country: 'India',
+  currency: 'INR', type: 'Hotel', category: 'Hotel', description: '', image: '', images: '',
+  price: '', totalRooms: '', availableRooms: '', amenities: '', facilities: '',
+  roomTypes: '[]', checkInTime: '15:00', checkOutTime: '11:00',
+  maxGuestsPerRoom: '4', rating: '', ratingCount: '', ratingSource: '',
+  workTripFriendly: false, active: true,
   latitude: '', longitude: '',
 };
 const emptyAdmin = { name: '', mobile: '', email: '', password: '' };
@@ -44,28 +51,49 @@ const Pagination = ({ page, pages, onChange }) => (
   </div>
 );
 
-const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
+const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
   const [form, setForm] = useState(() => hotel ? {
     name: hotel.name || '',
     location: hotel.location || '',
+    address: hotel.streetAddress || hotel.address || '',
+    city: hotel.city || '',
+    state: hotel.state || '',
+    country: hotel.country || 'India',
+    currency: hotel.currency || 'INR',
     type: hotel.type || 'Hotel',
+    category: hotel.category || hotel.propertyType || hotel.type || 'Hotel',
     description: hotel.description || '',
     image: hotel.image || '',
+    images: (hotel.images || []).join('\n'),
     price: String(hotel.price ?? ''),
     totalRooms: String(hotel.totalRooms ?? ''),
     availableRooms: String(hotel.availableRooms ?? ''),
+    maxGuestsPerRoom: String(hotel.maxGuestsPerRoom ?? 4),
+    rating: hotel.rating === null || hotel.rating === undefined ? '' : String(hotel.rating),
+    ratingCount: String(hotel.ratingCount ?? 0),
+    ratingSource: hotel.ratingSource || '',
     amenities: (hotel.amenities || []).join(', '),
+    facilities: (hotel.facilities || []).join(', '),
+    roomTypes: JSON.stringify(hotel.roomTypes || [], null, 2),
+    checkInTime: hotel.checkInTime || '15:00',
+    checkOutTime: hotel.checkOutTime || '11:00',
+    workTripFriendly: Boolean(hotel.workTripFriendly),
     active: hotel.active !== false,
     longitude: hotel.geoLocation?.coordinates?.[0] ?? '',
     latitude: hotel.geoLocation?.coordinates?.[1] ?? '',
   } : emptyHotel);
   const [error, setError] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const submit = async (event) => {
     event.preventDefault();
     const totalRooms = Number(form.totalRooms);
     const availableRooms = Number(form.availableRooms);
     const price = Number(form.price);
+    const maxGuestsPerRoom = Number(form.maxGuestsPerRoom);
+    const rating = Number(form.rating);
+    const ratingCount = Number(form.ratingCount);
+    const hasRatingData = form.rating.trim() !== '' || ratingCount > 0 || form.ratingSource.trim() !== '';
     if (!form.name.trim() || !form.location.trim()) {
       setError('Hotel name and location are required.');
       return;
@@ -74,6 +102,18 @@ const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
       totalRooms < 1 || !Number.isInteger(availableRooms) || availableRooms < 0 ||
       availableRooms > totalRooms) {
       setError('Enter a non-negative price and valid room counts.');
+      return;
+    }
+    if (!/^[A-Za-z]{3}$/.test(form.currency.trim()) ||
+      !Number.isInteger(maxGuestsPerRoom) || maxGuestsPerRoom < 1 || maxGuestsPerRoom > 20) {
+      setError('Enter a three-letter currency and room capacity from 1 to 20 guests.');
+      return;
+    }
+    if (hasRatingData && (
+      !Number.isFinite(rating) || rating < 0 || rating > 5 ||
+      !Number.isInteger(ratingCount) || ratingCount < 1 || !form.ratingSource.trim()
+    )) {
+      setError('Ratings need a value from 0 to 5, a positive rating count, and a documented source.');
       return;
     }
     if (form.image.trim()) {
@@ -91,18 +131,41 @@ const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
       setError('Enter both valid latitude and longitude coordinates.');
       return;
     }
+    let roomTypes;
+    try {
+      roomTypes = JSON.parse(form.roomTypes || '[]');
+      if (!Array.isArray(roomTypes)) throw new Error();
+    } catch {
+      setError('Room types must be a valid JSON array.');
+      return;
+    }
 
     setError('');
+    const images = [...new Set(form.images.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean))];
     const payload = {
       name: form.name.trim(),
       location: form.location.trim(),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      country: form.country.trim(),
+      currency: form.currency.trim().toUpperCase(),
       type: form.type.trim(),
+      category: form.category.trim(),
       description: form.description.trim(),
       image: form.image.trim(),
+      images,
       price,
       totalRooms,
       availableRooms,
+      maxGuestsPerRoom,
+      ...(hasRatingData ? { rating, ratingCount, ratingSource: form.ratingSource.trim() } : {}),
       amenities: form.amenities.split(',').map((item) => item.trim()).filter(Boolean),
+      facilities: form.facilities.split(',').map((item) => item.trim()).filter(Boolean),
+      roomTypes,
+      checkInTime: form.checkInTime,
+      checkOutTime: form.checkOutTime,
+      workTripFriendly: form.workTripFriendly,
       active: form.active,
     };
     if (form.latitude && form.longitude) {
@@ -110,6 +173,26 @@ const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
       payload.longitude = Number(form.longitude);
     }
     await onSave(payload);
+  };
+
+  const uploadImage = async (event) => {
+    const image = event.target.files?.[0];
+    if (!image) return;
+    setUploadingImage(true);
+    setError('');
+    try {
+      const { url } = await onUploadImage(image);
+      setForm((current) => ({
+        ...current,
+        image: current.image || url,
+        images: [...new Set([...current.images.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean), url])].join('\n'),
+      }));
+    } catch (uploadError) {
+      setError(uploadError.message || 'Unable to upload the image.');
+    } finally {
+      setUploadingImage(false);
+      event.target.value = '';
+    }
   };
 
   const field = (name, label, options = {}) => (
@@ -138,15 +221,40 @@ const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
           <div className="grid gap-4 sm:grid-cols-2">
             {field('name', 'Hotel name', { required: true })}
             {field('location', 'City / location', { required: true })}
+            {field('address', 'Complete street address')}
+            {field('city', 'City')}
+            {field('state', 'State / province')}
+            {field('country', 'Country')}
+            {field('currency', 'Currency code')}
             {field('type', 'Property type')}
+            {field('category', 'Hotel category')}
             {field('price', 'Price per night (stored units)', { required: true, type: 'number', min: 0 })}
             {field('totalRooms', 'Total rooms', { required: true, type: 'number', min: 1 })}
             {field('availableRooms', 'Available rooms', { required: true, type: 'number', min: 0 })}
+            {field('maxGuestsPerRoom', 'Maximum guests per room', { required: true, type: 'number', min: 1, max: 20 })}
+            {field('rating', 'Rating (0–5, source required)', { type: 'number', min: 0, max: 5, className: 'sm:col-span-1' })}
+            {field('ratingCount', 'Rating count', { type: 'number', min: 0 })}
+            {field('ratingSource', 'Rating source')}
+            {field('checkInTime', 'Check-in time')}
+            {field('checkOutTime', 'Check-out time')}
             {field('latitude', 'Latitude (optional)', { type: 'number', min: -90, max: 90 })}
             {field('longitude', 'Longitude (optional)', { type: 'number', min: -180, max: 180 })}
             {field('image', 'Hotel image URL', { type: 'url', className: 'sm:col-span-2' })}
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Hotel image files (Cloudinary must be configured)
+              <input type="file" accept="image/*" onChange={uploadImage} disabled={uploadingImage} className="mt-1.5 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+              {uploadingImage && <span className="mt-1 block text-xs text-slate-500">Uploading image…</span>}
+            </label>
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Additional image URLs (one per line)
+              <textarea rows={2} value={form.images} onChange={(event) => setForm((current) => ({ ...current, images: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+            </label>
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Amenities (comma-separated)
               <input value={form.amenities} onChange={(event) => setForm((current) => ({ ...current, amenities: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700" placeholder="Wi-Fi, Parking, Restaurant" />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Facilities (comma-separated)
+              <input value={form.facilities} onChange={(event) => setForm((current) => ({ ...current, facilities: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700" placeholder="Restaurant, Meeting room, Gym" />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Room types (JSON array)
+              <textarea rows={4} value={form.roomTypes} onChange={(event) => setForm((current) => ({ ...current, roomTypes: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs font-normal" placeholder={'[{"name":"Standard","price":2500,"maxGuests":2,"totalRooms":10,"availableRooms":8}]'} />
             </label>
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Description
               <textarea rows={3} maxLength={4000} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700" />
@@ -155,6 +263,10 @@ const HotelEditor = ({ hotel, saving, onClose, onSave }) => {
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 accent-blue-900" />
             Hotel listing is active
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input type="checkbox" checked={form.workTripFriendly} onChange={(event) => setForm((current) => ({ ...current, workTripFriendly: event.target.checked }))} className="h-4 w-4 accent-blue-900" />
+            Suitable for work trips
           </label>
           {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
@@ -288,6 +400,40 @@ const AdminPanel = () => {
       notifyError(requestError);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const importHotelFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    try {
+      const records = JSON.parse(await file.text());
+      if (!Array.isArray(records)) throw new Error('The JSON file must contain an array of hotel records.');
+      const result = await importAdminHotels(records);
+      setNotice(`${result.imported} hotel record${result.imported === 1 ? '' : 's'} imported.`);
+      await loadData();
+    } catch (requestError) {
+      notifyError(requestError);
+    } finally {
+      setSaving(false);
+      event.target.value = '';
+    }
+  };
+
+  const downloadHotelExport = async () => {
+    try {
+      const blob = await exportAdminHotels();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'fastbooking-hotels.json';
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice('Hotel records exported.');
+      setError('');
+    } catch (requestError) {
+      notifyError(requestError);
     }
   };
 
@@ -451,7 +597,14 @@ const AdminPanel = () => {
           {section === 'hotels' && (
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="p-5 sm:p-6">
-                {header('Hotel management', 'Create, edit, search, activate, or safely remove property listings.', <button type="button" onClick={() => setHotelEditor(null)} className="inline-flex items-center gap-2 rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17} />Add hotel</button>)}
+                {header('Hotel management', 'Create, edit, import, export, activate, or safely remove property listings.', <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={downloadHotelExport} className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-bold text-slate-700">Export JSON</button>
+                  <label className="cursor-pointer rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-bold text-slate-700">
+                    Import JSON
+                    <input type="file" accept=".json,application/json" onChange={importHotelFile} className="sr-only" />
+                  </label>
+                  <button type="button" onClick={() => setHotelEditor(null)} className="inline-flex items-center gap-2 rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17} />Add hotel</button>
+                </div>)}
                 <div className="flex flex-wrap gap-3">
                   {searchBar('Search name, location or type')}
                   <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-600">
@@ -542,7 +695,7 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {hotelEditor !== undefined && <HotelEditor hotel={hotelEditor} saving={saving} onClose={() => setHotelEditor(undefined)} onSave={saveHotel} />}
+      {hotelEditor !== undefined && <HotelEditor hotel={hotelEditor} saving={saving} onClose={() => setHotelEditor(undefined)} onSave={saveHotel} onUploadImage={uploadAdminHotelImage} />}
       {selectedBooking && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedBooking(null); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">

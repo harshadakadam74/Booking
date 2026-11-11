@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Product = require('../models/Product');
 const Property = require('../models/Property');
+const cloudinary = require('../config/cloudinary');
 const mongoose = require('mongoose');
 const ApiResponse = require('../Utils/ApiResponse');
 const UserService = require('../services/UserService');
@@ -18,9 +19,10 @@ const statusValues = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCEL
 const validatePropertyInput = (body, existing) => {
   const fields = [
     'name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency',
-    'type', 'propertyType', 'description', 'image', 'images', 'price', 'totalRooms',
-    'availableRooms', 'maxGuestsPerRoom', 'amenities', 'rating', 'ratingCount',
-    'ratingSource', 'isVerified', 'isDemo', 'active',
+    'type', 'propertyType', 'category', 'description', 'image', 'images', 'price', 'totalRooms',
+    'availableRooms', 'maxGuestsPerRoom', 'amenities', 'facilities', 'roomTypes',
+    'checkInTime', 'checkOutTime', 'workTripFriendly', 'rating', 'ratingCount',
+    'ratingSource', 'active',
   ];
   const values = {};
   fields.forEach((field) => {
@@ -58,11 +60,19 @@ const validatePropertyInput = (body, existing) => {
     (typeof values.type !== 'string' || values.type.trim().length < 2 || values.type.trim().length > 60)) {
     return { error: 'Hotel type must contain between 2 and 60 characters.' };
   }
-  for (const field of ['address', 'streetAddress', 'city', 'state', 'country', 'propertyType', 'ratingSource']) {
+  for (const field of [
+    'address', 'streetAddress', 'city', 'state', 'country', 'propertyType', 'category',
+    'ratingSource', 'checkInTime', 'checkOutTime',
+  ]) {
     if (values[field] !== undefined &&
       (typeof values[field] !== 'string' ||
         values[field].trim().length > (['address', 'streetAddress'].includes(field) ? 250 : 100))) {
       return { error: `${field} must be a valid string.` };
+    }
+  }
+  for (const field of ['checkInTime', 'checkOutTime']) {
+    if (values[field] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(values[field])) {
+      return { error: `${field} must use 24-hour HH:mm format.` };
     }
   }
   if (values.currency !== undefined &&
@@ -95,6 +105,26 @@ const validatePropertyInput = (body, existing) => {
       values.amenities.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 60))) {
     return { error: 'Amenities must be a list of up to 40 non-empty strings (60 characters maximum each).' };
   }
+  for (const field of ['facilities']) {
+    if (values[field] !== undefined &&
+      (!Array.isArray(values[field]) || values[field].length > 40 ||
+        values[field].some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 60))) {
+      return { error: 'Facilities must be a list of up to 40 non-empty strings (60 characters maximum each).' };
+    }
+  }
+  if (values.roomTypes !== undefined &&
+    (!Array.isArray(values.roomTypes) || values.roomTypes.length > 20 ||
+      values.roomTypes.some((room) => (
+        !room || typeof room !== 'object' ||
+        typeof room.name !== 'string' || !room.name.trim() || room.name.trim().length > 80 ||
+        (room.price !== undefined && (!Number.isFinite(Number(room.price)) || Number(room.price) < 0)) ||
+        (room.maxGuests !== undefined && (!Number.isInteger(Number(room.maxGuests)) || Number(room.maxGuests) < 1 || Number(room.maxGuests) > 20)) ||
+        (room.totalRooms !== undefined && (!Number.isInteger(Number(room.totalRooms)) || Number(room.totalRooms) < 0)) ||
+        (room.availableRooms !== undefined && (!Number.isInteger(Number(room.availableRooms)) || Number(room.availableRooms) < 0)) ||
+        (room.totalRooms !== undefined && room.availableRooms !== undefined && Number(room.availableRooms) > Number(room.totalRooms))
+      )))) {
+    return { error: 'Room types contain invalid names, prices, capacity, or inventory.' };
+  }
   if (values.images !== undefined &&
     (!Array.isArray(values.images) || values.images.length > 20 ||
       values.images.some((image) => typeof image !== 'string' || image.length > 2048))) {
@@ -120,7 +150,7 @@ const validatePropertyInput = (body, existing) => {
     (!Number.isInteger(Number(values.ratingCount)) || Number(values.ratingCount) < 0)) {
     return { error: 'Rating count must be a non-negative whole number.' };
   }
-  for (const field of ['isVerified', 'isDemo']) {
+  for (const field of ['workTripFriendly']) {
     if (values[field] !== undefined && typeof values[field] !== 'boolean') {
       return { error: `${field} must be true or false.` };
     }
@@ -132,9 +162,9 @@ const validatePropertyInput = (body, existing) => {
   const updates = {};
   Object.entries(values).forEach(([field, value]) => {
     if (['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'rating', 'ratingCount'].includes(field)) updates[field] = Number(value);
-    else if (['name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
+    else if (['name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'category', 'checkInTime', 'checkOutTime', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
       updates[field] = value.trim();
-    } else if (field === 'amenities') updates.amenities = value.map((item) => item.trim());
+    } else if (['amenities', 'facilities'].includes(field)) updates[field] = value.map((item) => item.trim());
     else if (field === 'images') updates.images = value.map((item) => item.trim());
     else updates[field] = value;
   });
@@ -248,9 +278,25 @@ const getAllProperties = async (req, res) => {
     const city = typeof req.query.city === 'string' ? req.query.city.trim().slice(0, 100) : '';
     if (search) {
       const regex = new RegExp(escapedRegex(search), 'i');
-      filter.$or = [{ name: regex }, { location: regex }];
+      filter.$or = [
+        { name: regex },
+        { location: regex },
+        { city: regex },
+        { state: regex },
+        { country: regex },
+        { type: regex },
+        { propertyType: regex },
+      ];
     }
-    if (city) filter.location = new RegExp(escapedRegex(city), 'i');
+    if (city) {
+      filter.$and ||= [];
+      filter.$and.push({
+        $or: [
+          { city: new RegExp(escapedRegex(city), 'i') },
+          { location: new RegExp(escapedRegex(city), 'i') },
+        ],
+      });
+    }
     if (req.query.status === 'active') filter.active = { $ne: false };
     if (req.query.status === 'inactive') filter.active = false;
     if (req.query.approvalStatus) filter.approvalStatus = req.query.approvalStatus;
@@ -303,6 +349,7 @@ const createProperty = async (req, res) => {
       city: updates.city || updates.location.split(',')[0].trim(),
       country: updates.country || 'India',
       propertyType: updates.propertyType || updates.type || 'Hotel',
+      category: updates.category || updates.propertyType || updates.type || 'Hotel',
       listingSource: 'admin',
       approvalStatus: 'approved',
       active: updates.active ?? true,
@@ -312,6 +359,105 @@ const createProperty = async (req, res) => {
     return ApiResponse.success(res, { property }, 'Hotel created successfully', 201);
   } catch (error) {
     return ApiResponse.error(res, 400, error.message);
+  }
+};
+
+const importProperties = async (req, res) => {
+  const records = Array.isArray(req.body) ? req.body : req.body?.records;
+  if (!Array.isArray(records) || records.length < 1 || records.length > 500) {
+    return ApiResponse.error(res, 400, 'Provide a JSON array containing between 1 and 500 hotel records.');
+  }
+  const properties = [];
+  for (const [index, record] of records.entries()) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      return ApiResponse.error(res, 400, `Hotel record ${index + 1} must be a JSON object.`);
+    }
+    const { updates, error } = validatePropertyInput(record);
+    if (error) return ApiResponse.error(res, 400, `Hotel record ${index + 1}: ${error}`);
+    if (!updates.name || !updates.location || updates.price === undefined ||
+      updates.totalRooms === undefined || updates.availableRooms === undefined) {
+      return ApiResponse.error(res, 400, `Hotel record ${index + 1} is missing name, location, price, or room inventory.`);
+    }
+    const latitude = record.latitude;
+    const longitude = record.longitude;
+    const hasLatitude = latitude !== undefined && latitude !== '';
+    const hasLongitude = longitude !== undefined && longitude !== '';
+    if (hasLatitude !== hasLongitude) {
+      return ApiResponse.error(res, 400, `Hotel record ${index + 1} must include both latitude and longitude.`);
+    }
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+    if (hasLatitude && (
+      !Number.isFinite(parsedLatitude) || parsedLatitude < -90 || parsedLatitude > 90 ||
+      !Number.isFinite(parsedLongitude) || parsedLongitude < -180 || parsedLongitude > 180
+    )) {
+      return ApiResponse.error(res, 400, `Hotel record ${index + 1} has invalid coordinates.`);
+    }
+    properties.push({
+      ...updates,
+      city: updates.city || updates.location.split(',')[0].trim(),
+      country: updates.country || 'India',
+      type: updates.type || 'Hotel',
+      propertyType: updates.propertyType || updates.type || 'Hotel',
+      category: updates.category || updates.propertyType || updates.type || 'Hotel',
+      listingSource: 'admin',
+      approvalStatus: 'approved',
+      isDemo: false,
+      isVerified: false,
+      active: updates.active ?? true,
+      ...(hasLatitude ? {
+        geoLocation: { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] },
+      } : {}),
+    });
+  }
+  try {
+    const created = await Property.create(properties);
+    return ApiResponse.success(res, {
+      imported: created.length,
+      properties: created,
+    }, 'Hotel records imported successfully.', 201);
+  } catch (error) {
+    console.error('Admin hotel import failed:', error.message);
+    return ApiResponse.error(res, 400, 'Unable to import hotel records. Check the submitted fields.');
+  }
+};
+
+const exportProperties = async (req, res) => {
+  try {
+    const total = await Property.countDocuments();
+    if (total > 10000) {
+      return ApiResponse.error(res, 413, 'Hotel export is limited to 10000 records. Narrow the export or use a database export tool.');
+    }
+    const properties = await Property.find({})
+      .select('-bookingLock')
+      .sort({ createdAt: -1 })
+      .limit(10000)
+      .lean();
+    res.setHeader('Content-Disposition', 'attachment; filename="fastbooking-hotels.json"');
+    return res.status(200).json(properties);
+  } catch (error) {
+    console.error('Admin hotel export failed:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to export hotel records.');
+  }
+};
+
+const uploadHotelImage = async (req, res) => {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    return ApiResponse.error(res, 503, 'Hotel image upload is not configured. Set the Cloudinary server environment variables.');
+  }
+  if (!req.file) return ApiResponse.error(res, 400, 'Select an image file to upload.');
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'fastbooking/hotels', resource_type: 'image' },
+        (error, uploaded) => error ? reject(error) : resolve(uploaded)
+      );
+      stream.end(req.file.buffer);
+    });
+    return ApiResponse.success(res, { url: result.secure_url }, 'Hotel image uploaded.');
+  } catch (error) {
+    console.error('Hotel image upload failed:', error.message);
+    return ApiResponse.error(res, 502, 'Unable to upload the hotel image.');
   }
 };
 
@@ -606,6 +752,9 @@ module.exports = {
   getDashboard,
   getAllProperties,
   createProperty,
+  importProperties,
+  exportProperties,
+  uploadHotelImage,
   updateProperty,
   updatePropertyStatus,
   updatePropertyApprovalStatus,

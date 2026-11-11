@@ -10,9 +10,28 @@ const normalize = (value) => String(value || '')
   .toLowerCase();
 
 const parseHotelSearch = (query = {}) => {
-  const destination = typeof query.destination === 'string' ? query.destination.trim() : '';
+  const rawDestination = query.destination ?? query.city;
+  if (rawDestination !== undefined && typeof rawDestination !== 'string') {
+    return { error: 'Destination must be a string.' };
+  }
+  const destination = rawDestination?.trim() || '';
   if ((destination && destination.length < 2) || destination.length > 100) {
     return { error: 'Destination must contain between 2 and 100 characters when supplied.' };
+  }
+  const rawHotelName = query.hotelName ?? query.name;
+  if (rawHotelName !== undefined && typeof rawHotelName !== 'string') {
+    return { error: 'Hotel name search must be a string.' };
+  }
+  const hotelName = rawHotelName?.trim() || '';
+  if (hotelName.length > 120) return { error: 'Hotel name search cannot exceed 120 characters.' };
+  if ((query.state !== undefined && typeof query.state !== 'string') ||
+    (query.country !== undefined && typeof query.country !== 'string')) {
+    return { error: 'State and country filters must be strings.' };
+  }
+  const state = query.state?.trim() || '';
+  const country = query.country?.trim() || '';
+  if (state.length > 100 || country.length > 100) {
+    return { error: 'State and country filters cannot exceed 100 characters.' };
   }
 
   const guests = query.guests === undefined ? 1 : Number(query.guests);
@@ -24,12 +43,23 @@ const parseHotelSearch = (query = {}) => {
     return { error: 'Rooms must be a whole number between 1 and 10, and cannot exceed guests.' };
   }
 
-  let budget;
-  if (query.budget !== undefined && query.budget !== '') {
-    budget = Number(query.budget);
-    if (!Number.isFinite(budget) || budget <= 0 || budget > 100000000) {
-      return { error: 'Budget must be a positive maximum nightly amount.' };
+  let minPrice;
+  if (query.minPrice !== undefined && query.minPrice !== '') {
+    minPrice = Number(query.minPrice);
+    if (!Number.isFinite(minPrice) || minPrice < 0 || minPrice > 100000000) {
+      return { error: 'Minimum price must be between zero and 100000000.' };
     }
+  }
+  let budget;
+  const maxPrice = query.maxPrice ?? query.budget;
+  if (maxPrice !== undefined && maxPrice !== '') {
+    budget = Number(maxPrice);
+    if (!Number.isFinite(budget) || budget < 0 || budget > 100000000) {
+      return { error: 'Maximum price must be between zero and 100000000.' };
+    }
+  }
+  if (minPrice !== undefined && budget !== undefined && minPrice > budget) {
+    return { error: 'Minimum price cannot exceed maximum price.' };
   }
 
   let minRating;
@@ -63,14 +93,46 @@ const parseHotelSearch = (query = {}) => {
   if (amenities.length > 15 || amenities.some((item) => item.length > 60)) {
     return { error: 'Provide up to 15 amenities, each no longer than 60 characters.' };
   }
-  const propertyType = typeof (query.propertyType ?? query.type) === 'string'
-    ? String(query.propertyType ?? query.type).trim()
-    : '';
+  const rawPropertyType = query.propertyType ?? query.type;
+  if (rawPropertyType !== undefined && typeof rawPropertyType !== 'string') {
+    return { error: 'Property type must be a string.' };
+  }
+  const propertyType = rawPropertyType?.trim() || '';
   if (propertyType.length > 60) return { error: 'Property type cannot exceed 60 characters.' };
-  const currency = typeof query.currency === 'string' ? query.currency.trim().toUpperCase() : '';
+  if (query.category !== undefined && typeof query.category !== 'string') {
+    return { error: 'Hotel category must be a string.' };
+  }
+  const category = query.category?.trim() || '';
+  if (category.length > 60) return { error: 'Hotel category cannot exceed 60 characters.' };
+  if (query.currency !== undefined && typeof query.currency !== 'string') {
+    return { error: 'Currency must be a three-letter currency code.' };
+  }
+  const currency = query.currency?.trim().toUpperCase() || '';
   if (currency && !/^[A-Z]{3}$/.test(currency)) {
     return { error: 'Currency must be a three-letter currency code.' };
   }
+  if (query.sortBy !== undefined && typeof query.sortBy !== 'string') {
+    return { error: 'Sort must be price, price_desc, rating, or popularity.' };
+  }
+  const sortBy = query.sortBy?.trim().toLowerCase() || 'price_asc';
+  const sortValues = {
+    price: 'price_asc',
+    price_asc: 'price_asc',
+    price_desc: 'price_desc',
+    rating: 'rating',
+    popularity: 'popularity',
+  };
+  if (!Object.hasOwn(sortValues, sortBy)) {
+    return { error: 'Sort must be price, price_desc, rating, or popularity.' };
+  }
+  const workTrip = query.workTrip === undefined || query.workTrip === ''
+    ? false
+    : ['true', true].includes(query.workTrip)
+      ? true
+      : ['false', false].includes(query.workTrip)
+        ? false
+        : null;
+  if (workTrip === null) return { error: 'workTrip must be true or false.' };
 
   const page = query.page === undefined ? 1 : Number(query.page);
   const limit = query.limit === undefined ? 12 : Number(query.limit);
@@ -86,13 +148,20 @@ const parseHotelSearch = (query = {}) => {
   return {
     criteria: {
       destination,
+      state,
+      country,
+      hotelName,
       guests,
       rooms,
+      minPrice,
       budget,
       minRating,
       amenities: [...new Set(amenities)],
       propertyType,
+      category,
       currency,
+      sortBy: sortValues[sortBy],
+      workTrip,
       checkIn,
       checkOut,
       page,
@@ -103,20 +172,25 @@ const parseHotelSearch = (query = {}) => {
 };
 
 const buildHotelPipeline = async (criteria) => {
-  const normalizedDestination = normalize(criteria.destination);
+  const destinationParts = criteria.destination.split(',').map((part) => part.trim()).filter(Boolean);
+  const primaryDestination = destinationParts[0] || '';
+  const normalizedDestination = normalize(primaryDestination);
   const destination = criteria.destination ? await Destination.findOne({
     active: true,
     $or: [
       { normalizedName: normalizedDestination },
-      { aliases: { $elemMatch: { $regex: `^${escapeRegex(criteria.destination)}$`, $options: 'i' } } },
-      { state: new RegExp(`^${escapeRegex(criteria.destination)}$`, 'i') },
+      { aliases: { $elemMatch: { $regex: `^${escapeRegex(primaryDestination)}$`, $options: 'i' } } },
+      { state: new RegExp(`^${escapeRegex(primaryDestination)}$`, 'i') },
     ],
   }).lean() : null;
   const cityTerms = destination
     ? [destination.name, ...(destination.aliases || [])].map(normalize)
-    : criteria.destination ? [normalize(criteria.destination)] : [];
+    : primaryDestination ? [normalize(primaryDestination)] : [];
   const stateTerm = destination ? normalize(destination.state) : '';
-  const legacyRegex = criteria.destination ? new RegExp(escapeRegex(criteria.destination), 'i') : null;
+  const countryQuery = destinationParts.length === 1
+    ? normalize(destination?.type === 'country' ? destination.country : normalizedDestination)
+    : '';
+  const legacyRegex = primaryDestination ? new RegExp(escapeRegex(primaryDestination), 'i') : null;
   const exactCityRegex = cityTerms.length
     ? new RegExp(`^(?:${cityTerms.map(escapeRegex).join('|')})$`, 'i')
     : legacyRegex;
@@ -128,7 +202,34 @@ const buildHotelPipeline = async (criteria) => {
     $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
   };
   if (!criteria.includeDemo) filter.isDemo = { $ne: true };
-  if (criteria.budget !== undefined) filter.price = { $lte: criteria.budget };
+  if (criteria.minPrice !== undefined || criteria.budget !== undefined) {
+    filter.price = {
+      ...(criteria.minPrice !== undefined ? { $gte: criteria.minPrice } : {}),
+      ...(criteria.budget !== undefined ? { $lte: criteria.budget } : {}),
+    };
+  }
+  if (criteria.hotelName) {
+    filter.name = new RegExp(escapeRegex(criteria.hotelName), 'i');
+  }
+  if (criteria.state) {
+    filter.$and ||= [];
+    filter.$and.push({
+      $or: [
+        { normalizedState: normalize(criteria.state) },
+        { state: new RegExp(`^${escapeRegex(criteria.state)}$`, 'i') },
+      ],
+    });
+  }
+  if (criteria.country) {
+    filter.$and ||= [];
+    filter.$and.push({
+      $or: [
+        { normalizedCountry: normalize(criteria.country) },
+        { country: new RegExp(`^${escapeRegex(criteria.country)}$`, 'i') },
+      ],
+    });
+  }
+  if (criteria.workTrip) filter.workTripFriendly = true;
   if (criteria.currency) {
     filter.$and ||= [];
     filter.$and.push({
@@ -146,6 +247,10 @@ const buildHotelPipeline = async (criteria) => {
         { type: new RegExp(`^${escapeRegex(criteria.propertyType)}$`, 'i') },
       ],
     });
+  }
+  if (criteria.category) {
+    filter.$and ||= [];
+    filter.$and.push({ category: new RegExp(`^${escapeRegex(criteria.category)}$`, 'i') });
   }
   if (criteria.minRating !== undefined) {
     filter.$and ||= [];
@@ -179,6 +284,7 @@ const buildHotelPipeline = async (criteria) => {
         { city: exactCityRegex },
         { state: stateTerm ? new RegExp(`^${escapeRegex(stateTerm)}$`, 'i') : legacyRegex },
         { location: locationRegex },
+        ...(countryQuery ? [{ country: new RegExp(`^${escapeRegex(countryQuery)}$`, 'i') }] : []),
       ],
     });
   }
@@ -240,7 +346,15 @@ const buildHotelPipeline = async (criteria) => {
         ? { remainingRooms: { $gte: criteria.rooms }, $expr: { $gte: [{ $multiply: ['$guestsPerRoom', criteria.rooms] }, criteria.guests] } }
         : { availableRooms: { $gte: criteria.rooms }, $expr: { $gte: [{ $multiply: ['$guestsPerRoom', criteria.rooms] }, criteria.guests] } },
     },
-    { $sort: { price: 1, name: 1 } },
+    {
+      $sort: criteria.sortBy === 'price_desc'
+        ? { price: -1, name: 1 }
+        : criteria.sortBy === 'rating'
+          ? { rating: -1, ratingCount: -1, price: 1, name: 1 }
+          : criteria.sortBy === 'popularity'
+            ? { ratingCount: -1, rating: -1, price: 1, name: 1 }
+            : { price: 1, name: 1 },
+    },
     {
       $facet: {
         results: [

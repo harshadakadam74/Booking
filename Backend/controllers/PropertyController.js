@@ -11,7 +11,8 @@ const getProperties = async (req, res) => {
       ...result,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error('Hotel search failed:', error.message);
+    return res.status(500).json({ message: 'Unable to search hotels.' });
   }
 };
 
@@ -57,7 +58,8 @@ const getNearbyProperties = async (req, res) => {
 
     return res.status(200).json({ message: 'Nearby properties fetched successfully', properties });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error('Nearby property search failed:', error.message);
+    return res.status(500).json({ message: 'Unable to load nearby properties.' });
   }
 };
 

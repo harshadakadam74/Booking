@@ -6,7 +6,7 @@ const DestinationAutocomplete = ({
   value,
   onChange,
   onSelect,
-  placeholder = 'Search Indian destinations',
+  placeholder = 'Search destinations worldwide',
   inputClassName = '',
   menuClassName = '',
 }) => {
@@ -93,7 +93,7 @@ const DestinationAutocomplete = ({
               <span>
                 <span className="block font-semibold text-blue-950">{destination.name}</span>
                 <span className="block text-xs text-slate-500">
-                  {destination.state}, {destination.country} · {destination.type}
+                  {destination.displayName || [destination.state, destination.country].filter(Boolean).join(', ')} · {destination.type}
                   {destination.aliases?.length ? ` · Also: ${destination.aliases.slice(0, 2).join(', ')}` : ''}
                 </span>
               </span>

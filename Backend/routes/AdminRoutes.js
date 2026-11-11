@@ -1,13 +1,37 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const AdminController = require('../controllers/AdminController');
 const { authenticate } = require('../middlewares/Authenticate');
 const { admin } = require('../middlewares/AdminMiddleware');
 
 router.use(authenticate, admin);
+const hotelImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, callback) => {
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) {
+      callback(new Error('Hotel images must be JPEG, PNG, WebP, or GIF files.'));
+      return;
+    }
+    callback(null, true);
+  },
+});
+const parseHotelImage = (req, res, next) => {
+  hotelImageUpload.single('image')(req, res, (error) => {
+    if (error) {
+      const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ message: error.message });
+    }
+    return next();
+  });
+};
 router.get('/dashboard', AdminController.getDashboard);
+router.get('/hotels/export', AdminController.exportProperties);
 router.get('/hotels', AdminController.getAllProperties);
 router.post('/hotels', AdminController.createProperty);
+router.post('/hotels/import', AdminController.importProperties);
+router.post('/hotels/images', parseHotelImage, AdminController.uploadHotelImage);
 router.put('/hotels/:id', AdminController.updateProperty);
 router.patch('/hotels/:id/status', AdminController.updatePropertyStatus);
 router.patch('/hotels/:id/approval', AdminController.updatePropertyApprovalStatus);

@@ -11,6 +11,7 @@ const propertySchema = new mongoose.Schema(
     state: { type: String, default: '', trim: true },
     normalizedState: { type: String, default: '', trim: true, lowercase: true, index: true },
     country: { type: String, default: 'India', trim: true },
+    normalizedCountry: { type: String, default: '', trim: true, lowercase: true, index: true },
     currency: { type: String, default: 'INR', trim: true, uppercase: true, minlength: 3, maxlength: 3 },
     geoLocation: {
       type: {
@@ -27,6 +28,7 @@ const propertySchema = new mongoose.Schema(
     },
     type: { type: String, default: 'Hotel', trim: true },
     propertyType: { type: String, default: 'Hotel', trim: true },
+    category: { type: String, default: 'Hotel', trim: true },
     description: { type: String, default: '' },
     image: { type: String, default: '' },
     images: { type: [String], default: [] },
@@ -36,6 +38,20 @@ const propertySchema = new mongoose.Schema(
     maxGuestsPerRoom: { type: Number, default: 4, min: 1, max: 20 },
     amenities: { type: [String], default: [] },
     normalizedAmenities: { type: [String], default: [] },
+    facilities: { type: [String], default: [] },
+    roomTypes: {
+      type: [{
+        name: { type: String, required: true, trim: true, maxlength: 80 },
+        price: { type: Number, min: 0 },
+        maxGuests: { type: Number, min: 1, max: 20, default: 2 },
+        totalRooms: { type: Number, min: 0, default: 0 },
+        availableRooms: { type: Number, min: 0, default: 0 },
+      }],
+      default: [],
+    },
+    checkInTime: { type: String, default: '15:00', match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+    checkOutTime: { type: String, default: '11:00', match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+    workTripFriendly: { type: Boolean, default: false, index: true },
     rating: { type: Number, min: 0, max: 5, default: null },
     ratingCount: { type: Number, min: 0, default: 0 },
     ratingSource: { type: String, default: '' },
@@ -67,6 +83,9 @@ const propertySchema = new mongoose.Schema(
 propertySchema.index({ geoLocation: '2dsphere' });
 propertySchema.index({ normalizedCity: 1, active: 1, approvalStatus: 1, price: 1 });
 propertySchema.index({ normalizedState: 1, active: 1, approvalStatus: 1 });
+propertySchema.index({ normalizedCountry: 1, active: 1, approvalStatus: 1 });
+propertySchema.index({ name: 1, active: 1, approvalStatus: 1 });
+propertySchema.index({ normalizedAmenities: 1, active: 1, approvalStatus: 1 });
 propertySchema.index({ ownerId: 1, approvalStatus: 1, active: 1 });
 propertySchema.index(
   { listingSource: 1, sourceProvider: 1, externalListingId: 1 },
@@ -84,6 +103,7 @@ propertySchema.pre('validate', function normalizeSearchFields() {
   if (!this.city && this.location) this.city = this.location.split(',')[0].trim();
   this.normalizedCity = normalize(this.city || this.location);
   this.normalizedState = normalize(this.state);
+  this.normalizedCountry = normalize(this.country);
   this.normalizedAmenities = [...new Set((this.amenities || []).map(normalize).filter(Boolean))];
   if (!this.propertyType && this.type) this.propertyType = this.type;
   if (!this.type && this.propertyType) this.type = this.propertyType;

@@ -2,6 +2,11 @@ const Destination = require('../models/Destination');
 const ApiResponse = require('../Utils/ApiResponse');
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalize = (value) => String(value || '')
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
 const validId = (id) => /^[a-f\d]{24}$/i.test(id);
 
 const searchDestinations = async (req, res) => {
@@ -18,21 +23,89 @@ const searchDestinations = async (req, res) => {
     }
 
     const filter = { active: true };
+    const queryParts = query.split(',').map((part) => part.trim()).filter(Boolean);
+    const destinationQuery = queryParts[0] || '';
     if (query) {
-      const regex = new RegExp(escapeRegex(query), 'i');
+      const regex = new RegExp(escapeRegex(destinationQuery || query), 'i');
+      const countryRegex = new RegExp(escapeRegex(query), 'i');
       filter.$or = [
         { name: regex },
-        { normalizedName: regex },
+        { normalizedName: new RegExp(escapeRegex(destinationQuery || query).replace(/\s+/g, '\\s*'), 'i') },
         { state: regex },
-        { aliases: { $elemMatch: { $regex: escapeRegex(query), $options: 'i' } } },
+        ...(queryParts.length === 1 ? [{ country: countryRegex }] : []),
+        { aliases: { $elemMatch: { $regex: escapeRegex(destinationQuery || query), $options: 'i' } } },
       ];
     }
-    const destinations = await Destination.find(filter)
+    let destinations = await Destination.find(filter)
       .select('name state country type coordinates description image aliases')
       .sort({ name: 1 })
       .limit(limit)
       .lean();
-    return res.status(200).json({ destinations });
+    if (queryParts.length === 1 &&
+      !destinations.some((destination) => normalize(destination.name) === normalize(query))) {
+      const exactDestination = await Destination.findOne({
+        active: true,
+        normalizedName: normalize(query),
+      })
+        .select('name state country type coordinates description image aliases')
+        .lean();
+      if (exactDestination) destinations = [exactDestination, ...destinations].slice(0, limit);
+    }
+    const results = destinations.map((destination) => ({
+      ...destination,
+      displayName: [destination.state, destination.country].filter(Boolean).join(', '),
+      source: 'database',
+    }));
+
+    if (query && process.env.GOOGLE_PLACES_API_KEY) {
+      try {
+        const parameters = new URLSearchParams({
+          input: query,
+          types: 'geocode',
+          key: process.env.GOOGLE_PLACES_API_KEY,
+        });
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json?${parameters}`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!response.ok) throw new Error(`Places API returned HTTP ${response.status}`);
+        const payload = await response.json();
+        if (!['OK', 'ZERO_RESULTS'].includes(payload.status)) {
+          throw new Error(`Places API returned ${payload.status}`);
+        }
+        for (const prediction of payload.predictions || []) {
+          const name = prediction.structured_formatting?.main_text || prediction.description;
+          if (!name || results.some((item) => item.name.toLowerCase() === name.toLowerCase())) continue;
+          results.push({
+            name,
+            state: '',
+            country: '',
+            type: 'Place',
+            aliases: [],
+            description: prediction.description,
+            displayName: prediction.structured_formatting?.secondary_text || prediction.description,
+            placeId: prediction.place_id,
+            source: 'google_places',
+          });
+          if (results.length >= limit) break;
+        }
+      } catch (providerError) {
+        console.error('Google Places destination search failed:', providerError.message);
+        return res.status(502).json({ message: 'Destination provider is temporarily unavailable.' });
+      }
+    }
+
+    const normalizedQuery = normalize(destinationQuery || query);
+    results.sort((left, right) => {
+      const score = (item) => {
+        if (normalize(item.name) === normalizedQuery) return 0;
+        if (item.aliases?.some((alias) => normalize(alias) === normalizedQuery)) return 1;
+        if (normalize(item.state) === normalizedQuery || normalize(item.country) === normalizedQuery) return 2;
+        return 3;
+      };
+      return score(left) - score(right) || left.name.localeCompare(right.name);
+    });
+    return res.status(200).json({ destinations: results.slice(0, limit) });
   } catch (error) {
     console.error('Destination search failed:', error.message);
     return res.status(500).json({ message: 'Unable to search destinations.' });

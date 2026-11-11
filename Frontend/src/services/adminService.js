@@ -28,6 +28,31 @@ export const createAdminHotel = (payload) => request(
   'Unable to create hotel.',
 );
 
+export const importAdminHotels = (records) => request(
+  () => apiClient.post('/api/v1/admin/hotels/import', { records }),
+  'Unable to import hotel records.',
+);
+
+export const exportAdminHotels = async () => {
+  try {
+    const response = await apiClient.get('/api/v1/admin/hotels/export', { responseType: 'blob' });
+    return response.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, 'Unable to export hotel records.'));
+  }
+};
+
+export const uploadAdminHotelImage = (image) => {
+  const formData = new FormData();
+  formData.append('image', image);
+  return request(
+    () => apiClient.post('/api/v1/admin/hotels/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+    'Unable to upload hotel image.',
+  );
+};
+
 export const updateAdminHotel = (hotelId, payload) => request(
   () => apiClient.put(`/api/v1/admin/hotels/${hotelId}`, payload),
   'Unable to update hotel.',

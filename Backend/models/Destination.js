@@ -21,6 +21,7 @@ const destinationSchema = new mongoose.Schema(
 
 destinationSchema.index({ normalizedName: 1 }, { unique: true });
 destinationSchema.index({ state: 1, active: 1 });
+destinationSchema.index({ country: 1, active: 1 });
 destinationSchema.index({ aliases: 1 });
 
 const Destination = mongoose.models.Destination ||

@@ -11,9 +11,11 @@ favorites, payment, and booking routes remain in place.
 
 The curated destination catalog is in
 [`Backend/data/indiaDestinations.js`](../Backend/data/indiaDestinations.js) and
-covers all 28 states and 8 union territories. It is intentionally a starter
-dataset, not a hotel inventory, and can be extended with administrative
-destination CRUD. Destination coordinates are approximate reference points.
+covers destinations in all 28 states and 8 union territories plus requested
+international locations and aliases. It is a curated seed, not a complete list
+of every settlement worldwide. Configure Google Places for live worldwide
+autocomplete beyond the seed. Destination coordinates are approximate
+reference points.
 
 ## Local setup
 
@@ -24,8 +26,12 @@ Copy-Item Backend\.env.example Backend\.env
 Copy-Item Frontend\.env.example Frontend\.env
 ```
 
-Set `MONGO_URI` and a unique long `JWT_SECRET` in `Backend\.env`. Real Razorpay
-credentials are required only to accept live payments. Gemini is optional;
+Set `MONGO_URI` and a unique long `JWT_SECRET` in `Backend\.env`. To enable live
+global autocomplete, configure `GOOGLE_PLACES_API_KEY` on the backend only and
+enable Google Places API/billing for that key. To enable admin image upload,
+configure `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET`. These secrets must never be placed in frontend
+variables. Real Razorpay credentials are required only to accept live payments. Gemini is optional;
 without `GEMINI_API_KEY`, hotel recommendations fall back to ordinary database
 ranking. Keep both `.env` files private and out of source control.
 
@@ -33,6 +39,8 @@ ranking. Keep both `.env` files private and out of source control.
 Set-Location Backend
 npm install
 npm run seed:destinations
+# Optional development-only sample inventory; do not run in production.
+npm run seed:demo-hotels
 npm run dev
 ```
 
@@ -51,7 +59,8 @@ hosted elsewhere. No new runtime package is needed.
 ## Destination and listing data
 
 - `npm run seed:destinations` inserts missing curated destination records and
-  leaves existing destination records untouched.
+  leaves existing destination records untouched. Re-run it after catalog
+  additions; configure Google Places to search outside the curated set.
 - `npm run seed:demo-hotels` inserts clearly labeled synthetic demo listings
   for search-interface testing. Their names and descriptions say they are
   demos, the UI labels them, and booking endpoints reject them. Never use these
@@ -79,7 +88,8 @@ Each record requires `name`, `city`, `state`, `price`, `totalRooms`,
 fields include `location`, `streetAddress`, `country` (must be India),
 `currency`, `propertyType`, `description`, `images` (HTTP(S) URLs), `amenities`,
 `latitude`, `longitude`, `maxGuestsPerRoom`, `rating`, `ratingCount`, and
-`ratingSource`. Coordinates must be supplied together. Ratings should only be
+`ratingSource`, plus `facilities`, `roomTypes`, `category`, check-in/out times,
+and `workTripFriendly`. Coordinates must be supplied together. Ratings should only be
 included when their source and count are genuine and documented. Each
 provider/listing ID pair is upserted, so re-running a provider feed updates its
 records rather than creating duplicate records.
@@ -90,6 +100,15 @@ Availability is only as current as the feed; the application does not claim
 real-time provider availability unless a live authorized integration supplies
 it. For production integrations, schedule provider syncs and honor rate limits,
 deletion/update events, and the provider's source-of-truth rules.
+The JSON importer validates record shape and retains provider identifiers, but
+does not independently verify providers or mark imported records verified.
+
+Administrators can create/edit listings in `/admin`, import authorized JSON
+arrays of up to 500 records, export hotel records as JSON, and upload images
+when Cloudinary is configured. The protected admin endpoints are
+`POST /admin/hotels/import`, `GET /admin/hotels/export`, and
+`POST /admin/hotels/images` (multipart field `image`, maximum 5 MB).
+Admin-created/imported records are not marked verified.
 
 ## Search and booking APIs
 
@@ -97,8 +116,8 @@ All paths below are relative to `/api/v1`.
 
 | Method and path | Access | Purpose |
 |---|---|---|
-| `GET /destinations?search=bangalore&limit=10` | Public | Case-insensitive destination/autocomplete lookup, aliases included |
-| `GET /hotels/search?destination=Jaipur&checkIn=2030-01-10&checkOut=2030-01-12&guests=2&rooms=1&budget=8000&amenities=wifi,parking&propertyType=Hotel&minRating=4&page=1&limit=12` | Public | Paginated property search; each optional filter can be omitted |
+| `GET /destinations?search=Mumbai%2C%20India&limit=10` | Public | Case-insensitive destination/autocomplete lookup; names, state/country, aliases, and configured Places results |
+| `GET /hotels/search?city=Mumbai&checkIn=2030-01-10&checkOut=2030-01-12&guests=2&rooms=1&minPrice=1000&maxPrice=8000&amenities=wifi,parking&propertyType=Hotel&minRating=4&sortBy=rating&page=1&limit=12` | Public | Paginated property search; each optional filter can be omitted |
 | `GET /hotels/search` | Public | Search active, approved listings without a destination filter |
 | `POST /ai/recommendations` | Public | Rank database search results; falls back to database ranking when Gemini is unavailable |
 | `POST /bookings/create` | Authenticated | Create a booking using server-side listing price and locked inventory checks |
@@ -111,12 +130,16 @@ All paths below are relative to `/api/v1`.
 | `POST /destinations`, `PUT /destinations/:id` | Admin | Create/update a destination |
 | `PATCH /destinations/:id/status`, `DELETE /destinations/:id` | Admin | Deactivate/reactivate or delete a destination |
 | `GET /admin/hotels` | Admin | Search and filter listings, including `approvalStatus=pending` |
+| `POST /admin/hotels/import`, `GET /admin/hotels/export` | Admin | Import/export listing JSON |
+| `POST /admin/hotels/images` | Admin | Upload a JPEG/PNG/WebP/GIF image through configured Cloudinary |
 | `PATCH /admin/hotels/:id/approval` | Admin | Approve/reject a listing |
 | `PATCH /admin/users/:id/role` | Admin | Promote/demote a non-admin account between `CUSTOMER` and `OWNER` |
 
-Search query parameters: `destination`, `checkIn`, `checkOut`, `guests`,
-`rooms`, `budget` (maximum nightly amount), `amenities` (comma-separated),
-`propertyType` (or `type`), `minRating`, `page`, `limit` (maximum 30), and
+Search query parameters: `destination` (or `city`), `hotelName`, `state`,
+`country`, `checkIn`, `checkOut`, `guests`, `rooms`, `minPrice`, `maxPrice`
+(or `budget` for the maximum nightly amount), `amenities` (comma-separated),
+`propertyType` (or `type`), `minRating`, `workTrip`, `sortBy` (`price`,
+`price_desc`, `rating`, or `popularity`), `page`, `limit` (maximum 30), and
 `includeDemo`. `currency` may be supplied with a budget; its value must be a
 three-letter currency code. Without currency selection, the general search
 continues its existing numeric-price behavior. The AI recommendation form
@@ -194,9 +217,10 @@ database-ranked recommendations instead.
 
 ## Verification
 
-The automated backend tests cover destination coverage and aliases,
-case/whitespace normalization, strict destination query constraints, explicit
-currency and budget semantics, multiple required amenities, malformed
+The automated backend tests cover destination coverage, requested international
+destinations and aliases, case/whitespace normalization, city names with a
+country suffix, strict destination query constraints, explicit currency and
+budget semantics, multiple required amenities, malformed
 budget/date/guest input, legacy booking compatibility, room inventory helpers,
 owner/admin authorization, and missing Gemini configuration.
 
@@ -221,6 +245,21 @@ creation/cancellation, favorites, admin review, and payment in a non-production
 environment. No live database inventory, provider feed, or payment workflow is
 claimed as tested by the automated unit suite.
 
+Manual API checks after setting up MongoDB and starting the backend:
+
+```powershell
+Invoke-RestMethod "http://localhost:4545/api/v1/destinations?search=Mumbai%2C%20India"
+Invoke-RestMethod "http://localhost:4545/api/v1/hotels/search?city=Mumbai&checkIn=2026-11-11&checkOut=2026-11-18&guests=4&rooms=1"
+Invoke-RestMethod "http://localhost:4545/api/v1/hotels/search?city=London"
+```
+
+Repeat destination lookup with `mumbai`, `Mumbai`, and `MUMBAI`; then test
+Pune, Nanded, Hyderabad, Delhi, Goa, Dubai, and London. Seeded demo hotels are
+available for Mumbai, Pune, Nanded, Hyderabad, Delhi, Goa, Dubai, and London.
+They have a conspicuous demo label and booking is disabled. A destination with
+no authorized or admin-entered inventory correctly returns an empty hotel
+result; seeding a destination never invents hotel supply.
+
 For production, deploy the backend and frontend separately, use managed MongoDB
 with backups and network restrictions, set environment variables in the hosting
 provider's secret manager, use HTTPS and production Razorpay credentials, and
@@ -230,3 +269,24 @@ administrative credentials, monitor provider imports and inventory freshness,
 and verify payment/webhook configuration independently before accepting
 payments. A deployed destination catalog does not mean hotels or live
 availability exist for every destination.
+
+### Vercel frontend and hosted backend
+
+1. Deploy `Backend/` to a Node.js host (for example Render, Railway, or Fly.io)
+   with `Backend` as the service root and `node index.js` as the start command.
+   Configure `MONGO_URI`, `JWT_SECRET`, `PORT` (if required by the host),
+   `CLIENT_URL`, and any payment/AI/provider keys in that host's secret manager.
+   Configure `GOOGLE_PLACES_API_KEY` and Cloudinary keys only if those services
+   are enabled. Do not commit `.env` files.
+2. Configure MongoDB network access for the backend host and use a production
+   database with backups. Run `npm run seed:destinations` from a controlled
+   backend deployment/release task. Do not run `seed:demo-hotels` in production.
+3. Import the existing `Frontend/` directory into Vercel with `Frontend` as the
+   project root, build command `npm run build`, and output directory `dist`.
+   Set `VITE_API_URL` to the public HTTPS backend origin, without a trailing
+   path. Vite variables are public; never put Google, Cloudinary, MongoDB, JWT,
+   or payment secrets in `VITE_*` variables.
+4. Set the backend's `CLIENT_URL` to the deployed frontend origin, verify its
+   CORS policy for that origin, and test destination search, hotel listing,
+   authentication, booking, payments, image upload, and admin routes on the
+   deployed environment before launch.

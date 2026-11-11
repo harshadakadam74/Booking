@@ -34,11 +34,13 @@ const createResponse = () => ({
 });
 
 test('curated destinations cover every Indian state and union territory', () => {
-  const states = new Set(destinations.map((destination) => destination.state));
+  const states = new Set(destinations
+    .filter((destination) => destination.country === 'India' && destination.type !== 'country')
+    .map((destination) => destination.state));
   assert.deepEqual([...states].sort(), [...expectedStatesAndTerritories].sort());
   assert.ok(destinations.length >= 100);
   assert.ok(destinations.every((destination) => (
-    destination.country === 'India' &&
+    typeof destination.country === 'string' && destination.country.length > 1 &&
     destination.coordinates.latitude >= -90 &&
     destination.coordinates.latitude <= 90 &&
     destination.coordinates.longitude >= -180 &&
@@ -53,6 +55,9 @@ test('destination aliases and normalized keys are unique and support common spel
   assert.ok(destinations.some((destination) => destination.name === 'Bengaluru' && destination.aliases.includes('Bangalore')));
   assert.ok(destinations.some((destination) => destination.name === 'Mysuru' && destination.aliases.includes('Mysore')));
   assert.ok(destinations.some((destination) => destination.name === 'Puducherry' && destination.aliases.includes('Pondicherry')));
+  for (const name of ['Nanded', 'Hingoli', 'Hyderabad', 'New Delhi', 'Goa', 'Dubai', 'London', 'Paris', 'Singapore', 'Bangkok', 'New York', 'Tokyo', 'Maldives', 'Bali', 'Switzerland', 'India', 'United States']) {
+    assert.ok(destinations.some((destination) => destination.name === name), `${name} is present in the destination catalog`);
+  }
 });
 
 test('destination validation rejects incomplete or malformed coordinates', () => {
@@ -87,6 +92,46 @@ test('hotel search accepts optional filters and normalizes amenities case-insens
   assert.equal(parsed.criteria.budget, undefined);
   assert.equal(parsed.criteria.page, 2);
   assert.equal(parsed.criteria.includeDemo, true);
+});
+
+test('city alias, hotel name, price range, sort, and work-trip filters are accepted', () => {
+  const parsed = parseHotelSearch({
+    city: 'Mumbai, India',
+    hotelName: 'Central',
+    minPrice: '1000',
+    maxPrice: '5000',
+    workTrip: 'true',
+    sortBy: 'rating',
+  });
+  assert.equal(parsed.error, undefined);
+  assert.equal(parsed.criteria.destination, 'Mumbai, India');
+  assert.equal(parsed.criteria.minPrice, 1000);
+  assert.equal(parsed.criteria.budget, 5000);
+  assert.equal(parsed.criteria.workTrip, true);
+  assert.equal(parsed.criteria.sortBy, 'rating');
+  assert.equal(parsed.criteria.hotelName, 'Central');
+});
+
+test('Mumbai with a country suffix resolves as a city, not all hotels in that country', async () => {
+  const originalFindOne = Destination.findOne;
+  Destination.findOne = () => ({
+    lean: async () => ({
+      name: 'Mumbai',
+      state: 'Maharashtra',
+      country: 'India',
+      aliases: ['Bombay'],
+    }),
+  });
+  try {
+    const parsed = parseHotelSearch({ city: 'Mumbai, India' });
+    const pipeline = await buildHotelPipeline(parsed.criteria);
+    const destinationFilter = pipeline[0].$match.$and.find((clause) =>
+      clause.$or?.some((part) => part.normalizedCity));
+    assert.deepEqual(destinationFilter.$or[0].normalizedCity.$in, ['mumbai', 'bombay']);
+    assert.equal(destinationFilter.$or.some((part) => part.country), false);
+  } finally {
+    Destination.findOne = originalFindOne;
+  }
 });
 
 test('all requested amenities remain required and are whitespace-normalized', () => {
