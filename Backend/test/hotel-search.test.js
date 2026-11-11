@@ -2,10 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const destinations = require('../data/indiaDestinations');
 const { parseHotelSearch, normalize, buildHotelPipeline } = require('../services/hotelSearch');
-const { activeBookingStatuses, getRemainingRooms } = require('../services/bookingInventory');
+const {
+  activeBookingStatuses,
+  findRoomType,
+  getRemainingRooms,
+} = require('../services/bookingInventory');
 const BookingController = require('../controllers/BookingController');
 const { propertyOwner } = require('../middlewares/PropertyOwnerMiddleware');
 const { validateDestination } = require('../controllers/DestinationController');
+const PaymentService = require('../services/PaymentService');
 const Booking = require('../models/Booking');
 const mongoose = require('mongoose');
 const Destination = require('../models/Destination');
@@ -216,11 +221,61 @@ test('date search requires a future, increasing stay range', () => {
   assert.match(BookingController.getDateRangeError(yesterday, tomorrow), /past/);
 });
 
+test('booking eligibility failures are returned as structured reasons', async () => {
+  const response = createResponse();
+  await BookingController.getBookingEligibility({
+    body: {
+      checkInDate: 'invalid',
+      checkOutDate: '2030-01-03',
+      numberOfGuests: 0,
+      numberOfRooms: 0,
+    },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.eligibility.eligible, false);
+  assert.deepEqual(
+    response.body.eligibility.reasons.map(({ code }) => code),
+    ['HOTEL_REQUIRED', 'INVALID_DATES', 'INVALID_GUESTS', 'INVALID_ROOMS']
+  );
+});
+
+test('Razorpay signatures are verified safely, including malformed signatures', () => {
+  const crypto = require('crypto');
+  const orderId = 'order_test';
+  const paymentId = 'payment_test';
+  const secret = 'test-secret';
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${orderId}|${paymentId}`)
+    .digest('hex');
+
+  assert.equal(PaymentService.verifyRazorpaySignature(orderId, paymentId, signature, secret), true);
+  assert.equal(PaymentService.verifyRazorpaySignature(orderId, paymentId, 'bad', secret), false);
+  assert.equal(PaymentService.verifyRazorpaySignature('', paymentId, signature, secret), false);
+});
+
 test('room inventory cannot exceed the smaller of listed and total room counts', () => {
   assert.equal(getRemainingRooms({ totalRooms: 10, availableRooms: 8 }, 3), 5);
   assert.equal(getRemainingRooms({ totalRooms: 10, availableRooms: 0 }, 0), 0);
   assert.equal(getRemainingRooms({ totalRooms: 4, availableRooms: 4 }, 5), 0);
   assert.equal(getRemainingRooms({ totalRooms: 4 }, 1), 3);
+});
+
+test('embedded room types are resolved by ID and inventory is bounded by listed and total counts', () => {
+  const roomTypeId = new mongoose.Types.ObjectId();
+  const property = {
+    roomTypes: [{
+      _id: roomTypeId,
+      name: 'Standard',
+      totalRooms: 4,
+      availableRooms: 3,
+    }],
+  };
+
+  assert.equal(findRoomType(property, roomTypeId.toString()).name, 'Standard');
+  assert.equal(findRoomType(property, new mongoose.Types.ObjectId().toString()), null);
+  assert.equal(getRemainingRooms(property.roomTypes[0], 2), 1);
 });
 
 test('pending, confirmed, and checked-in bookings all consume inventory', () => {

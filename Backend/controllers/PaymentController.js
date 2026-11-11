@@ -1,6 +1,9 @@
+const { randomUUID } = require('crypto');
 const PaymentService = require('../services/PaymentService');
 const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
+const Property = require('../models/Property');
+const { findRoomType } = require('../services/bookingInventory');
 const ApiResponse = require('../Utils/ApiResponse');
 
 const recordSuccessfulBookingPayment = async (bookingId, paymentDetails) => {
@@ -25,6 +28,7 @@ const recordSuccessfulBookingPayment = async (bookingId, paymentDetails) => {
 };
 
 const createOrder = async (req, res) => {
+  let bookingLockToken;
   try {
     const { bookingId, paymentMethod = 'RAZORPAY' } = req.body;
 
@@ -42,8 +46,78 @@ const createOrder = async (req, res) => {
     if (booking.bookingStatus !== 'PENDING') {
       return ApiResponse.error(res, 409, 'Payment is only available for pending bookings.');
     }
+    const listing = booking.propertyId
+      ? await Property.findById(booking.propertyId)
+      : await Property.findOne({ name: booking.property });
+    if (!listing || listing.active === false || (listing.approvalStatus && listing.approvalStatus !== 'approved') || listing.isDemo) {
+      return ApiResponse.error(res, 409, 'This hotel is no longer eligible for payment.');
+    }
+    if (booking.roomTypeId && !findRoomType(listing, booking.roomTypeId)) {
+      return ApiResponse.error(res, 409, 'The selected room type is no longer available.');
+    }
 
     const amount = Number(booking.totalPrice);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return ApiResponse.error(res, 400, 'Booking amount is invalid.');
+    }
+
+    const findPendingOrder = () => Payment.findOne({
+      bookingId,
+      userId: req.user._id,
+      paymentMethod,
+      paymentStatus: 'PENDING',
+    }).sort({ createdAt: -1 });
+    const existingPayment = await findPendingOrder();
+    if (existingPayment?.metadata?.id) {
+      return ApiResponse.success(res, {
+        order: existingPayment.metadata,
+        payment: existingPayment,
+        key: process.env.RAZORPAY_KEY_ID,
+      }, 'Existing payment order returned');
+    }
+
+    bookingLockToken = randomUUID();
+    const now = new Date();
+    const lockedBooking = await Booking.findOneAndUpdate(
+      {
+        _id: bookingId,
+        user: req.user._id,
+        bookingStatus: 'PENDING',
+        paymentStatus: { $ne: 'SUCCESS' },
+        $or: [
+          { 'paymentOrderLock.expiresAt': { $exists: false } },
+          { 'paymentOrderLock.expiresAt': { $lt: now } },
+        ],
+      },
+      {
+        $set: {
+          'paymentOrderLock.token': bookingLockToken,
+          'paymentOrderLock.expiresAt': new Date(now.getTime() + 120000),
+        },
+      },
+      { new: true }
+    );
+    if (!lockedBooking) {
+      const paymentCreatedByAnotherRequest = await findPendingOrder();
+      if (paymentCreatedByAnotherRequest?.metadata?.id) {
+        return ApiResponse.success(res, {
+          order: paymentCreatedByAnotherRequest.metadata,
+          payment: paymentCreatedByAnotherRequest,
+          key: process.env.RAZORPAY_KEY_ID,
+        }, 'Existing payment order returned');
+      }
+      return ApiResponse.error(res, 409, 'A payment order is already being created. Please retry shortly.');
+    }
+
+    const paymentCreatedDuringLock = await findPendingOrder();
+    if (paymentCreatedDuringLock?.metadata?.id) {
+      return ApiResponse.success(res, {
+        order: paymentCreatedDuringLock.metadata,
+        payment: paymentCreatedDuringLock,
+        key: process.env.RAZORPAY_KEY_ID,
+      }, 'Existing payment order returned');
+    }
+
     const order = await PaymentService.createRazorpayOrder({
       amount: Math.round(amount * 100),
       receipt: `booking_${bookingId}`,
@@ -81,6 +155,17 @@ const createOrder = async (req, res) => {
         ? 'Razorpay authentication failed. Check that your Test Mode key ID and secret match.'
         : errorMessage
     );
+  } finally {
+    if (bookingLockToken) {
+      try {
+        await Booking.updateOne(
+          { _id: req.body?.bookingId, 'paymentOrderLock.token': bookingLockToken },
+          { $unset: { paymentOrderLock: 1 } }
+        );
+      } catch (error) {
+        console.error('Unable to release payment order lock:', error.message);
+      }
+    }
   }
 };
 
@@ -118,6 +203,17 @@ const verifyPayment = async (req, res) => {
 
     if (!verified) {
       return ApiResponse.error(res, 400, 'Payment could not be verified');
+    }
+
+    const gatewayPayment = await PaymentService.retrieveRazorpayPayment(paymentId);
+    const expectedAmount = Math.round(Number(booking.totalPrice) * 100);
+    if (
+      gatewayPayment.order_id !== orderId ||
+      gatewayPayment.amount !== expectedAmount ||
+      gatewayPayment.currency !== 'INR' ||
+      gatewayPayment.status !== 'captured'
+    ) {
+      return ApiResponse.error(res, 400, 'The payment gateway has not confirmed the expected captured payment.');
     }
 
     pendingPayment.transactionId = paymentId;
@@ -165,7 +261,7 @@ const getPaymentHistory = async (req, res) => {
 
 const createDummyPayment = async (req, res) => {
   try {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV !== 'development') {
       return ApiResponse.error(res, 404, 'Dummy payments are disabled in production');
     }
 

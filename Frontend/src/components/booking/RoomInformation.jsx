@@ -63,7 +63,7 @@ const RoomInformation = ({ booking }) => {
           </div>
 
           <p className="font-bold text-[#082B5C]">
-            {booking?.propertyType || "Deluxe Room"}
+            {booking?.roomTypeName || booking?.propertyType || "Room details unavailable"}
           </p>
 
         </div>

@@ -88,7 +88,16 @@ const forgotPassword = async(req, res) => {
         const resetToken = await UserService.setResetPasswordToken(email);
         
         // send email with reset link
-        const resetUrl = `http://localhost:4545/reset-password/${resetToken}`;
+        const frontendOrigin = process.env.FRONTEND_URL ||
+            process.env.CLIENT_URL?.split(',')[0]?.trim() ||
+            (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '');
+        if (!frontendOrigin) {
+            throw new Error('FRONTEND_URL must be configured before sending password reset emails');
+        }
+        const resetUrl = new URL(
+            `/reset-password?token=${encodeURIComponent(resetToken)}`,
+            frontendOrigin
+        ).toString();
         const html = `<p>You requested a password reset </p>
                       <p>Click this link to reset your password:<a href="${resetUrl}">${resetUrl}</a></p>`;
 

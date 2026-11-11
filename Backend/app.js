@@ -1,10 +1,26 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const mongoose = require('mongoose');
 const { errorHandler } = require('./middlewares/ErrorMiddleware');
- 
+
+const allowedOrigins = new Set([
+  'https://booking-l2vm.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...(process.env.CLIENT_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]);
+
+app.use(cors({
+  origin(origin, callback) {
+    callback(null, !origin || allowedOrigins.has(origin));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
-app.use(cors());
 
 const Auth_Route = require('./routes/AuthRoutes');
 const User_Route = require('./routes/UserRoutes');
@@ -17,6 +33,14 @@ const Admin_Route = require('./routes/AdminRoutes');
 const Property_Route = require('./routes/PropertyRoutes');
 const AI_Route = require('./routes/AIRoutes');
 const Destination_Route = require('./routes/DestinationRoutes');
+
+app.get('/api/v1/health', (req, res) => {
+  const ready = mongoose.connection.readyState === 1;
+  return res.status(ready ? 200 : 503).json({
+    status: ready ? 'ok' : 'unavailable',
+    database: ready ? 'connected' : 'disconnected',
+  });
+});
 
 app.use('/api/v1/auth', Auth_Route);
 app.use('/api/v1/user', User_Route);

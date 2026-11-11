@@ -15,6 +15,17 @@ const bookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Property",
     },
+    roomTypeId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    roomTypeName: {
+      type: String,
+      trim: true,
+    },
+    idempotencyKey: {
+      type: String,
+      maxlength: 128,
+    },
     checkInDate: {
       type: Date,
       required: true,
@@ -64,6 +75,10 @@ const bookingSchema = new mongoose.Schema(
       paymentId: String,
       amount: Number,
     },
+    paymentOrderLock: {
+      token: { type: String, select: false },
+      expiresAt: { type: Date, select: false },
+    },
     specialRequests: String,
     guestName: String,
     guestEmail: String,
@@ -82,6 +97,10 @@ const bookingSchema = new mongoose.Schema(
 
 bookingSchema.index({ propertyId: 1, bookingStatus: 1, checkInDate: 1, checkOutDate: 1 });
 bookingSchema.index({ property: 1, bookingStatus: 1, checkInDate: 1, checkOutDate: 1 });
+bookingSchema.index(
+  { user: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } }
+);
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

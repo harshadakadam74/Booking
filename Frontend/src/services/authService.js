@@ -40,6 +40,24 @@ export const loginUser = async (payload) => {
   }
 };
 
+export const requestPasswordReset = async (email) => {
+  try {
+    const response = await apiClient.post('/api/v1/auth/forgot-password', { email });
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to send password reset email.'));
+  }
+};
+
+export const resetPassword = async (payload) => {
+  try {
+    const response = await apiClient.post('/api/v1/auth/reset-password', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Unable to reset your password.'));
+  }
+};
+
 export const fetchUserProfile = async () => {
   try {
     const token = localStorage.getItem("authToken");

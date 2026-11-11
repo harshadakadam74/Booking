@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
-    "start": "nodemon index.js",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "seed:destinations": "node scripts/seedDestinations.js",
     "seed:demo-hotels": "node scripts/seedDemoHotels.js",

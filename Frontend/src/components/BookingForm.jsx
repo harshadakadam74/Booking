@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setLoading, setError, addBooking } from "../bookingSlice";
 import { createBooking } from "../services/bookingService";
@@ -16,6 +16,7 @@ export default function BookingForm() {
   const dispatch = useDispatch();
 
   const { loading } = useSelector((state) => state.booking);
+  const idempotencyKey = useRef(null);
 
   const [formData, setFormData] = useState({
     property: "",
@@ -83,7 +84,8 @@ export default function BookingForm() {
     dispatch(setError(null));
 
     try {
-      const response = await createBooking(formData);
+      idempotencyKey.current ||= window.crypto.randomUUID();
+      const response = await createBooking(formData, idempotencyKey.current);
 
       if (response?.booking) {
         dispatch(addBooking(response.booking));
@@ -101,6 +103,7 @@ export default function BookingForm() {
         pricePerNight: 0,
         specialRequests: "",
       });
+      idempotencyKey.current = null;
     } catch (error) {
       const errorMsg =
         error?.response?.data?.message ||

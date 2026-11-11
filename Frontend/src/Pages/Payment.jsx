@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   CreditCard,
@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
+  checkBookingEligibility,
   createBooking,
   createDummyPayment,
   createPaymentOrder,
@@ -25,15 +26,12 @@ const Payment = () => {
   const navigate = useNavigate();
 
   const { property, searchParams } = location.state || {};
+  const roomTypes = Array.isArray(property?.roomTypes) ? property.roomTypes : [];
+  const initialRoomTypeId = String(property?.roomTypes?.[0]?._id || "");
+  const [roomTypeId, setRoomTypeId] = useState(initialRoomTypeId);
+  const selectedRoomType = roomTypes.find((roomType) => String(roomType._id) === roomTypeId);
 
   const [paymentMethod, setPaymentMethod] = useState("card");
-
-  const [cardDetails, setCardDetails] = useState({
-    number: "",
-    expiry: "",
-    cvv: "",
-    name: "",
-  });
 
   const [billingAddress, setBillingAddress] = useState({
     address: "",
@@ -45,8 +43,17 @@ const Payment = () => {
   const [errors, setErrors] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [eligibility, setEligibility] = useState(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(true);
   const [locationStatus, setLocationStatus] = useState("");
   const [detectedGuestLocation, setDetectedGuestLocation] = useState(null);
+  const bookingIdempotencyKey = useRef(null);
+  const pricePerNight = Number(
+    eligibility?.pricing?.pricePerNight ??
+      selectedRoomType?.price ??
+      property?.price ??
+      0
+  );
 
   const storedUser = localStorage.getItem("user");
 
@@ -88,47 +95,85 @@ const Payment = () => {
 
   const calculateTotal = () => {
     if (!property) return 0;
+    if (Number.isFinite(Number(eligibility?.pricing?.totalPrice))) {
+      return Number(eligibility.pricing.totalPrice);
+    }
 
     const nights = calculateNights();
     const rooms = Number(searchParams?.guests?.rooms || 1);
-    const price = Number(property.price || 0);
-
-    return price * nights * rooms;
+    return pricePerNight * nights * rooms;
   };
 
-  // =========================================================
-  // CARD NUMBER FORMAT
-  // =========================================================
+  useEffect(() => {
+    setRoomTypeId(initialRoomTypeId);
+  }, [initialRoomTypeId, property?._id, property?.id, property?.name]);
 
-  const formatCardNumber = (value) => {
-    const digits = value
-      .replace(/\D/g, "")
-      .slice(0, 16);
+  useEffect(() => {
+    let active = true;
 
-    const parts = [];
+    const validateEligibility = async () => {
+      if (!property || !searchParams?.dates?.startDate || !searchParams?.dates?.endDate) {
+        setEligibility({
+          eligible: false,
+          reasons: [{ code: "MISSING_BOOKING_DETAILS", message: "Hotel and stay dates are required." }],
+        });
+        setEligibilityLoading(false);
+        return;
+      }
 
-    for (let i = 0; i < digits.length; i += 4) {
-      parts.push(digits.substring(i, i + 4));
-    }
+      setEligibilityLoading(true);
+      setEligibility(null);
+      const propertyId = property._id || property.id;
+      const request = {
+        property: property.name,
+        checkInDate: searchParams.dates.startDate,
+        checkOutDate: searchParams.dates.endDate,
+        numberOfGuests:
+          Number(searchParams?.guests?.adults || 1) +
+          Number(searchParams?.guests?.children || 0),
+        numberOfRooms: Number(searchParams?.guests?.rooms || 1),
+        ...(roomTypeId ? { roomTypeId } : {}),
+      };
+      if (typeof propertyId === "string" && /^[a-f\d]{24}$/i.test(propertyId)) {
+        request.propertyId = propertyId;
+      }
 
-    return parts.join(" ");
-  };
+      try {
+        const result = await checkBookingEligibility(request);
+        if (active) {
+          setEligibility(result || {
+            eligible: false,
+            reasons: [{ code: "VALIDATION_FAILED", message: "The server did not return booking eligibility." }],
+          });
+        }
+      } catch (error) {
+        if (active) {
+          setEligibility({
+            eligible: false,
+            reasons: [{
+              code: "VALIDATION_FAILED",
+              message: error.response?.data?.message || error.message || "Unable to validate this booking.",
+            }],
+          });
+        }
+      } finally {
+        if (active) setEligibilityLoading(false);
+      }
+    };
 
-  // =========================================================
-  // EXPIRY FORMAT
-  // =========================================================
-
-  const formatExpiry = (value) => {
-    const digits = value
-      .replace(/\D/g, "")
-      .slice(0, 4);
-
-    if (digits.length >= 2) {
-      return `${digits.substring(0, 2)}/${digits.substring(2)}`;
-    }
-
-    return digits;
-  };
+    validateEligibility();
+    return () => {
+      active = false;
+    };
+  }, [
+    property,
+    searchParams?.dates?.startDate,
+    searchParams?.dates?.endDate,
+    searchParams?.guests?.adults,
+    searchParams?.guests?.children,
+    searchParams?.guests?.rooms,
+    roomTypeId,
+  ]);
 
   // =========================================================
   // VALIDATION
@@ -272,6 +317,14 @@ const Payment = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
+    if (eligibilityLoading || eligibility?.eligible !== true) {
+      setBookingError(
+        eligibility?.reasons?.map((reason) => reason.message).join(" ") ||
+          "Wait for the server to confirm this hotel is bookable."
+      );
+      return;
+    }
+
     if (!property) {
       setBookingError(
         "Booking information is missing. Please select a hotel again."
@@ -314,12 +367,6 @@ const Payment = () => {
         numberOfRooms:
           Number(searchParams?.guests?.rooms || 1),
 
-        pricePerNight: Number(property.price || 0),
-
-        totalPrice: calculateTotal(),
-
-        paymentMethod: "RAZORPAY",
-
         specialRequests: "",
 
         guestName: user?.name || "",
@@ -338,8 +385,10 @@ const Payment = () => {
       if (typeof propertyId === "string" && /^[a-f\d]{24}$/i.test(propertyId)) {
         bookingPayload.propertyId = propertyId;
       }
+      if (roomTypeId) bookingPayload.roomTypeId = roomTypeId;
 
-      const response = await createBooking(bookingPayload);
+      bookingIdempotencyKey.current ||= window.crypto.randomUUID();
+      const response = await createBooking(bookingPayload, bookingIdempotencyKey.current);
 
       const booking = response?.booking || response || null;
       const bookingId = booking?._id || booking?.id;
@@ -364,7 +413,7 @@ const Payment = () => {
       if (!loaded) throw new Error("Razorpay Checkout failed to load");
 
       const { order, key } = await createPaymentOrder(bookingId);
-      await new Promise((resolve, reject) => {
+      const confirmedBooking = await new Promise((resolve, reject) => {
         const razorpay = new window.Razorpay({
           key,
           amount: order.amount,
@@ -380,8 +429,8 @@ const Payment = () => {
           theme: { color: "#0B5ED7" },
           handler: async (paymentResponse) => {
             try {
-              await verifyPayment(bookingId, paymentResponse);
-              resolve();
+              const verificationResult = await verifyPayment(bookingId, paymentResponse);
+              resolve(verificationResult?.booking);
             } catch (error) {
               reject(new Error(error?.message || "Payment verification failed"));
             }
@@ -394,7 +443,13 @@ const Payment = () => {
 
       navigate("/payment-success", {
         replace: true,
-        state: { property, searchParams, total: calculateTotal(), booking, paymentMethod: "RAZORPAY" },
+        state: {
+          property,
+          searchParams,
+          total: calculateTotal(),
+          booking: confirmedBooking || booking,
+          paymentMethod: "RAZORPAY",
+        },
       });
     } catch (error) {
       console.error("Booking creation error:", error);
@@ -554,11 +609,38 @@ const Payment = () => {
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Enter your payment and billing information.
+                    Continue to Razorpay Checkout to enter payment details securely.
                   </p>
                 </div>
 
                 {/* PAYMENT METHOD */}
+
+                {roomTypes.length > 0 && (
+                  <label className="mb-8 block text-sm font-semibold text-slate-700">
+                    Room type
+                    <select
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                      value={roomTypeId}
+                      onChange={(event) => {
+                        setRoomTypeId(event.target.value);
+                        setBookingError("");
+                      }}
+                      required
+                    >
+                      <option value="">Select a room type</option>
+                      {roomTypes.map((roomType) => (
+                        <option key={roomType._id} value={roomType._id}>
+                          {roomType.name} — ₹{Number(roomType.price ?? property.price).toLocaleString("en-IN")} / night
+                        </option>
+                      ))}
+                    </select>
+                    {selectedRoomType && (
+                      <span className="mt-1 block text-xs font-normal text-slate-500">
+                        Room inventory will be checked for your selected dates.
+                      </span>
+                    )}
+                  </label>
+                )}
 
                 <div className="mb-8">
 
@@ -614,6 +696,7 @@ const Payment = () => {
 
                     <button
                       type="button"
+                      disabled={!import.meta.env.DEV}
                       onClick={() => {
                         setPaymentMethod("dummy");
                         setBookingError("");
@@ -656,173 +739,12 @@ const Payment = () => {
                 {paymentMethod === "card" ? (
                   <form onSubmit={handleSubmit}>
 
-                    {/* CARD INFORMATION */}
-
-                    <div className="mb-8">
-
-                      <div className="mb-5 flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
-                          <CreditCard
-                            size={18}
-                            className="text-blue-700"
-                          />
-                        </div>
-
-                        <div>
-                          <h3 className="font-bold text-slate-900">
-                            Card Information
-                          </h3>
-
-                          <p className="text-xs text-slate-500">
-                            Your card details are encrypted
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-5">
-
-                        {/* CARDHOLDER */}
-
-                        <div>
-                          <label className="mb-2 block text-sm font-semibold text-slate-700">
-                            Cardholder Name
-                          </label>
-
-                          <input
-                            type="text"
-                            autoComplete="cc-name"
-                            placeholder="John Doe"
-                            className={inputClass("name")}
-                            value={cardDetails.name}
-                            onChange={(e) =>
-                              setCardDetails((prev) => ({
-                                ...prev,
-                                name: e.target.value,
-                              }))
-                            }
-                          />
-
-                          {errors.name && (
-                            <p className="mt-1 text-sm font-medium text-red-500">
-                              {errors.name}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* CARD NUMBER */}
-
-                        <div>
-                          <label className="mb-2 block text-sm font-semibold text-slate-700">
-                            Card Number
-                          </label>
-
-                          <div className="relative">
-                            <CreditCard
-                              size={18}
-                              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                            />
-
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              autoComplete="cc-number"
-                              placeholder="1234 5678 9012 3456"
-                              className={`${inputClass(
-                                "number"
-                              )} pl-11`}
-                              value={cardDetails.number}
-                              onChange={(e) =>
-                                setCardDetails((prev) => ({
-                                  ...prev,
-                                  number:
-                                    formatCardNumber(
-                                      e.target.value
-                                    ),
-                                }))
-                              }
-                              maxLength={19}
-                            />
-                          </div>
-
-                          {errors.number && (
-                            <p className="mt-1 text-sm font-medium text-red-500">
-                              {errors.number}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* EXPIRY + CVV */}
-
-                        <div className="grid gap-5 sm:grid-cols-2">
-
-                          <div>
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-                              Expiry Date
-                            </label>
-
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              autoComplete="cc-exp"
-                              placeholder="MM/YY"
-                              className={inputClass(
-                                "expiry"
-                              )}
-                              value={cardDetails.expiry}
-                              onChange={(e) =>
-                                setCardDetails((prev) => ({
-                                  ...prev,
-                                  expiry:
-                                    formatExpiry(
-                                      e.target.value
-                                    ),
-                                }))
-                              }
-                              maxLength={5}
-                            />
-
-                            {errors.expiry && (
-                              <p className="mt-1 text-sm font-medium text-red-500">
-                                {errors.expiry}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-                              CVV
-                            </label>
-
-                            <input
-                              type="password"
-                              inputMode="numeric"
-                              autoComplete="cc-csc"
-                              placeholder="•••"
-                              className={inputClass("cvv")}
-                              value={cardDetails.cvv}
-                              onChange={(e) =>
-                                setCardDetails((prev) => ({
-                                  ...prev,
-                                  cvv: e.target.value
-                                    .replace(
-                                      /\D/g,
-                                      ""
-                                    )
-                                    .slice(0, 4),
-                                }))
-                              }
-                              maxLength={4}
-                            />
-
-                            {errors.cvv && (
-                              <p className="mt-1 text-sm font-medium text-red-500">
-                                {errors.cvv}
-                              </p>
-                            )}
-                          </div>
-
-                        </div>
-                      </div>
+                    <div className="mb-8 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                      <Shield size={20} className="mt-0.5 shrink-0" />
+                      <p>
+                        Payment details are collected only in Razorpay Checkout. FastBooking
+                        does not request or store card numbers or security codes.
+                      </p>
                     </div>
 
                     {/* BILLING ADDRESS */}
@@ -1012,6 +934,16 @@ const Payment = () => {
                       </div>
                     )}
 
+                    {eligibilityLoading && (
+                      <p className="mb-5 text-sm text-slate-600">Checking hotel availability…</p>
+                    )}
+                    {!eligibilityLoading && eligibility?.eligible !== true && (
+                      <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                        {eligibility?.reasons?.map((reason) => reason.message).join(" ") ||
+                          "The server could not confirm this hotel is bookable."}
+                      </div>
+                    )}
+
                     {locationStatus && (
                       <div className="mb-5 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
                         <MapPin size={16} />
@@ -1023,7 +955,7 @@ const Payment = () => {
 
                     <button
                       type="submit"
-                      disabled={isProcessing}
+                      disabled={isProcessing || eligibilityLoading || eligibility?.eligible !== true}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-700 to-blue-800 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-800 hover:to-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isProcessing ? (
@@ -1069,7 +1001,7 @@ const Payment = () => {
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={isProcessing}
+                      disabled={isProcessing || eligibilityLoading || eligibility?.eligible !== true}
                       className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-700 px-8 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isProcessing ? (
@@ -1243,6 +1175,21 @@ const Payment = () => {
                       </div>
                     </div>
 
+                    {selectedRoomType && (
+                      <div className="flex gap-3">
+                        <Building2
+                          size={18}
+                          className="mt-0.5 shrink-0 text-blue-700"
+                        />
+                        <div>
+                          <p className="text-xs text-slate-400">Room type</p>
+                          <p className="mt-0.5 text-sm font-semibold text-slate-700">
+                            {selectedRoomType.name}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
 
@@ -1252,11 +1199,11 @@ const Payment = () => {
 
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">
-                      {property.currency || "INR"} {Number(property.price || 0).toLocaleString("en-IN")} × {nights} nights × {rooms} rooms
+                      {property.currency || "INR"} {pricePerNight.toLocaleString("en-IN")} × {nights} nights × {rooms} rooms
                     </span>
 
                     <span className="font-semibold text-slate-800">
-                      {property.currency || "INR"} {(Number(property.price || 0) * nights * rooms).toLocaleString("en-IN")}
+                      {property.currency || "INR"} {calculateTotal().toLocaleString("en-IN")}
                     </span>
                   </div>
 

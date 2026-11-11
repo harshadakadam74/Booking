@@ -4,6 +4,8 @@ const { authenticate } = require("../middlewares/Authenticate");
 
 const router = express.Router();
 
+router.post("/eligibility", authenticate, BookingController.getBookingEligibility);
+
 // Create booking (authenticated users)
 router.post("/create", authenticate, BookingController.createBooking);
 

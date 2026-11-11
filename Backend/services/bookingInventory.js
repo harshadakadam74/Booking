@@ -13,6 +13,10 @@ const getRemainingRooms = (property, bookedRooms = 0) => {
   return Math.max(0, Math.min(totalRooms, listedRooms) - Number(bookedRooms || 0));
 };
 
+const findRoomType = (property, roomTypeId) => (
+  property?.roomTypes?.find((roomType) => String(roomType._id) === String(roomTypeId)) || null
+);
+
 const acquirePropertyBookingLock = async (propertyId) => {
   const token = randomUUID();
   const now = new Date();
@@ -48,7 +52,7 @@ const releasePropertyBookingLock = async (propertyId, token) => {
   );
 };
 
-const getBookedRooms = async ({ property, checkIn, checkOut, excludeBookingId }) => {
+const getBookedRooms = async ({ property, checkIn, checkOut, excludeBookingId, roomTypeId }) => {
   const filter = {
     bookingStatus: { $in: activeBookingStatuses },
     checkInDate: { $lt: checkOut },
@@ -58,6 +62,14 @@ const getBookedRooms = async ({ property, checkIn, checkOut, excludeBookingId })
       { property: property.name, propertyId: { $exists: false } },
     ],
   };
+  if (roomTypeId) {
+    filter.$and = [{
+      $or: [
+        { roomTypeId: new mongoose.Types.ObjectId(roomTypeId) },
+        { roomTypeId: { $exists: false } },
+      ],
+    }];
+  }
   if (excludeBookingId) filter._id = { $ne: new mongoose.Types.ObjectId(excludeBookingId) };
   const [reservation = { roomsBooked: 0 }] = await Booking.aggregate([
     { $match: filter },
@@ -89,6 +101,22 @@ const acquireBookingStatusLock = async (booking) => {
         error: 'There are not enough rooms to activate this booking.',
       };
     }
+    if (booking.roomTypeId) {
+      const roomType = findRoomType(bookingLock.property, booking.roomTypeId);
+      if (!roomType) {
+        return { bookingLock, error: 'The selected room type is no longer available.' };
+      }
+      const bookedRoomTypeRooms = await getBookedRooms({
+        property: bookingLock.property,
+        checkIn: booking.checkInDate,
+        checkOut: booking.checkOutDate,
+        excludeBookingId: booking._id,
+        roomTypeId: booking.roomTypeId,
+      });
+      if (getRemainingRooms(roomType, bookedRoomTypeRooms) < booking.numberOfRooms) {
+        return { bookingLock, error: 'There are not enough rooms of this type to activate the booking.' };
+      }
+    }
     return { bookingLock };
   } catch (error) {
     try {
@@ -103,6 +131,7 @@ const acquireBookingStatusLock = async (booking) => {
 module.exports = {
   activeBookingStatuses,
   getRemainingRooms,
+  findRoomType,
   acquirePropertyBookingLock,
   releasePropertyBookingLock,
   getBookedRooms,

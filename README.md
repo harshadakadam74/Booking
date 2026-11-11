@@ -164,12 +164,13 @@ RAZORPAY_KEY_SECRET=replace_with_razorpay_test_secret
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 CLIENT_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
 NODE_ENV=development
 ```
 
 ### Frontend (.env)
 ```
-VITE_API_URL=http://localhost:4545
+VITE_API_URL=http://localhost:4545/api/v1
 ```
 
 Copy `Backend/.env.example` to `Backend/.env` and `Frontend/.env.example` to
@@ -320,16 +321,8 @@ than date-specific availability guarantees.
 
 ## 🚢 Deployment
 
-### Backend (Heroku/Railway/Render)
-1. Push code to repository
-2. Set environment variables in deployment platform
-3. Deploy using platform's CLI or GitHub integration
-4. Update VITE_API_URL in frontend for production
-
-### Frontend (Vercel/Netlify)
-1. Connect repository to Vercel/Netlify
-2. Set VITE_API_URL to production backend URL
-3. Deploy automatically on push
+See [Production API setup](./docs/production-api.md) for backend deployment,
+Vercel environment configuration, CORS, Postman requests, and verification.
 
 ## 🐛 Troubleshooting
 

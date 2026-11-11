@@ -9,9 +9,10 @@ if (!process.env.JWT_SECRET) {
 
 const app = require('./app');
 
-databaseConnect();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4545;
 
-app.listen(PORT, () => {
-    console.log(`http://localhost:${PORT}`);
+databaseConnect().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`FastBooking API listening on port ${PORT}`);
+  });
 });

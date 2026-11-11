@@ -8,6 +8,7 @@ const {
   releasePropertyBookingLock,
   getBookedRooms,
   getRemainingRooms,
+  findRoomType,
 } = require("../services/bookingInventory");
 
 const toDate = (value) => {
@@ -24,6 +25,150 @@ const getDateRangeError = (checkIn, checkOut) => {
   return "";
 };
 
+const getBookingEligibility = async (req, res) => {
+  try {
+    const {
+      propertyId,
+      roomTypeId,
+      property,
+      checkInDate,
+      checkOutDate,
+      numberOfGuests,
+      numberOfRooms,
+    } = req.body || {};
+    const reasons = [];
+    const checkIn = toDate(checkInDate);
+    const checkOut = toDate(checkOutDate);
+    const dateError = getDateRangeError(checkIn, checkOut);
+    const guests = Number(numberOfGuests);
+    const rooms = Number(numberOfRooms);
+
+    if (!propertyId && (typeof property !== "string" || !property.trim())) {
+      reasons.push({ code: "HOTEL_REQUIRED", message: "Select a hotel to continue." });
+    } else if (propertyId && !mongoose.Types.ObjectId.isValid(propertyId)) {
+      reasons.push({ code: "INVALID_HOTEL_ID", message: "The selected hotel ID is invalid." });
+    }
+    if (dateError) reasons.push({ code: "INVALID_DATES", message: dateError });
+    if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
+      reasons.push({ code: "INVALID_GUESTS", message: "Enter between 1 and 20 guests." });
+    }
+    if (!Number.isInteger(rooms) || rooms < 1 || rooms > 10 || rooms > guests) {
+      reasons.push({ code: "INVALID_ROOMS", message: "Enter between 1 and 10 rooms and no more rooms than guests." });
+    }
+
+    let listing;
+    let selectedRoomType;
+    if (!reasons.some(({ code }) => code === "HOTEL_REQUIRED" || code === "INVALID_HOTEL_ID")) {
+      const propertyFilter = propertyId
+        ? { _id: propertyId }
+        : { name: property.trim() };
+      listing = await Property.findOne(propertyFilter);
+      if (!listing) {
+        reasons.push({ code: "HOTEL_NOT_FOUND", message: "The selected hotel could not be found." });
+      } else {
+        if (listing.active === false) {
+          reasons.push({ code: "HOTEL_INACTIVE", message: "This hotel is inactive and cannot be booked." });
+        }
+        if (listing.approvalStatus && listing.approvalStatus !== "approved") {
+          reasons.push({ code: "HOTEL_UNAPPROVED", message: "This hotel has not been approved for booking." });
+        }
+        if (listing.isDemo) {
+          reasons.push({ code: "DEMO_LISTING", message: "Demo listings cannot be booked." });
+        }
+        if (listing.roomTypes?.length) {
+          if (!roomTypeId) {
+            reasons.push({ code: "ROOM_REQUIRED", message: "Select a room type to continue." });
+          } else if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
+            reasons.push({ code: "INVALID_ROOM_ID", message: "The selected room type ID is invalid." });
+          } else {
+            selectedRoomType = findRoomType(listing, roomTypeId);
+            if (!selectedRoomType) {
+              reasons.push({ code: "ROOM_NOT_FOUND", message: "The selected room type does not belong to this hotel." });
+            }
+          }
+        } else if (roomTypeId) {
+          reasons.push({ code: "ROOM_NOT_FOUND", message: "This hotel has no matching room type." });
+        }
+        if (Number.isInteger(guests) && Number.isInteger(rooms) &&
+          selectedRoomType &&
+          guests > Number(selectedRoomType.maxGuests || listing.maxGuestsPerRoom || 4) * rooms) {
+          reasons.push({ code: "GUEST_CAPACITY", message: "The selected room type does not have enough guest capacity." });
+        } else if (Number.isInteger(guests) && Number.isInteger(rooms) &&
+          !listing.roomTypes?.length &&
+          guests > Number(listing.maxGuestsPerRoom || 4) * rooms) {
+          reasons.push({ code: "GUEST_CAPACITY", message: "The selected rooms do not have enough guest capacity." });
+        }
+      }
+    }
+
+    let availableRooms;
+    let propertyAvailableRooms;
+    let roomTypeAvailableRooms;
+    let nights;
+    let totalPrice;
+    if (listing && !dateError && Number.isInteger(rooms) && rooms > 0) {
+      const bookedRooms = await getBookedRooms({ property: listing, checkIn, checkOut });
+      propertyAvailableRooms = getRemainingRooms(listing, bookedRooms);
+      availableRooms = propertyAvailableRooms;
+      if (selectedRoomType) {
+        const bookedRoomTypeRooms = await getBookedRooms({
+          property: listing,
+          checkIn,
+          checkOut,
+          roomTypeId: selectedRoomType._id,
+        });
+        roomTypeAvailableRooms = getRemainingRooms(selectedRoomType, bookedRoomTypeRooms);
+        availableRooms = Math.min(availableRooms, roomTypeAvailableRooms);
+      }
+      if (availableRooms < rooms) {
+        reasons.push({
+          code: "INSUFFICIENT_INVENTORY",
+          message: selectedRoomType
+            ? `Only ${availableRooms} room${availableRooms === 1 ? "" : "s"} of this type are available for these dates.`
+            : `Only ${availableRooms} room${availableRooms === 1 ? "" : "s"} available for these dates.`,
+        });
+      }
+      nights = Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      totalPrice = Number(selectedRoomType?.price ?? listing.price) * nights * rooms;
+    }
+
+    return res.status(200).json({
+      eligibility: {
+        eligible: reasons.length === 0,
+        reasons,
+        hotel: listing ? { id: listing._id, name: listing.name } : null,
+        roomType: selectedRoomType
+          ? { id: selectedRoomType._id, name: selectedRoomType.name }
+          : null,
+        inventory: availableRooms === undefined
+          ? null
+          : {
+            requested: rooms,
+            available: availableRooms,
+            propertyAvailable: propertyAvailableRooms,
+            ...(roomTypeAvailableRooms === undefined ? {} : { roomTypeAvailable: roomTypeAvailableRooms }),
+          },
+        pricing: totalPrice === undefined
+          ? null
+          : {
+            nights,
+            pricePerNight: Number(selectedRoomType?.price ?? listing.price),
+            totalPrice,
+            currency: listing.currency || "INR",
+          },
+      },
+    });
+  } catch (error) {
+    console.error("Booking eligibility check failed:", error.message);
+    return res.status(500).json({
+      eligibility: {
+        eligible: false,
+        reasons: [{ code: "VALIDATION_FAILED", message: "Unable to validate this booking right now." }],
+      },
+    });
+  }
+};
+
 // Create a new booking
 const createBooking = async (req, res) => {
   let bookingLock;
@@ -31,6 +176,7 @@ const createBooking = async (req, res) => {
     const {
       property,
       propertyId,
+      roomTypeId,
       checkInDate,
       checkOutDate,
       numberOfGuests,
@@ -42,6 +188,21 @@ const createBooking = async (req, res) => {
       guestPhone,
       guestLocation,
     } = req.body || {};
+    const idempotencyKey = String(req.headers?.["idempotency-key"] || "").trim();
+
+    if (idempotencyKey.length > 128) {
+      return res.status(400).json({ message: "Idempotency-Key must be 128 characters or fewer." });
+    }
+
+    if (idempotencyKey) {
+      const previousRequest = await Booking.findOne({ user: req.user._id, idempotencyKey });
+      if (previousRequest) {
+        return res.status(200).json({
+          message: "This booking request was already processed.",
+          booking: previousRequest,
+        });
+      }
+    }
 
     if ((!propertyId && (typeof property !== "string" || !property.trim())) ||
       !checkInDate || !checkOutDate ||
@@ -72,30 +233,98 @@ const createBooking = async (req, res) => {
     const propertyFilter = propertyId
       ? { _id: propertyId }
       : { name: property.trim() };
-    const listing = await Property.findOne({
-      ...propertyFilter,
-      active: { $ne: false },
-      $or: [{ approvalStatus: "approved" }, { approvalStatus: { $exists: false } }],
-    });
+    const listing = await Property.findOne(propertyFilter);
     if (!listing) {
-      return res.status(404).json({ message: "This hotel is not currently bookable." });
+      return res.status(404).json({
+        message: "The selected hotel could not be found.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "HOTEL_NOT_FOUND", message: "The selected hotel could not be found." }],
+        },
+      });
+    }
+    if (listing.active === false) {
+      return res.status(409).json({
+        message: "This hotel is inactive and cannot be booked.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "HOTEL_INACTIVE", message: "This hotel is inactive and cannot be booked." }],
+        },
+      });
+    }
+    if (listing.approvalStatus && listing.approvalStatus !== "approved") {
+      return res.status(409).json({
+        message: "This hotel has not been approved for booking.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "HOTEL_UNAPPROVED", message: "This hotel has not been approved for booking." }],
+        },
+      });
     }
     if (listing.isDemo) {
-      return res.status(409).json({ message: "Demo listings are for display and testing only and cannot be booked." });
+      return res.status(409).json({
+        message: "Demo listings are for display and testing only and cannot be booked.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "DEMO_LISTING", message: "Demo listings cannot be booked." }],
+        },
+      });
+    }
+
+    let selectedRoomType;
+    if (listing.roomTypes?.length) {
+      if (!roomTypeId) {
+        return res.status(400).json({
+          message: "Select a room type before booking.",
+          eligibility: {
+            eligible: false,
+            reasons: [{ code: "ROOM_REQUIRED", message: "Select a room type before booking." }],
+          },
+        });
+      }
+      if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
+        return res.status(400).json({
+          message: "A valid room type ID is required.",
+          eligibility: {
+            eligible: false,
+            reasons: [{ code: "INVALID_ROOM_ID", message: "The selected room type ID is invalid." }],
+          },
+        });
+      }
+      selectedRoomType = findRoomType(listing, roomTypeId);
+      if (!selectedRoomType) {
+        return res.status(404).json({
+          message: "The selected room type does not belong to this hotel.",
+          eligibility: {
+            eligible: false,
+            reasons: [{ code: "ROOM_NOT_FOUND", message: "The selected room type does not belong to this hotel." }],
+          },
+        });
+      }
+    } else if (roomTypeId) {
+      return res.status(400).json({
+        message: "This hotel has no matching room type.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "ROOM_NOT_FOUND", message: "This hotel has no matching room type." }],
+        },
+      });
     }
 
     const rooms = Number(numberOfRooms);
     const guests = Number(numberOfGuests);
-    if (guests > Number(listing.maxGuestsPerRoom || 4) * rooms) {
-      return res.status(400).json({ message: "The selected rooms do not have enough guest capacity." });
+    const maxGuestsPerRoom = Number(selectedRoomType?.maxGuests || listing.maxGuestsPerRoom || 4);
+    if (guests > maxGuestsPerRoom * rooms) {
+      return res.status(400).json({ message: "The selected room type does not have enough guest capacity." });
     }
 
+    const pricePerNightOnServer = Number(selectedRoomType?.price ?? listing.price);
     if (pricePerNight !== undefined && pricePerNight !== null &&
       (!Number.isFinite(Number(pricePerNight)) ||
-        Math.abs(Number(pricePerNight) - listing.price) > 0.01)) {
+        Math.abs(Number(pricePerNight) - pricePerNightOnServer) > 0.01)) {
       return res.status(409).json({
         message: "The hotel price has changed. Review the current price before booking.",
-        currentPricePerNight: listing.price,
+        currentPricePerNight: pricePerNightOnServer,
         currency: listing.currency || "INR",
       });
     }
@@ -104,22 +333,72 @@ const createBooking = async (req, res) => {
     if (!bookingLock) {
       return res.status(409).json({ message: "This hotel is being booked right now. Please retry in a moment." });
     }
+    const lockedRoomType = roomTypeId
+      ? findRoomType(bookingLock.property, roomTypeId)
+      : null;
+    if (roomTypeId && !lockedRoomType) {
+      return res.status(409).json({
+        message: "The selected room type changed while booking. Please review availability.",
+      });
+    }
+    if (guests > Number(lockedRoomType?.maxGuests || bookingLock.property.maxGuestsPerRoom || 4) * rooms) {
+      return res.status(409).json({
+        message: "The selected room type capacity changed. Please review the guest count.",
+      });
+    }
+    if (idempotencyKey) {
+      const previousRequest = await Booking.findOne({ user: req.user._id, idempotencyKey });
+      if (previousRequest) {
+        return res.status(200).json({
+          message: "This booking request was already processed.",
+          booking: previousRequest,
+        });
+      }
+    }
     const bookedRooms = await getBookedRooms({ property: bookingLock.property, checkIn, checkOut });
     const remainingRooms = getRemainingRooms(bookingLock.property, bookedRooms);
     if (remainingRooms < rooms) {
-      return res.status(409).json({ message: "Not enough rooms are available for the selected dates." });
+      return res.status(409).json({
+        message: "Not enough rooms are available for the selected dates.",
+        eligibility: {
+          eligible: false,
+          reasons: [{ code: "INSUFFICIENT_INVENTORY", message: "Not enough rooms are available for the selected dates." }],
+        },
+      });
+    }
+    if (lockedRoomType) {
+      const bookedRoomTypeRooms = await getBookedRooms({
+        property: bookingLock.property,
+        checkIn,
+        checkOut,
+        roomTypeId: lockedRoomType._id,
+      });
+      if (getRemainingRooms(lockedRoomType, bookedRoomTypeRooms) < rooms) {
+        return res.status(409).json({
+          message: "Not enough rooms of this type are available for the selected dates.",
+          eligibility: {
+            eligible: false,
+            reasons: [{ code: "INSUFFICIENT_INVENTORY", message: "Not enough rooms of this type are available for the selected dates." }],
+          },
+        });
+      }
     }
 
     const booking = await Booking.create({
       user: req.user._id,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
       property: bookingLock.property.name,
       propertyId: bookingLock.property._id,
+      ...(lockedRoomType ? {
+        roomTypeId: lockedRoomType._id,
+        roomTypeName: lockedRoomType.name,
+      } : {}),
       checkInDate: checkIn,
       checkOutDate: checkOut,
       numberOfGuests: guests,
       numberOfRooms: rooms,
-      totalPrice: bookingLock.property.price * nights * rooms,
-      pricePerNight: bookingLock.property.price,
+      totalPrice: Number(lockedRoomType?.price ?? bookingLock.property.price) * nights * rooms,
+      pricePerNight: Number(lockedRoomType?.price ?? bookingLock.property.price),
       numberOfNights: nights,
       specialRequests,
       guestName: guestName || req.user.name,
@@ -133,6 +412,18 @@ const createBooking = async (req, res) => {
       booking,
     });
   } catch (error) {
+    if (error.code === 11000 && req.headers?.["idempotency-key"]) {
+      const previousRequest = await Booking.findOne({
+        user: req.user._id,
+        idempotencyKey: String(req.headers["idempotency-key"]).trim(),
+      });
+      if (previousRequest) {
+        return res.status(200).json({
+          message: "This booking request was already processed.",
+          booking: previousRequest,
+        });
+      }
+    }
     console.error("Booking creation failed:", error.message);
     return res.status(500).json({
       message: "Unable to create booking.",
@@ -241,13 +532,11 @@ const updateBooking = async (req, res) => {
       !Number.isInteger(nextRooms) || nextRooms < 1 || nextRooms > 10 || nextRooms > nextGuests) {
       return res.status(400).json({ message: "Guests and rooms must be valid whole numbers." });
     }
+    let currentPricePerNight = booking.pricePerNight;
     const propertyRecord = booking.propertyId
       ? await Property.findById(booking.propertyId)
       : await Property.findOne({ name: booking.property });
     if (propertyRecord) {
-      if (nextGuests > Number(propertyRecord.maxGuestsPerRoom || 4) * nextRooms) {
-        return res.status(400).json({ message: "The selected rooms do not have enough guest capacity." });
-      }
       bookingLock = await acquirePropertyBookingLock(propertyRecord._id);
       if (!bookingLock) {
         return res.status(409).json({ message: "This hotel is being updated by another booking. Please retry." });
@@ -261,15 +550,41 @@ const updateBooking = async (req, res) => {
       if (getRemainingRooms(bookingLock.property, bookedRooms) < nextRooms) {
         return res.status(409).json({ message: "Not enough rooms are available for the selected dates." });
       }
+      const selectedRoomType = booking.roomTypeId
+        ? findRoomType(bookingLock.property, booking.roomTypeId)
+        : null;
+      if (booking.roomTypeId && !selectedRoomType) {
+        return res.status(409).json({ message: "The selected room type is no longer available." });
+      }
+      const maxGuestsPerRoom = Number(
+        selectedRoomType?.maxGuests || bookingLock.property.maxGuestsPerRoom || 4
+      );
+      if (nextGuests > maxGuestsPerRoom * nextRooms) {
+        return res.status(400).json({ message: "The selected rooms do not have enough guest capacity." });
+      }
+      if (selectedRoomType) {
+        const bookedRoomTypeRooms = await getBookedRooms({
+          property: bookingLock.property,
+          checkIn: nextCheckIn,
+          checkOut: nextCheckOut,
+          excludeBookingId: booking._id,
+          roomTypeId: selectedRoomType._id,
+        });
+        if (getRemainingRooms(selectedRoomType, bookedRoomTypeRooms) < nextRooms) {
+          return res.status(409).json({ message: "Not enough rooms of this type are available for the selected dates." });
+        }
+      }
+      currentPricePerNight = Number(selectedRoomType?.price ?? bookingLock.property.price);
     }
 
     booking.checkInDate = nextCheckIn;
     booking.checkOutDate = nextCheckOut;
     booking.numberOfGuests = nextGuests;
     booking.numberOfRooms = nextRooms;
+    booking.pricePerNight = currentPricePerNight;
     if (typeof specialRequests === "string") booking.specialRequests = specialRequests.slice(0, 2000);
     booking.numberOfNights = Math.round((nextCheckOut - nextCheckIn) / (1000 * 60 * 60 * 24));
-    booking.totalPrice = booking.pricePerNight * booking.numberOfNights * nextRooms;
+    booking.totalPrice = currentPricePerNight * booking.numberOfNights * nextRooms;
     await booking.save();
 
     return res.status(200).json({
@@ -469,6 +784,7 @@ const adminUpdateBookingStatus = async (req, res) => {
 
 module.exports = {
   createBooking,
+  getBookingEligibility,
   getUserBookings,
   getBookingById,
   updateBooking,

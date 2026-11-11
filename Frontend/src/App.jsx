@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./Pages/Home";
 import Login from "./Pages/Autentication/Login";
+import PasswordReset from "./Pages/PasswordReset";
 import Register from "./Pages/Autentication/Register";
 import Hotels from "./components/PropertyType_Details/Hotels";
 import Apartments from "./components/PropertyType_Details/Apartments";
@@ -50,6 +51,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />}></Route>
           <Route path="/login" element={<Login />}></Route>
+          <Route path="/forgot-password" element={<PasswordReset />}></Route>
+          <Route path="/reset-password" element={<PasswordReset />}></Route>
           <Route path="/register" element={<Register />}></Route>
           <Route path="/hotels" element={<Hotels />}></Route>
           <Route path="/apartments" element={<Apartments />}></Route>

@@ -17,6 +17,10 @@ const createRazorpayOrder = async ({ amount, receipt }) => {
   return getRazorpay().orders.create({ amount, currency: 'INR', receipt });
 };
 
+const retrieveRazorpayPayment = async (paymentId) => {
+  return getRazorpay().payments.fetch(paymentId);
+};
+
 const createStripePaymentIntent = async ({ amount, currency, metadata }) => {
   const stripe = getStripeClient();
   return stripe.paymentIntents.create({ amount, currency, metadata });
@@ -35,9 +39,12 @@ const verifyRazorpaySignature = (orderId, paymentId, signature, secret) => {
     .update(`${orderId}|${paymentId}`)
     .digest('hex');
 
+  const expected = Buffer.from(generatedSignature);
+  const actual = Buffer.from(signature);
+  if (expected.length !== actual.length) return false;
   return crypto.timingSafeEqual(
-    Buffer.from(generatedSignature),
-    Buffer.from(signature)
+    expected,
+    actual
   );
 };
 
@@ -63,6 +70,7 @@ const handleWebhook = async (req) => {
 
 module.exports = {
   createRazorpayOrder,
+  retrieveRazorpayPayment,
   createStripePaymentIntent,
   retrieveStripePaymentIntent,
   verifyRazorpaySignature,

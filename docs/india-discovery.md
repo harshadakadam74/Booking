@@ -52,9 +52,10 @@ npm install
 npm run dev
 ```
 
-The API defaults to `http://localhost:4545`; Vite defaults to
-`http://localhost:5173`. Configure `Frontend/.env` `VITE_API_URL` if the API is
-hosted elsewhere. No new runtime package is needed.
+The API defaults to `http://localhost:4545/api/v1`; Vite defaults to
+`http://localhost:5173`. Configure `Frontend/.env` `VITE_API_URL` to the backend
+API root ending in `/api/v1` if the API is hosted elsewhere. No new runtime
+package is needed.
 
 ## Destination and listing data
 
@@ -283,8 +284,8 @@ availability exist for every destination.
    backend deployment/release task. Do not run `seed:demo-hotels` in production.
 3. Import the existing `Frontend/` directory into Vercel with `Frontend` as the
    project root, build command `npm run build`, and output directory `dist`.
-   Set `VITE_API_URL` to the public HTTPS backend origin, without a trailing
-   path. Vite variables are public; never put Google, Cloudinary, MongoDB, JWT,
+   Set `VITE_API_URL` to the public HTTPS backend API URL ending in `/api/v1`.
+   Vite variables are public; never put Google, Cloudinary, MongoDB, JWT,
    or payment secrets in `VITE_*` variables.
 4. Set the backend's `CLIENT_URL` to the deployed frontend origin, verify its
    CORS policy for that origin, and test destination search, hotel listing,

@@ -1,43 +1,78 @@
 import axios from "axios";
 
-// Use the local backend by default and avoid double slashes in request URLs.
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:4545"
-).replace(/\/$/, "");
+const API_VERSION_PATH = "/api/v1";
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "");
+const developmentApiUrl = import.meta.env.DEV
+  ? "http://localhost:4545/api/v1"
+  : "";
 
-// Create axios instance
+const getApiBaseUrl = () => {
+  if (!configuredApiUrl) return developmentApiUrl;
+
+  try {
+    const url = new URL(configuredApiUrl);
+    const isLoopbackHost = url.hostname === "localhost" ||
+      url.hostname.endsWith(".localhost") ||
+      url.hostname.startsWith("127.") ||
+      url.hostname === "::1" ||
+    url.hostname === "[::1]" ||
+      url.hostname === "0.0.0.0";
+    if (import.meta.env.PROD && (url.protocol !== "https:" || isLoopbackHost)) {
+      return "";
+    }
+
+    const baseUrl = configuredApiUrl.endsWith(API_VERSION_PATH)
+      ? configuredApiUrl
+      : `${configuredApiUrl}${API_VERSION_PATH}`;
+    return baseUrl;
+  } catch {
+    return "";
+  }
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Add request interceptor to include auth token
 apiClient.interceptors.request.use(
   (config) => {
+    if (!API_BASE_URL) {
+      throw new Error(
+        "Set VITE_API_URL to the deployed HTTPS backend URL ending in /api/v1. Production cannot use localhost."
+      );
+    }
+
+    const requestUrl = config.url || "/";
+    const normalizedUrl = requestUrl.startsWith("/")
+      ? requestUrl
+      : `/${requestUrl}`;
+    config.url = normalizedUrl.replace(/^\/api\/v1(?=\/|\?|$)/, "") || "/";
+
     const token = localStorage.getItem("authToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Add response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       const requestUrl = error.config?.url || "";
       const authPaths = [
-        "/api/v1/auth/login",
-        "/api/v1/auth/register",
-        "/api/v1/auth/forgot-password",
-        "/api/v1/auth/reset-password",
+        "/auth/login",
+        "/auth/register",
+        "/auth/forgot-password",
+        "/auth/reset-password",
       ];
       const shouldSkipRedirect = authPaths.some((path) => requestUrl.includes(path));
 

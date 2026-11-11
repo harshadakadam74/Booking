@@ -1,9 +1,16 @@
 import apiClient from "./apiClient";
 
+export const checkBookingEligibility = async (bookingData) => {
+  const response = await apiClient.post("/api/v1/bookings/eligibility", bookingData);
+  return response.data?.eligibility;
+};
+
 // Create a new booking
-export const createBooking = async (bookingData) => {
+export const createBooking = async (bookingData, idempotencyKey) => {
   try {
-    const response = await apiClient.post("/api/v1/bookings/create", bookingData);
+    const response = await apiClient.post("/api/v1/bookings/create", bookingData, {
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
