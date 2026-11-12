@@ -112,7 +112,7 @@ const parseHotelSearch = (query = {}) => {
     return { error: 'Currency must be a three-letter currency code.' };
   }
   if (query.sortBy !== undefined && typeof query.sortBy !== 'string') {
-    return { error: 'Sort must be price, price_desc, rating, or popularity.' };
+    return { error: 'Sort must be price, price_desc, rating, popularity, or newest.' };
   }
   const sortBy = query.sortBy?.trim().toLowerCase() || 'price_asc';
   const sortValues = {
@@ -121,9 +121,10 @@ const parseHotelSearch = (query = {}) => {
     price_desc: 'price_desc',
     rating: 'rating',
     popularity: 'popularity',
+    newest: 'newest',
   };
   if (!Object.hasOwn(sortValues, sortBy)) {
-    return { error: 'Sort must be price, price_desc, rating, or popularity.' };
+    return { error: 'Sort must be price, price_desc, rating, popularity, or newest.' };
   }
   const workTrip = query.workTrip === undefined || query.workTrip === ''
     ? false
@@ -166,7 +167,7 @@ const parseHotelSearch = (query = {}) => {
       checkOut,
       page,
       limit,
-      includeDemo: query.includeDemo !== 'false' && query.includeDemo !== false,
+      includeDemo: query.includeDemo === 'true' || query.includeDemo === true,
     },
   };
 };
@@ -353,6 +354,8 @@ const buildHotelPipeline = async (criteria) => {
           ? { rating: -1, ratingCount: -1, price: 1, name: 1 }
           : criteria.sortBy === 'popularity'
             ? { ratingCount: -1, rating: -1, price: 1, name: 1 }
+            : criteria.sortBy === 'newest'
+              ? { createdAt: -1, _id: -1 }
             : { price: 1, name: 1 },
     },
     {

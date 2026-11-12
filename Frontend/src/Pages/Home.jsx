@@ -13,11 +13,11 @@ export function Home() {
   return (
     <>
     <Input_enter />
+    <ProductSlider />
     <Offers_Deals/>
     <PropertyType/>
     <TripPlanner />
     <TravelInsights />
-    <ProductSlider />
     <NearbyProperties />
     </>
   );

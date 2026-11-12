@@ -1,6 +1,7 @@
 const Property = require('../models/Property');
 const mongoose = require('mongoose');
 const { parseHotelSearch, searchHotels } = require('../services/hotelSearch');
+const BookingController = require('./BookingController');
 
 const getPropertyById = async (req, res) => {
   const { id } = req.params;
@@ -19,6 +20,25 @@ const getPropertyById = async (req, res) => {
     console.error('Hotel lookup failed:', error.message);
     return res.status(500).json({ message: 'Unable to load this hotel right now.' });
   }
+};
+
+const getPropertyAvailability = async (req, res) => {
+  const query = req.query || {};
+  const scalarParams = ['checkIn', 'checkOut', 'guests', 'rooms', 'roomTypeId'];
+  if (scalarParams.some((key) => query[key] !== undefined && typeof query[key] !== 'string')) {
+    return res.status(400).json({ message: 'Availability parameters must be single values.' });
+  }
+
+  return BookingController.getBookingEligibility({
+    body: {
+      propertyId: req.params.id,
+      checkInDate: query.checkIn,
+      checkOutDate: query.checkOut,
+      numberOfGuests: query.guests,
+      numberOfRooms: query.rooms,
+      ...(query.roomTypeId ? { roomTypeId: query.roomTypeId } : {}),
+    },
+  }, res);
 };
 
 const getProperties = async (req, res) => {
@@ -83,4 +103,4 @@ const getNearbyProperties = async (req, res) => {
   }
 };
 
-module.exports = { getPropertyById, getProperties, getNearbyProperties };
+module.exports = { getPropertyById, getPropertyAvailability, getProperties, getNearbyProperties };

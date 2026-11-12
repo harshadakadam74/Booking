@@ -22,7 +22,8 @@ const BookPlace = () => {
   const routeLocation = useLocation();
   const navigate = useNavigate();
   const searchParams = routeLocation.state || {};
-  const [destination, setDestination] = useState(searchParams.location || '');
+  const urlParams = new URLSearchParams(routeLocation.search);
+  const [destination, setDestination] = useState(searchParams.location || urlParams.get('destination') || '');
   const [filters, setFilters] = useState(() => ({
     checkIn: getDateValue(searchParams.checkIn || searchParams.dates?.startDate),
     checkOut: getDateValue(searchParams.checkOut || searchParams.dates?.endDate),
@@ -119,36 +120,15 @@ const BookPlace = () => {
       return;
     }
 
-    const dates = filters.checkIn && filters.checkOut
-      ? { startDate: new Date(filters.checkIn), endDate: new Date(filters.checkOut), key: 'selection' }
-      : (() => {
-        const startDate = new Date();
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
-        return { startDate, endDate, key: 'selection' };
-      })();
-    const bookingState = {
-      property,
-      searchParams: {
-        location: destination,
-        dates,
-        guests: { adults: Number(filters.guests), children: 0, rooms: Number(filters.rooms) },
-      },
-    };
-    const checkoutParams = new URLSearchParams({
-      hotelId: propertyId,
-      checkIn: new Date(dates.startDate).toISOString().slice(0, 10),
-      checkOut: new Date(dates.endDate).toISOString().slice(0, 10),
-      adults: String(bookingState.searchParams.guests.adults),
-      children: String(bookingState.searchParams.guests.children),
-      rooms: String(bookingState.searchParams.guests.rooms),
+    const bookingParams = new URLSearchParams({
+      adults: String(filters.guests),
+      rooms: String(filters.rooms),
     });
-    const checkoutPath = `/payment?${checkoutParams.toString()}`;
-    if (!localStorage.getItem('authToken')) {
-      navigate('/login', { state: { from: checkoutPath, bookingState } });
-      return;
+    if (filters.checkIn && filters.checkOut) {
+      bookingParams.set('checkIn', filters.checkIn);
+      bookingParams.set('checkOut', filters.checkOut);
     }
-    navigate(checkoutPath, { state: bookingState });
+    navigate(`/hotel/${encodeURIComponent(propertyId)}?${bookingParams.toString()}`);
   };
 
   return (
@@ -223,6 +203,7 @@ const BookPlace = () => {
                 <option value="price_desc">Price: high to low</option>
                 <option value="rating">Rating</option>
                 <option value="popularity">Popularity</option>
+                <option value="newest">Recently added</option>
               </select>
             </label>
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -317,8 +298,8 @@ const BookPlace = () => {
           </>
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-7 text-center">
-            <h2 className="text-lg font-bold text-blue-950">{destination.length < 2 ? 'Enter a destination to begin' : 'No hotels match those filters'}</h2>
-            <p className="mt-2 text-sm text-slate-700">Try a nearby destination, increase your budget, or remove amenities, property type, or rating filters.</p>
+            <h2 className="text-lg font-bold text-blue-950">{destination.length < 2 ? 'No hotels are currently available' : 'No hotels match those filters'}</h2>
+            <p className="mt-2 text-sm text-slate-700">You can browse all approved hotels without entering a destination. Otherwise, try a nearby city, increase your budget, or remove filters.</p>
             {results.alternatives?.length > 0 && <ul className="mt-3 space-y-1 text-sm text-slate-600">{results.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}</ul>}
           </div>
         )}

@@ -1,609 +1,198 @@
-import React, { useEffect, useRef } from "react";
-import {
-  Star,
-  MapPin,
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { MapPin, Star } from "lucide-react";
+import { listHotels } from "../services/destinationService";
 
-const FEATURED_PROPERTIES = [
-  {
-    id: 1,
-    name: "Grand Plaza Hotel",
-    location: "New York, USA",
-    rating: 4.5,
-    reviews: 1250,
-    price: 150,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Hotel",
-  },
-  {
-    id: 2,
-    name: "Ocean View Resort",
-    location: "Miami, USA",
-    rating: 4.8,
-    reviews: 890,
-    price: 220,
-    image:
-      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Resort",
-  },
-  {
-    id: 3,
-    name: "Luxury Beach Villa",
-    location: "Malibu, USA",
-    rating: 4.9,
-    reviews: 650,
-    price: 500,
-    image:
-      "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Villa",
-  },
-  {
-    id: 4,
-    name: "City Center Apartment",
-    location: "Los Angeles, USA",
-    rating: 4.6,
-    reviews: 980,
-    price: 120,
-    image:
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Apartment",
-  },
-  {
-    id: 5,
-    name: "Cozy Forest Cabin",
-    location: "Oregon, USA",
-    rating: 4.5,
-    reviews: 480,
-    price: 120,
-    image:
-      "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Cabin",
-  },
-  {
-    id: 6,
-    name: "Tropical Paradise Resort",
-    location: "Hawaii, USA",
-    rating: 4.9,
-    reviews: 2100,
-    price: 350,
-    image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Resort",
-  },
+const formatPrice = (price, currency = "INR") => {
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(Number(price));
+  } catch {
+    return `${currency} ${Number(price).toLocaleString("en-IN")}`;
+  }
+};
 
-  // --------------------------------------------------
-  // NEW PROPERTIES
-  // --------------------------------------------------
-
-  {
-    id: 7,
-    name: "Royal Palace Hotel",
-    location: "Dubai, UAE",
-    rating: 4.9,
-    reviews: 3200,
-    price: 280,
-    image:
-      "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Hotel",
-  },
-  {
-    id: 8,
-    name: "Skyline Luxury Suites",
-    location: "Singapore",
-    rating: 4.8,
-    reviews: 1750,
-    price: 240,
-    image:
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Apartment",
-  },
-  {
-    id: 9,
-    name: "Mountain View Retreat",
-    location: "Aspen, USA",
-    rating: 4.7,
-    reviews: 1100,
-    price: 310,
-    image:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Resort",
-  },
-  {
-    id: 10,
-    name: "Royal Garden Villa",
-    location: "Bali, Indonesia",
-    rating: 4.9,
-    reviews: 1450,
-    price: 390,
-    image:
-      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Villa",
-  },
-  {
-    id: 11,
-    name: "Eiffel View Hotel",
-    location: "Paris, France",
-    rating: 4.7,
-    reviews: 2300,
-    price: 260,
-    image:
-      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Hotel",
-  },
-  {
-    id: 12,
-    name: "Swiss Alpine Chalet",
-    location: "Zermatt, Switzerland",
-    rating: 4.9,
-    reviews: 980,
-    price: 420,
-    image:
-      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Cabin",
-  },
-  {
-    id: 13,
-    name: "Royal Heritage Palace",
-    location: "Jaipur, India",
-    rating: 4.8,
-    reviews: 1850,
-    price: 180,
-    image:
-      "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Hotel",
-  },
-  {
-    id: 14,
-    name: "Goa Beach Escape",
-    location: "Goa, India",
-    rating: 4.7,
-    reviews: 1260,
-    price: 140,
-    image:
-      "https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Resort",
-  },
-  {
-    id: 15,
-    name: "Himalayan Luxury Lodge",
-    location: "Manali, India",
-    rating: 4.8,
-    reviews: 870,
-    price: 110,
-    image:
-      "https://images.unsplash.com/photo-1544986581-efac024faf62?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Cabin",
-  },
-  {
-    id: 16,
-    name: "Santorini Sunset Villa",
-    location: "Santorini, Greece",
-    rating: 4.9,
-    reviews: 2100,
-    price: 450,
-    image:
-      "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Villa",
-  },
-  {
-    id: 17,
-    name: "Tokyo Modern Residence",
-    location: "Tokyo, Japan",
-    rating: 4.6,
-    reviews: 1640,
-    price: 190,
-    image:
-      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Apartment",
-  },
-  {
-    id: 18,
-    name: "London Royal Suites",
-    location: "London, UK",
-    rating: 4.7,
-    reviews: 1980,
-    price: 230,
-    image:
-      "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&q=80&w=800&h=600",
-    type: "Hotel",
-  },
-];
-
-const ProductSlider = () => {
-  const scrollRef = useRef(null);
-
-  // Auto slider
-  useEffect(() => {
-    const container = scrollRef.current;
-
-    if (!container) return;
-
-    const autoSlide = setInterval(() => {
-      const card = container.querySelector(".property-card");
-
-      if (!card) return;
-
-      const cardWidth = card.offsetWidth + 24;
-
-      const maxScroll =
-        container.scrollWidth - container.clientWidth;
-
-      if (container.scrollLeft + cardWidth >= maxScroll) {
-        container.scrollTo({
-          left: 0,
-          behavior: "smooth",
-        });
-      } else {
-        container.scrollBy({
-          left: cardWidth,
-          behavior: "smooth",
-        });
-      }
-    }, 4000);
-
-    return () => clearInterval(autoSlide);
-  }, []);
-
-  const scroll = (direction) => {
-    if (!scrollRef.current) return;
-
-    const container = scrollRef.current;
-    const card = container.querySelector(".property-card");
-
-    if (!card) return;
-
-    const scrollAmount = card.offsetWidth + 24;
-
-    container.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
-      behavior: "smooth",
-    });
-  };
+const HotelCard = ({ hotel }) => {
+  const hotelId = String(hotel._id || "");
+  const city = hotel.city || hotel.location || "";
+  const address = [hotel.streetAddress || hotel.address, city, hotel.state]
+    .filter(Boolean)
+    .join(", ");
+  const image = hotel.image || hotel.images?.[0];
 
   return (
-    <section className="relative bg-[#f8fafc] py-16 px-4 sm:px-6 lg:px-10">
-      <div className="max-w-7xl mx-auto">
-
-        {/* Section Heading */}
-        <div className="text-center mb-10">
-
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Sparkles
-              size={20}
-              className="text-[#d99a00]"
-            />
-
-            <span className="text-[#d99a00] font-bold tracking-[0.2em] uppercase text-sm">
-              Featured Stays
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      {image ? (
+        <img src={image} alt={hotel.name} loading="lazy" className="h-52 w-full object-cover" />
+      ) : (
+        <div className="h-52 bg-gradient-to-br from-[#082B5C] to-[#E3AE32]" aria-label="No hotel image available" />
+      )}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-bold text-[#082B5C]">{hotel.name}</h3>
+            <p className="mt-1 flex items-start gap-1 text-sm text-slate-600">
+              <MapPin size={15} className="mt-0.5 shrink-0 text-[#E3AE32]" />
+              <span>{address || "India"}</span>
+            </p>
+          </div>
+          {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
+            <span className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-sm font-bold text-[#082B5C]">
+              <Star size={14} className="fill-[#E3AE32] text-[#E3AE32]" />
+              {Number(hotel.rating).toFixed(1)}
             </span>
-
-            <Sparkles
-              size={20}
-              className="text-[#d99a00]"
-            />
+          )}
+        </div>
+        <p className="mt-3 min-h-10 text-sm text-slate-500">
+          {hotel.amenities?.length ? hotel.amenities.slice(0, 3).join(" · ") : hotel.propertyType || hotel.type || "Hotel stay"}
+        </p>
+        <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-4">
+          <div>
+            <p className="text-xl font-extrabold text-[#082B5C]">{formatPrice(hotel.price, hotel.currency || "INR")}</p>
+            <p className="text-xs text-slate-500">starting price · per room/night</p>
           </div>
-
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#12335b]">
-            Featured Properties
-          </h2>
-
-          <div className="flex justify-center mt-4">
-            <div className="w-16 h-1 bg-[#d99a00] rounded-full" />
+          <div className="flex gap-2">
+            <Link
+              to={`/hotel/${encodeURIComponent(hotelId)}`}
+              className="rounded-lg border border-[#082B5C] px-3 py-2 text-sm font-bold text-[#082B5C] transition hover:bg-blue-50"
+            >
+              View details
+            </Link>
+            <Link
+              to={`/hotel/${encodeURIComponent(hotelId)}`}
+              className="rounded-lg bg-[#082B5C] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#123f77]"
+            >
+              Book now
+            </Link>
           </div>
+        </div>
+      </div>
+    </article>
+  );
+};
 
-          <p className="mt-5 text-gray-600 text-base sm:text-lg max-w-2xl mx-auto">
-            Discover our handpicked selection of amazing stays
-            for your next unforgettable journey.
+const HotelSection = ({ title, subtitle, hotels }) => (
+  <section className="mt-12">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 className="text-2xl font-extrabold text-[#082B5C]">{title}</h2>
+        <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+      </div>
+      <Link to="/book-place" className="text-sm font-bold text-[#082B5C] underline decoration-[#E3AE32] decoration-2 underline-offset-4">
+        Browse all hotels
+      </Link>
+    </div>
+    {hotels.length ? (
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {hotels.slice(0, 6).map((hotel) => <HotelCard key={hotel._id} hotel={hotel} />)}
+      </div>
+    ) : (
+      <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No hotels are currently available in this section.</p>
+    )}
+  </section>
+);
+
+const ProductSlider = () => {
+  const [sections, setSections] = useState({ featured: [], popular: [], recent: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const loadHotels = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const options = { country: "India", page: 1, limit: 12, includeDemo: false };
+        const [featured, popular, recent] = await Promise.all([
+          listHotels({ ...options, sortBy: "rating" }),
+          listHotels({ ...options, sortBy: "popularity" }),
+          listHotels({ ...options, sortBy: "newest" }),
+        ]);
+        if (active) {
+          setSections({
+            featured: featured.properties || [],
+            popular: popular.properties || [],
+            recent: recent.properties || [],
+          });
+        }
+      } catch (requestError) {
+        if (active) {
+          setSections({ featured: [], popular: [], recent: [] });
+          setError(requestError.response?.data?.message || requestError.message || "Unable to load hotels right now.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadHotels();
+    return () => {
+      active = false;
+    };
+  }, [retry]);
+
+  const cities = useMemo(() => {
+    const seen = new Set();
+    return [...sections.featured, ...sections.popular, ...sections.recent]
+      .filter((hotel) => {
+        const city = String(hotel.city || hotel.location || "").split(",")[0].trim();
+        const key = city.toLocaleLowerCase();
+        if (!city || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 10)
+      .map((hotel) => String(hotel.city || hotel.location).split(",")[0].trim());
+  }, [sections]);
+
+  return (
+    <section className="bg-slate-50 px-4 py-14 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="rounded-3xl bg-[#082B5C] p-7 text-white sm:p-10">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">FastBooking stays</p>
+          <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Book your next stay directly</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+            Explore real, approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout.
           </p>
         </div>
 
-        {/* Slider */}
-        <div className="relative">
-
-          {/* Left Arrow */}
-          <button
-            type="button"
-            onClick={() => scroll("left")}
-            aria-label="Previous properties"
-            className="
-              absolute
-              left-0
-              sm:-left-4
-              lg:-left-6
-              top-1/2
-              -translate-y-1/2
-              z-20
-              w-11
-              h-11
-              flex
-              items-center
-              justify-center
-              rounded-full
-              bg-white
-              text-[#12335b]
-              border
-              border-gray-200
-              shadow-lg
-              hover:bg-[#12335b]
-              hover:text-white
-              hover:border-[#12335b]
-              transition-all
-              duration-300
-            "
-          >
-            <ChevronLeft size={22} />
-          </button>
-
-          {/* Right Arrow */}
-          <button
-            type="button"
-            onClick={() => scroll("right")}
-            aria-label="Next properties"
-            className="
-              absolute
-              right-0
-              sm:-right-4
-              lg:-right-6
-              top-1/2
-              -translate-y-1/2
-              z-20
-              w-11
-              h-11
-              flex
-              items-center
-              justify-center
-              rounded-full
-              bg-white
-              text-[#12335b]
-              border
-              border-gray-200
-              shadow-lg
-              hover:bg-[#12335b]
-              hover:text-white
-              hover:border-[#12335b]
-              transition-all
-              duration-300
-            "
-          >
-            <ChevronRight size={22} />
-          </button>
-
-          {/* Cards Container */}
-          <div
-            ref={scrollRef}
-            className="
-              flex
-              gap-6
-              overflow-x-auto
-              scroll-smooth
-              pb-6
-              px-2
-            "
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
-          >
-            {FEATURED_PROPERTIES.map((property) => (
-              <div
-                key={property.id}
-                className="
-                  property-card
-                  flex-shrink-0
-                  w-[290px]
-                  sm:w-[320px]
-                  lg:w-[350px]
-                  bg-white
-                  rounded-2xl
-                  overflow-hidden
-                  border
-                  border-gray-200
-                  shadow-[0_5px_25px_rgba(18,51,91,0.08)]
-                  hover:shadow-[0_12px_35px_rgba(18,51,91,0.16)]
-                  hover:-translate-y-1
-                  transition-all
-                  duration-300
-                  group
-                "
-              >
-
-                {/* Image */}
-                <div className="relative h-52 overflow-hidden">
-
-                  <img
-                    src={property.image}
-                    alt={property.name}
-                    loading="lazy"
-                    className="
-                      w-full
-                      h-full
-                      object-cover
-                      group-hover:scale-110
-                      transition-transform
-                      duration-700
-                    "
-                  />
-
-                  {/* Image Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#12335b]/50 via-transparent to-transparent" />
-
-                  {/* Type */}
-                  <div
-                    className="
-                      absolute
-                      top-4
-                      left-4
-                      bg-[#12335b]
-                      text-white
-                      px-3
-                      py-1.5
-                      rounded-full
-                      text-xs
-                      font-bold
-                      shadow-md
-                    "
-                  >
-                    {property.type}
-                  </div>
-
-                  {/* Favorite */}
-                  <button
-                    type="button"
-                    aria-label={`Save ${property.name}`}
-                    className="
-                      absolute
-                      top-4
-                      right-4
-                      w-10
-                      h-10
-                      flex
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-white/95
-                      backdrop-blur-sm
-                      shadow-md
-                      hover:bg-[#d99a00]
-                      hover:text-white
-                      transition-all
-                      duration-300
-                    "
-                  >
-                    <Heart size={18} />
-                  </button>
-
-                  {/* Rating Badge */}
-                  <div
-                    className="
-                      absolute
-                      bottom-4
-                      left-4
-                      flex
-                      items-center
-                      gap-1
-                      bg-white
-                      px-3
-                      py-1.5
-                      rounded-full
-                      shadow-md
-                    "
-                  >
-                    <Star
-                      size={15}
-                      className="text-[#d99a00] fill-[#d99a00]"
-                    />
-
-                    <span className="text-sm font-bold text-[#12335b]">
-                      {property.rating}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-
-                  {/* Property Name */}
-                  <h3
-                    className="
-                      text-xl
-                      font-bold
-                      text-[#12335b]
-                      mb-2
-                      group-hover:text-[#d99a00]
-                      transition-colors
-                      duration-300
-                    "
-                  >
-                    {property.name}
-                  </h3>
-
-                  {/* Location */}
-                  <div className="flex items-center mb-3">
-                    <MapPin
-                      size={16}
-                      className="text-[#d99a00] mr-2 flex-shrink-0"
-                    />
-
-                    <span className="text-gray-500 text-sm">
-                      {property.location}
-                    </span>
-                  </div>
-
-                  {/* Reviews */}
-                  <div className="flex items-center mb-5">
-
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          size={14}
-                          className={
-                            star <= Math.round(property.rating)
-                              ? "text-[#d99a00] fill-[#d99a00]"
-                              : "text-gray-300"
-                          }
-                        />
-                      ))}
-                    </div>
-
-                    <span className="text-gray-500 text-xs ml-2">
-                      ({property.reviews.toLocaleString()} reviews)
-                    </span>
-                  </div>
-
-                  {/* Bottom */}
-                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
-
-                    <div>
-                      <span className="text-2xl font-bold text-[#12335b]">
-                        ${property.price}
-                      </span>
-
-                      <span className="text-gray-500 text-xs">
-                        {" "}
-                        / night
-                      </span>
-                    </div>
-
-                    <Link
-                      to={`/${property.type.toLowerCase()}s`}
-                      className="
-                        inline-flex
-                        items-center
-                        justify-center
-                        bg-[#12335b]
-                        text-white
-                        px-4
-                        py-2.5
-                        rounded-lg
-                        text-sm
-                        font-semibold
-                        hover:bg-[#d99a00]
-                        hover:text-[#12335b]
-                        transition-all
-                        duration-300
-                        shadow-sm
-                      "
-                    >
-                      View Details
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {loading ? (
+          <div aria-live="polite" className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((item) => <div key={item} className="h-80 animate-pulse rounded-2xl bg-white shadow-sm" />)}
           </div>
-        </div>
-
-        {/* Bottom Decorative Line */}
-        <div className="flex justify-center mt-5">
-          <div className="w-24 h-1 bg-[#d99a00] rounded-full opacity-80" />
-        </div>
+        ) : error ? (
+          <div role="alert" className="mt-8 rounded-2xl border border-red-200 bg-white p-6 text-red-800">
+            <p>{error}</p>
+            <button type="button" onClick={() => setRetry((current) => current + 1)} className="mt-3 rounded-lg bg-[#082B5C] px-4 py-2 text-sm font-bold text-white">Retry</button>
+          </div>
+        ) : (
+          <>
+            <HotelSection title="Featured hotels" subtitle="Highly rated stays from real listings" hotels={sections.featured} />
+            <HotelSection title="Popular hotels" subtitle="Places with the most recorded guest ratings" hotels={sections.popular} />
+            <HotelSection title="Recently added" subtitle="The latest approved properties in our database" hotels={sections.recent} />
+            {cities.length > 0 && (
+              <section className="mt-12">
+                <h2 className="text-2xl font-extrabold text-[#082B5C]">Explore hotels across Indian cities</h2>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {cities.map((city) => (
+                    <Link
+                      key={city}
+                      to={`/book-place?destination=${encodeURIComponent(city)}`}
+                      className="rounded-full border border-blue-100 bg-white px-5 py-2.5 text-sm font-bold text-[#082B5C] shadow-sm transition hover:border-[#E3AE32] hover:bg-amber-50"
+                    >
+                      {city}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

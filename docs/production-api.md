@@ -5,8 +5,13 @@
 - The Express API mounts bookings at `/api/v1/bookings`, and
   `POST /api/v1/bookings/create` is an existing route.
 - Hotel APIs are mounted at `/api/v1/hotels` and `/api/v1/properties`.
+- `GET /api/v1/hotels` and `GET /api/v1/hotels/` list approved, active,
+  non-demo database listings with pagination and filters. `sortBy=newest`
+  orders by database creation time.
 - `GET /api/v1/hotels/:id` looks up a hotel by its MongoDB `_id`; malformed IDs
   return 400, missing records return 404, and database failures return 500.
+- `GET /api/v1/hotels/:id/availability` checks a hotel's current status, room,
+  dates, guest capacity, inventory, and server-calculated price.
 - The repository has a Vercel static-frontend configuration, but no backend
   hosting configuration or deployed backend domain. Do not substitute a guessed
   production URL.
@@ -62,11 +67,16 @@ defaults to `http://localhost:4545/api/v1`. Copy `Backend/.env.example` to
 
 ## Booking and payment behavior
 
-Hotel search returns the MongoDB `_id`. Checkout puts that ID and the selected
-dates/guest counts in the `/payment` URL so refresh, browser history, and direct
-links can restore the request. The checkout then retrieves the current database
-record with `GET /hotels/:id`; it never fabricates a hotel or resolves a booking
-by hotel name. It also retains router state for in-app navigation.
+The homepage loads featured, popular, and recently added hotels from
+`GET /hotels?country=India`; it does not use seeded or hardcoded hotel-card data.
+`GET /hotels` also supports the same paginated filters as the search route.
+Hotel cards open `/hotel/:id`, which reloads the listing by MongoDB `_id` and
+lets the customer select dates, guest count, rooms, and an embedded room type.
+Before checkout, the page calls `GET /hotels/:id/availability`. Checkout puts
+the hotel ID and selected details in the `/payment` URL so refresh, browser
+history, and direct links can restore the request. It reloads the current
+database record with `GET /hotels/:id`; it never fabricates a hotel or resolves
+a booking by hotel name.
 
 Checkout calls authenticated `POST /bookings/eligibility` before enabling
 payment. The response includes `eligibility.eligible` and structured
@@ -87,6 +97,10 @@ checks both hotel-level and selected room-type inventory/capacity, and charges
 the room-type price. Listings with no `roomTypes` continue using hotel-level
 inventory.
 
+There is no tax or discount policy configured in the existing application.
+Checkout displays the database-calculated room-rate total and does not invent
+additional charges or discounts.
+
 Card number, expiry, and CVV fields are not collected by FastBooking. They are
 entered in Razorpay Checkout. The development-only dummy payment route is
 disabled outside development.
@@ -104,13 +118,19 @@ Create a Postman environment with:
 | `bookingId` | Set from booking response | Set from booking response |
 
 1. **Health:** `GET {{baseUrl}}/health`. Expect HTTP 200 and a connected database.
-2. **Hotels:** `GET {{baseUrl}}/hotels`; for search use
+2. **Hotels:** `GET {{baseUrl}}/hotels` (or `/hotels/`) lists active, approved,
+   non-demo hotels without a destination. Use `page`, `limit`, `country`,
+   `propertyType`, `minPrice`, `maxPrice`, or `sortBy` to filter and paginate.
+   `sortBy=newest` shows recently added listings. For a destination search use
    `GET {{baseUrl}}/hotels/search?destination=Pune&checkIn=2026-12-01&checkOut=2026-12-03&guests=2&rooms=1`.
    Replace the dates with future dates. Copy `hotelId` from a returned hotel's
    `_id` and `roomTypeId` from that same hotel's `roomTypes[]._id`.
    Then request `GET {{baseUrl}}/hotels/{{hotelId}}`. Expect HTTP 200 and a
    `property` object with the matching `_id`. A malformed `id` must return 400;
    a valid but deleted ID must return 404. A database failure returns 500.
+   Check availability with
+   `GET {{baseUrl}}/hotels/{{hotelId}}/availability?checkIn=2026-12-01&checkOut=2026-12-03&guests=2&rooms=1&roomTypeId={{roomTypeId}}`.
+   Continue only if the response's `eligibility.eligible` is `true`.
 3. **Login:** `POST {{baseUrl}}/auth/login` with the existing login JSON. Save
    the returned JWT as `token`.
 4. **Eligibility:** `POST {{baseUrl}}/bookings/eligibility`, bearer token

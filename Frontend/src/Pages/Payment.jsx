@@ -635,14 +635,14 @@ const Payment = () => {
         <div className="max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
           <h2 className="text-2xl font-bold text-slate-900">Stay dates are missing</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Choose check-in and check-out dates from hotel search before continuing to checkout.
+            Choose your dates and room for this hotel before continuing to checkout.
           </p>
           <button
             type="button"
-            onClick={() => navigate("/book-place")}
+            onClick={() => navigate(`/hotel/${encodeURIComponent(propertyId)}`)}
             className="mt-6 rounded-xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white"
           >
-            Search hotels
+            Choose stay details
           </button>
         </div>
       </div>
@@ -1277,6 +1277,17 @@ const Payment = () => {
                     </span>
                   </div>
 
+                  <div className="mt-3 space-y-1.5 text-xs text-slate-500">
+                    <div className="flex justify-between gap-3">
+                      <span>Separate taxes and fees</span>
+                      <span>Not configured</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>Discount</span>
+                      <span>None applied</span>
+                    </div>
+                  </div>
+
                   {rooms > 1 && (
                     <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                       <span>
@@ -1290,6 +1301,10 @@ const Payment = () => {
                   )}
 
                   <div className="my-4 border-t border-blue-100" />
+
+                  <p className="mb-3 text-xs leading-5 text-slate-500">
+                    The total is calculated from the selected room rate by the booking service. No separate tax or discount policy is configured, so no additional amounts have been invented.
+                  </p>
 
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold text-slate-900">

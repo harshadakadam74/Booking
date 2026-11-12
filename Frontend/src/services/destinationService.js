@@ -12,9 +12,22 @@ export const searchHotels = async (params) => {
   return response.data;
 };
 
+export const listHotels = async (params = {}) => {
+  const response = await apiClient.get('/api/v1/hotels', { params });
+  return response.data;
+};
+
 export const getHotelById = async (hotelId) => {
   const response = await apiClient.get(`/api/v1/hotels/${encodeURIComponent(hotelId)}`);
   return response.data?.property;
+};
+
+export const getHotelAvailability = async (hotelId, params) => {
+  const response = await apiClient.get(
+    `/api/v1/hotels/${encodeURIComponent(hotelId)}/availability`,
+    { params }
+  );
+  return response.data?.eligibility;
 };
 
 export const fetchAdminDestinations = async (params) => {

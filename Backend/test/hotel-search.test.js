@@ -98,7 +98,16 @@ test('hotel search accepts optional filters and normalizes amenities case-insens
   assert.deepEqual(parsed.criteria.amenities, ['wi-fi', 'parking']);
   assert.equal(parsed.criteria.budget, undefined);
   assert.equal(parsed.criteria.page, 2);
-  assert.equal(parsed.criteria.includeDemo, true);
+  assert.equal(parsed.criteria.includeDemo, false);
+});
+
+test('hotel listing supports newest sort and excludes demo listings by default', async () => {
+  const parsed = parseHotelSearch({ sortBy: 'newest', country: 'India' });
+  assert.equal(parsed.error, undefined);
+  assert.equal(parsed.criteria.includeDemo, false);
+  const pipeline = await buildHotelPipeline(parsed.criteria);
+  assert.deepEqual(pipeline[0].$match.isDemo, { $ne: true });
+  assert.deepEqual(pipeline.find((stage) => stage.$sort)?.$sort, { createdAt: -1, _id: -1 });
 });
 
 test('city alias, hotel name, price range, sort, and work-trip filters are accepted', () => {
@@ -263,6 +272,39 @@ test('hotel lookup distinguishes malformed IDs, missing hotels, and successful r
     assert.deepEqual(foundResponse.body.property, expectedHotel);
   } finally {
     Property.findById = originalFindById;
+  }
+});
+
+test('hotel availability maps URL query parameters to booking eligibility', async () => {
+  const originalCheck = BookingController.getBookingEligibility;
+  let bookingRequest;
+  try {
+    BookingController.getBookingEligibility = async (req, res) => {
+      bookingRequest = req;
+      return res.status(200).json({ eligibility: { eligible: true } });
+    };
+    const response = createResponse();
+    await PropertyController.getPropertyAvailability({
+      params: { id: '507f1f77bcf86cd799439011' },
+      query: {
+        checkIn: '2026-12-01',
+        checkOut: '2026-12-03',
+        guests: '2',
+        rooms: '1',
+        roomTypeId: '607f1f77bcf86cd799439011',
+      },
+    }, response);
+    assert.deepEqual(bookingRequest.body, {
+      propertyId: '507f1f77bcf86cd799439011',
+      checkInDate: '2026-12-01',
+      checkOutDate: '2026-12-03',
+      numberOfGuests: '2',
+      numberOfRooms: '1',
+      roomTypeId: '607f1f77bcf86cd799439011',
+    });
+    assert.equal(response.statusCode, 200);
+  } finally {
+    BookingController.getBookingEligibility = originalCheck;
   }
 });
 
