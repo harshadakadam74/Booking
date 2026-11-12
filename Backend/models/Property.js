@@ -7,6 +7,8 @@ const propertySchema = new mongoose.Schema(
     address: { type: String, default: '', trim: true },
     streetAddress: { type: String, default: '', trim: true },
     postalCode: { type: String, default: '', trim: true, maxlength: 12 },
+    contactPhone: { type: String, default: '', trim: true, maxlength: 30 },
+    contactEmail: { type: String, default: '', trim: true, lowercase: true, maxlength: 254 },
     city: { type: String, default: '', trim: true },
     normalizedCity: { type: String, default: '', trim: true, lowercase: true, index: true },
     state: { type: String, default: '', trim: true },

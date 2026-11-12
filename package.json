@@ -1,0 +1,9 @@
+{
+  "name": "fastbooking-workspace",
+  "private": true,
+  "scripts": {
+    "seed:hotels": "npm --prefix Backend run seed:hotels",
+    "inventory:inspect": "npm --prefix Backend run inventory:inspect",
+    "test:backend": "npm --prefix Backend test"
+  }
+}

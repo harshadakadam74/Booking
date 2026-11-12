@@ -28,7 +28,7 @@ import {
 
 const emptyHotel = {
   name: '', location: '', address: '', city: '', state: '', country: 'India',
-  postalCode: '',
+  postalCode: '', contactPhone: '', contactEmail: '',
   currency: 'INR', type: 'Hotel', category: 'Hotel', description: '', image: '', images: '',
   price: '', totalRooms: '', availableRooms: '', amenities: '', facilities: '',
   roomTypes: '[]', policies: '{"cancellation":"","children":"","pets":"","general":""}',
@@ -43,6 +43,17 @@ const bookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CAN
 const PAGE_SIZE = 10;
 
 const numberText = (value) => Number(value || 0).toLocaleString();
+const moneyText = (value, currency = 'INR') => {
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+  } catch {
+    return `${currency} ${numberText(value)}`;
+  }
+};
 const dateText = (value) => value ? new Date(value).toLocaleDateString() : '—';
 
 const Pagination = ({ page, pages, onChange }) => (
@@ -61,6 +72,8 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
     location: hotel.location || '',
     address: hotel.streetAddress || hotel.address || '',
     postalCode: hotel.postalCode || '',
+    contactPhone: hotel.contactPhone || '',
+    contactEmail: hotel.contactEmail || '',
     city: hotel.city || '',
     state: hotel.state || '',
     country: hotel.country || 'India',
@@ -168,6 +181,8 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
       location: form.location.trim(),
       address: form.address.trim(),
       postalCode: form.postalCode.trim(),
+      contactPhone: form.contactPhone.trim(),
+      contactEmail: form.contactEmail.trim(),
       city: form.city.trim(),
       state: form.state.trim(),
       country: form.country.trim(),
@@ -251,6 +266,8 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
             {field('location', 'City / location', { required: true })}
             {field('address', 'Complete street address')}
             {field('postalCode', 'PIN / postal code')}
+            {field('contactPhone', 'Property contact phone', { type: 'tel' })}
+            {field('contactEmail', 'Property contact email', { type: 'email' })}
             {field('city', 'City')}
             {field('state', 'State / province')}
             {field('country', 'Country')}
@@ -377,10 +394,10 @@ const AdminPanel = () => {
     const listResult = results[1];
     if (listResult?.status === 'fulfilled') {
       const { value } = listResult;
-      if (section === 'hotels') setHotels(value.properties || []);
+      if (section === 'hotels') setHotels(value.hotels || value.properties || []);
       if (section === 'bookings') setBookings(value.bookings || []);
       if (section === 'users') setUsers(value.users || []);
-      const nextPages = value.pagination?.pages || 0;
+      const nextPages = value.totalPages ?? value.pagination?.pages ?? 0;
       setListPages(nextPages);
       if (page > Math.max(1, nextPages)) setPage(Math.max(1, nextPages));
     } else if (listResult?.status === 'rejected') {
@@ -657,8 +674,8 @@ const AdminPanel = () => {
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Hotel</th><th className="px-4 py-3">Location</th><th className="px-4 py-3">Price/night</th><th className="px-4 py-3">Rooms available</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
                     {pageItems.map((hotel) => <tr key={hotel._id}>
-                      <td className="px-4 py-3"><div className="flex items-center gap-3">{hotel.image ? <img src={hotel.image} alt="" className="h-11 w-14 rounded-lg object-cover" /> : <span className="flex h-11 w-14 items-center justify-center rounded-lg bg-slate-100"><Building2 size={18} /></span>}<div><p className="font-bold text-slate-800">{hotel.name}</p><p className="text-xs text-slate-500">{hotel.type || 'Hotel'}</p></div></div></td>
-                      <td className="px-4 py-3 text-slate-600">{hotel.location}</td><td className="px-4 py-3">{numberText(hotel.price)}</td><td className="px-4 py-3">{hotel.availableRooms} / {hotel.totalRooms}</td>
+                      <td className="px-4 py-3"><div className="flex items-center gap-3">{hotel.image ? <img src={hotel.image} alt="" className="h-11 w-14 rounded-lg object-cover" /> : <span className="flex h-11 w-14 items-center justify-center rounded-lg bg-slate-100"><Building2 size={18} /></span>}<div><p className="font-bold text-slate-800">{hotel.name}</p><p className="text-xs text-slate-500">{hotel.type || 'Hotel'}{hotel.isDemo && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-900">DEMO · NOT REAL</span>}</p></div></div></td>
+                      <td className="px-4 py-3 text-slate-600">{hotel.location}</td><td className="px-4 py-3">{moneyText(hotel.price, hotel.currency || 'INR')}</td><td className="px-4 py-3">{hotel.availableRooms} / {hotel.totalRooms}</td>
                       <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${hotel.active === false ? 'bg-slate-100 text-slate-600' : 'bg-green-100 text-green-800'}`}>{hotel.active === false ? 'Inactive' : 'Active'}</span><p className="mt-1 text-xs capitalize text-slate-500">Approval: {hotel.approvalStatus || 'approved'}</p></td>
                       <td className="px-4 py-3"><div className="flex flex-wrap items-center gap-1"><button type="button" title="Edit hotel" onClick={() => setHotelEditor(hotel)} className="rounded-lg p-2 text-blue-900 hover:bg-blue-50"><Pencil size={17} /></button><button type="button" onClick={() => changeHotelStatus(hotel)} className="rounded-lg px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50">{hotel.active === false ? 'Activate' : 'Deactivate'}</button>{(hotel.approvalStatus || 'approved') !== 'approved' && <button type="button" onClick={() => changeHotelApproval(hotel, 'approved')} className="rounded-lg px-2 py-1 text-xs font-semibold text-green-800 hover:bg-green-50">Approve</button>}{hotel.approvalStatus !== 'rejected' && <button type="button" onClick={() => changeHotelApproval(hotel, 'rejected')} className="rounded-lg px-2 py-1 text-xs font-semibold text-red-800 hover:bg-red-50">Reject</button>}<button type="button" title="Delete hotel" onClick={() => removeHotel(hotel)} className="rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17} /></button></div></td>
                     </tr>)}

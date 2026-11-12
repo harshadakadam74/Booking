@@ -43,7 +43,7 @@ const statusValues = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCEL
 
 const validatePropertyInput = (body, existing) => {
   const fields = [
-    'name', 'location', 'address', 'streetAddress', 'postalCode', 'city', 'state', 'country', 'currency',
+    'name', 'location', 'address', 'streetAddress', 'postalCode', 'contactPhone', 'contactEmail', 'city', 'state', 'country', 'currency',
     'type', 'propertyType', 'category', 'description', 'image', 'images', 'price', 'totalRooms',
     'availableRooms', 'maxGuestsPerRoom', 'amenities', 'facilities', 'roomTypes', 'policies',
     'checkInTime', 'checkOutTime', 'workTripFriendly', 'breakfastIncluded', 'starRating', 'rating', 'ratingCount',
@@ -87,13 +87,17 @@ const validatePropertyInput = (body, existing) => {
   }
   for (const field of [
     'address', 'streetAddress', 'city', 'state', 'country', 'propertyType', 'category',
-    'postalCode', 'ratingSource', 'checkInTime', 'checkOutTime',
+    'postalCode', 'contactPhone', 'contactEmail', 'ratingSource', 'checkInTime', 'checkOutTime',
   ]) {
     if (values[field] !== undefined &&
       (typeof values[field] !== 'string' ||
-        values[field].trim().length > (['address', 'streetAddress'].includes(field) ? 250 : 100))) {
+        values[field].trim().length > (['address', 'streetAddress'].includes(field) ? 250 : field === 'contactPhone' ? 30 : field === 'contactEmail' ? 254 : 100))) {
       return { error: `${field} must be a valid string.` };
     }
+  }
+  if (values.contactEmail?.trim() &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail.trim())) {
+    return { error: 'Contact email must be a valid email address.' };
   }
   for (const field of ['checkInTime', 'checkOutTime']) {
     if (values[field] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(values[field])) {
@@ -203,8 +207,8 @@ const validatePropertyInput = (body, existing) => {
   const updates = {};
   Object.entries(values).forEach(([field, value]) => {
     if (['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'starRating', 'rating', 'ratingCount'].includes(field)) updates[field] = Number(value);
-    else if (['name', 'location', 'address', 'streetAddress', 'postalCode', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'category', 'checkInTime', 'checkOutTime', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
-      updates[field] = value.trim();
+    else if (['name', 'location', 'address', 'streetAddress', 'postalCode', 'contactPhone', 'contactEmail', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'category', 'checkInTime', 'checkOutTime', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
+      updates[field] = field === 'contactEmail' ? value.trim().toLowerCase() : value.trim();
     } else if (['amenities', 'facilities'].includes(field)) updates[field] = value.map((item) => item.trim());
     else if (field === 'images') updates.images = value.map((item) => item.trim());
     else updates[field] = value;
@@ -347,7 +351,11 @@ const getAllProperties = async (req, res) => {
       Property.countDocuments(filter),
     ]);
     return ApiResponse.success(res, {
+      hotels: properties,
       properties,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     }, 'Properties fetched successfully');
   } catch (error) {

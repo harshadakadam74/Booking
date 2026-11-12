@@ -8,6 +8,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "seed:destinations": "node scripts/seedDestinations.js",
+    "seed:hotels": "node scripts/seedHotels.js",
     "seed:demo-hotels": "node scripts/seedDemoHotels.js",
     "import:verified-hotels": "node scripts/importVerifiedHotels.js",
     "inventory:inspect": "node scripts/inspectHotelInventory.js"
