@@ -11,6 +11,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    confirmationNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     propertyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Property",

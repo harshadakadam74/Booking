@@ -55,7 +55,7 @@ const parseHotelSearch = (query = {}) => {
   if (maxPrice !== undefined && maxPrice !== '') {
     budget = Number(maxPrice);
     if (!Number.isFinite(budget) || budget < 0 || budget > 100000000) {
-      return { error: 'Maximum price must be between zero and 100000000.' };
+      return { error: 'Budget (maximum price) must be between zero and 100000000.' };
     }
   }
   if (minPrice !== undefined && budget !== undefined && minPrice > budget) {
@@ -292,6 +292,26 @@ const buildHotelPipeline = async (criteria) => {
 
   const pipeline = [
     { $match: filter },
+    ...(criteria.sortBy === 'popularity' ? [{
+      $lookup: {
+        from: Booking.collection.name,
+        let: { propertyId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$propertyId', '$$propertyId'] },
+              bookingStatus: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
+            },
+          },
+          { $count: 'bookingCount' },
+        ],
+        as: 'bookingStats',
+      },
+    }, {
+      $addFields: {
+        bookingCount: { $ifNull: [{ $arrayElemAt: ['$bookingStats.bookingCount', 0] }, 0] },
+      },
+    }] : []),
     ...(criteria.checkIn && criteria.checkOut ? [{
       $lookup: {
         from: Booking.collection.name,
@@ -353,7 +373,7 @@ const buildHotelPipeline = async (criteria) => {
         : criteria.sortBy === 'rating'
           ? { rating: -1, ratingCount: -1, price: 1, name: 1 }
           : criteria.sortBy === 'popularity'
-            ? { ratingCount: -1, rating: -1, price: 1, name: 1 }
+            ? { bookingCount: -1, ratingCount: -1, price: 1, name: 1 }
             : criteria.sortBy === 'newest'
               ? { createdAt: -1, _id: -1 }
             : { price: 1, name: 1 },
@@ -373,12 +393,15 @@ const buildHotelPipeline = async (criteria) => {
 
 const searchHotels = async (criteria) => {
   const [result = { results: [], count: [] }] = await Property.aggregate(await buildHotelPipeline(criteria));
-  const properties = result.results.map(({ stayUsage, roomsBooked, guestsPerRoom, ...property }) => ({
-    ...property,
-    availableRoomsForStay: criteria.checkIn && criteria.checkOut
+  const properties = result.results.map((property) => {
+    const availableRoomsForStay = criteria.checkIn && criteria.checkOut
       ? property.remainingRooms
-      : property.availableRooms,
-  }));
+      : property.availableRooms;
+    for (const field of ['bookingStats', 'stayUsage', 'roomsBooked', 'guestsPerRoom']) {
+      delete property[field];
+    }
+    return { ...property, availableRoomsForStay };
+  });
   const total = result.count[0]?.total || 0;
   return {
     properties,

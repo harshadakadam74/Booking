@@ -22,15 +22,19 @@ import {
   exportAdminHotels,
   importAdminHotels,
   uploadAdminHotelImage,
+  uploadAdminHotelImages,
   updateAdminHotel,
 } from '../services/adminService';
 
 const emptyHotel = {
   name: '', location: '', address: '', city: '', state: '', country: 'India',
+  postalCode: '',
   currency: 'INR', type: 'Hotel', category: 'Hotel', description: '', image: '', images: '',
   price: '', totalRooms: '', availableRooms: '', amenities: '', facilities: '',
-  roomTypes: '[]', checkInTime: '15:00', checkOutTime: '11:00',
-  maxGuestsPerRoom: '4', rating: '', ratingCount: '', ratingSource: '',
+  roomTypes: '[]', policies: '{"cancellation":"","children":"","pets":"","general":""}',
+  checkInTime: '15:00', checkOutTime: '11:00',
+  maxGuestsPerRoom: '4', starRating: '', rating: '', ratingCount: '', ratingSource: '',
+  breakfastIncluded: false,
   workTripFriendly: false, active: true,
   latitude: '', longitude: '',
 };
@@ -56,6 +60,7 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
     name: hotel.name || '',
     location: hotel.location || '',
     address: hotel.streetAddress || hotel.address || '',
+    postalCode: hotel.postalCode || '',
     city: hotel.city || '',
     state: hotel.state || '',
     country: hotel.country || 'India',
@@ -72,9 +77,12 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
     rating: hotel.rating === null || hotel.rating === undefined ? '' : String(hotel.rating),
     ratingCount: String(hotel.ratingCount ?? 0),
     ratingSource: hotel.ratingSource || '',
+    starRating: hotel.starRating === null || hotel.starRating === undefined ? '' : String(hotel.starRating),
+    breakfastIncluded: Boolean(hotel.breakfastIncluded),
     amenities: (hotel.amenities || []).join(', '),
     facilities: (hotel.facilities || []).join(', '),
     roomTypes: JSON.stringify(hotel.roomTypes || [], null, 2),
+    policies: JSON.stringify(hotel.policies || { cancellation: '', children: '', pets: '', general: '' }, null, 2),
     checkInTime: hotel.checkInTime || '15:00',
     checkOutTime: hotel.checkOutTime || '11:00',
     workTripFriendly: Boolean(hotel.workTripFriendly),
@@ -93,6 +101,7 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
     const maxGuestsPerRoom = Number(form.maxGuestsPerRoom);
     const rating = Number(form.rating);
     const ratingCount = Number(form.ratingCount);
+    const starRating = Number(form.starRating);
     const hasRatingData = form.rating.trim() !== '' || ratingCount > 0 || form.ratingSource.trim() !== '';
     if (!form.name.trim() || !form.location.trim()) {
       setError('Hotel name and location are required.');
@@ -139,6 +148,18 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
       setError('Room types must be a valid JSON array.');
       return;
     }
+    let policies;
+    try {
+      policies = JSON.parse(form.policies || '{}');
+      if (!policies || typeof policies !== 'object' || Array.isArray(policies)) throw new Error();
+    } catch {
+      setError('Policies must be a valid JSON object.');
+      return;
+    }
+    if (form.starRating.trim() && (!Number.isInteger(starRating) || starRating < 1 || starRating > 5)) {
+      setError('Hotel star category must be a whole number from 1 to 5.');
+      return;
+    }
 
     setError('');
     const images = [...new Set(form.images.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean))];
@@ -146,6 +167,7 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
       name: form.name.trim(),
       location: form.location.trim(),
       address: form.address.trim(),
+      postalCode: form.postalCode.trim(),
       city: form.city.trim(),
       state: form.state.trim(),
       country: form.country.trim(),
@@ -163,8 +185,11 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
       amenities: form.amenities.split(',').map((item) => item.trim()).filter(Boolean),
       facilities: form.facilities.split(',').map((item) => item.trim()).filter(Boolean),
       roomTypes,
+      policies,
       checkInTime: form.checkInTime,
       checkOutTime: form.checkOutTime,
+      ...(form.starRating.trim() ? { starRating } : {}),
+      breakfastIncluded: form.breakfastIncluded,
       workTripFriendly: form.workTripFriendly,
       active: form.active,
     };
@@ -176,16 +201,19 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
   };
 
   const uploadImage = async (event) => {
-    const image = event.target.files?.[0];
-    if (!image) return;
+    const images = Array.from(event.target.files || []);
+    if (!images.length) return;
     setUploadingImage(true);
     setError('');
     try {
-      const { url } = await onUploadImage(image);
+      const uploaded = images.length === 1
+        ? await onUploadImage(images[0])
+        : await uploadAdminHotelImages(images);
+      const uploadedUrls = uploaded.urls?.length ? uploaded.urls : [uploaded.url].filter(Boolean);
       setForm((current) => ({
         ...current,
-        image: current.image || url,
-        images: [...new Set([...current.images.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean), url])].join('\n'),
+        image: current.image || uploadedUrls[0],
+        images: [...new Set([...current.images.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean), ...uploadedUrls])].join('\n'),
       }));
     } catch (uploadError) {
       setError(uploadError.message || 'Unable to upload the image.');
@@ -208,6 +236,9 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
         className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
       />
     </label>
+    <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Hotel policies (JSON object)
+      <textarea rows={3} value={form.policies} onChange={(event) => setForm((current) => ({ ...current, policies: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs font-normal" placeholder='{"cancellation":"...","children":"...","pets":"...","general":"..."}' />
+    </label>
   );
 
   return (
@@ -222,6 +253,7 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
             {field('name', 'Hotel name', { required: true })}
             {field('location', 'City / location', { required: true })}
             {field('address', 'Complete street address')}
+            {field('postalCode', 'PIN / postal code')}
             {field('city', 'City')}
             {field('state', 'State / province')}
             {field('country', 'Country')}
@@ -235,13 +267,14 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
             {field('rating', 'Rating (0–5, source required)', { type: 'number', min: 0, max: 5, className: 'sm:col-span-1' })}
             {field('ratingCount', 'Rating count', { type: 'number', min: 0 })}
             {field('ratingSource', 'Rating source')}
+            {field('starRating', 'Hotel category stars (verified)', { type: 'number', min: 1, max: 5 })}
             {field('checkInTime', 'Check-in time')}
             {field('checkOutTime', 'Check-out time')}
             {field('latitude', 'Latitude (optional)', { type: 'number', min: -90, max: 90 })}
             {field('longitude', 'Longitude (optional)', { type: 'number', min: -180, max: 180 })}
             {field('image', 'Hotel image URL', { type: 'url', className: 'sm:col-span-2' })}
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Hotel image files (Cloudinary must be configured)
-              <input type="file" accept="image/*" onChange={uploadImage} disabled={uploadingImage} className="mt-1.5 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={uploadImage} disabled={uploadingImage} className="mt-1.5 block w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal" />
               {uploadingImage && <span className="mt-1 block text-xs text-slate-500">Uploading image…</span>}
             </label>
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Additional image URLs (one per line)
@@ -263,6 +296,10 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} className="h-4 w-4 accent-blue-900" />
             Hotel listing is active
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input type="checkbox" checked={form.breakfastIncluded} onChange={(event) => setForm((current) => ({ ...current, breakfastIncluded: event.target.checked }))} className="h-4 w-4 accent-blue-900" />
+            Breakfast included (confirm with property)
           </label>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input type="checkbox" checked={form.workTripFriendly} onChange={(event) => setForm((current) => ({ ...current, workTripFriendly: event.target.checked }))} className="h-4 w-4 accent-blue-900" />

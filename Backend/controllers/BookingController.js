@@ -2,6 +2,7 @@ const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const { randomUUID } = require("crypto");
 const {
   acquirePropertyBookingLock,
   acquireBookingStatusLock,
@@ -67,6 +68,7 @@ const getBookingEligibility = async (req, res) => {
     const {
       propertyId,
       roomTypeId,
+      bookingId,
       checkInDate,
       checkOutDate,
       numberOfGuests,
@@ -96,6 +98,31 @@ const getBookingEligibility = async (req, res) => {
     listing = await Property.findById(propertyId);
     if (!listing) {
       return res.status(404).json({ message: "The selected hotel could not be found." });
+    }
+
+    let existingPendingBooking;
+    if (bookingId !== undefined) {
+      if (typeof bookingId !== "string" ||
+        !/^[a-f\d]{24}$/i.test(bookingId) ||
+        !mongoose.Types.ObjectId.isValid(bookingId)) {
+        return res.status(400).json({ message: "A valid pending booking ID is required." });
+      }
+      existingPendingBooking = await Booking.findOne({ _id: bookingId, user: req.user._id });
+      if (!existingPendingBooking) {
+        return res.status(404).json({ message: "Pending booking not found." });
+      }
+      const bookingMatchesRequest =
+        existingPendingBooking.bookingStatus === "PENDING" &&
+        existingPendingBooking.paymentStatus !== "SUCCESS" &&
+        String(existingPendingBooking.propertyId) === propertyId &&
+        existingPendingBooking.checkInDate?.toISOString().slice(0, 10) === checkIn?.toISOString().slice(0, 10) &&
+        existingPendingBooking.checkOutDate?.toISOString().slice(0, 10) === checkOut?.toISOString().slice(0, 10) &&
+        Number(existingPendingBooking.numberOfGuests) === guests &&
+        Number(existingPendingBooking.numberOfRooms) === rooms &&
+        String(existingPendingBooking.roomTypeId || "") === String(roomTypeId || "");
+      if (!bookingMatchesRequest) {
+        return res.status(409).json({ message: "The pending booking no longer matches these checkout details." });
+      }
     }
 
     if (listing.active === false) {
@@ -142,7 +169,12 @@ const getBookingEligibility = async (req, res) => {
     let nights;
     let totalPrice;
     if (listing && !dateError && Number.isInteger(rooms) && rooms > 0) {
-      const bookedRooms = await getBookedRooms({ property: listing, checkIn, checkOut });
+      const bookedRooms = await getBookedRooms({
+        property: listing,
+        checkIn,
+        checkOut,
+        excludeBookingId: existingPendingBooking?._id,
+      });
       propertyAvailableRooms = getRemainingRooms(listing, bookedRooms);
       availableRooms = propertyAvailableRooms;
       if (selectedRoomType) {
@@ -150,6 +182,7 @@ const getBookingEligibility = async (req, res) => {
           property: listing,
           checkIn,
           checkOut,
+          excludeBookingId: existingPendingBooking?._id,
           roomTypeId: selectedRoomType._id,
         });
         roomTypeAvailableRooms = getRemainingRooms(selectedRoomType, bookedRoomTypeRooms);
@@ -427,6 +460,7 @@ const createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       user: req.user._id,
+      confirmationNumber: `FB-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 8).toUpperCase()}`,
       ...(idempotencyKey ? { idempotencyKey } : {}),
       property: bookingLock.property.name,
       propertyId: bookingLock.property._id,

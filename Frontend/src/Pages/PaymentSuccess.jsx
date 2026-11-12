@@ -15,25 +15,92 @@ import {
   Clock,
 } from "lucide-react";
 import printReceipt from "../utils/printReceipt";
+import { getBookingById } from "../services/bookingService";
+import { getHotelById } from "../services/destinationService";
 
 const PaymentSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const {
-    property,
-    searchParams,
-    booking: backendBooking,
-  } = location.state || {};
+  const routeState = location.state || {};
+  const requestedBookingId = new URLSearchParams(location.search).get("bookingId") ||
+    routeState.booking?._id || routeState.booking?.id || "";
+  const [property, setProperty] = useState(routeState.property || null);
+  const [backendBooking, setBackendBooking] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(true);
+  const [verificationError, setVerificationError] = useState("");
 
   const [copied, setCopied] = useState(false);
   const hasSavedBooking = useRef(false);
-  const bookingId = String(
-    backendBooking?.id || backendBooking?._id || backendBooking?.bookingId || ""
-  );
+  const bookingId = String(requestedBookingId || "");
+  const searchParams = routeState.searchParams || (backendBooking ? {
+    dates: {
+      startDate: backendBooking.checkInDate,
+      endDate: backendBooking.checkOutDate,
+    },
+    guests: {
+      adults: backendBooking.numberOfGuests,
+      children: 0,
+      rooms: backendBooking.numberOfRooms,
+    },
+  } : null);
   const isPaymentConfirmed = backendBooking?.bookingStatus === "CONFIRMED" &&
-    backendBooking?.paymentStatus === "SUCCESS" &&
-    Boolean(bookingId);
+    backendBooking?.paymentStatus === "SUCCESS" && Boolean(bookingId);
+
+  useEffect(() => {
+    let active = true;
+    const verifyBooking = async () => {
+      if (!bookingId) {
+        setVerificationError("A booking confirmation number is required.");
+        setVerificationLoading(false);
+        return;
+      }
+      setVerificationLoading(true);
+      setVerificationError("");
+      try {
+        const response = await getBookingById(bookingId);
+        const booking = response?.booking;
+        if (booking?.bookingStatus !== "CONFIRMED" || booking?.paymentStatus !== "SUCCESS") {
+          throw new Error("The server has not confirmed successful payment for this booking.");
+        }
+        if (active) setBackendBooking(booking);
+        const hotelId = String(booking.propertyId || "");
+        if (hotelId) {
+          try {
+            const hotel = await getHotelById(hotelId);
+            if (active) {
+              setProperty(hotel || {
+                name: booking.property || "Hotel booking",
+                location: "Hotel details are no longer available",
+              });
+            }
+          } catch {
+            if (active) {
+              setProperty({
+                name: booking.property || "Hotel booking",
+                location: "Hotel details are no longer available",
+              });
+            }
+          }
+        } else if (active) {
+          setProperty({
+            name: booking.property || routeState.property?.name || "Hotel booking",
+            location: booking.location || routeState.property?.location || "",
+          });
+        }
+      } catch (error) {
+        if (active) {
+          setVerificationError(error.response?.data?.message || error.message || "Unable to verify this booking.");
+          setBackendBooking(null);
+        }
+      } finally {
+        if (active) setVerificationLoading(false);
+      }
+    };
+    verifyBooking();
+    return () => {
+      active = false;
+    };
+  }, [bookingId, routeState.property]);
 
   // --------------------------------------------------
   // FORMAT DATE
@@ -96,6 +163,9 @@ const PaymentSuccess = () => {
 
         property: property.name,
         location: property.location,
+        confirmationNumber: backendBooking.confirmationNumber || bookingId,
+        roomType: backendBooking.roomTypeName || "Room",
+        paymentId: backendBooking.paymentDetails?.paymentId || backendBooking.paymentDetails?.transactionId,
         image: property.image || property.images?.[0] || "",
 
         checkIn: searchParams.dates
@@ -122,9 +192,16 @@ const PaymentSuccess = () => {
 
       const existingBookings = localStorage.getItem("userBookings");
 
-      const bookings = existingBookings ? JSON.parse(existingBookings) : [];
-
-      bookings.unshift(newBooking);
+      const parsedBookings = existingBookings ? JSON.parse(existingBookings) : [];
+      const bookings = Array.isArray(parsedBookings) ? parsedBookings : [];
+      const existingBookingIndex = bookings.findIndex((booking) => (
+        String(booking.backendBookingId || booking.id || "") === bookingId
+      ));
+      if (existingBookingIndex >= 0) {
+        bookings[existingBookingIndex] = { ...bookings[existingBookingIndex], ...newBooking };
+      } else {
+        bookings.unshift(newBooking);
+      }
 
       localStorage.setItem("userBookings", JSON.stringify(bookings));
 
@@ -137,6 +214,14 @@ const PaymentSuccess = () => {
   // --------------------------------------------------
   // NO BOOKING
   // --------------------------------------------------
+
+  if (verificationLoading) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-4">
+        <p aria-live="polite" className="rounded-2xl bg-white px-6 py-5 text-slate-700 shadow">Verifying payment and booking with FastBooking…</p>
+      </main>
+    );
+  }
 
   if (!property || !searchParams || !isPaymentConfirmed) {
     return (
@@ -151,15 +236,15 @@ const PaymentSuccess = () => {
           </h2>
 
           <p className="mt-2 text-sm text-slate-500">
-            No successful payment confirmation is available for this booking. Return to your bookings or start again.
+            {verificationError || "No successful payment confirmation is available for this booking. Return to your bookings or start again."}
           </p>
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/account/bookings")}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-800 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-900"
           >
             <Home size={18} />
-            Go Home
+            View My Bookings
           </button>
         </div>
       </div>
@@ -174,6 +259,11 @@ const PaymentSuccess = () => {
   const rooms = Number(backendBooking.numberOfRooms || searchParams?.guests?.rooms || 1);
   const totalAmount = Number(backendBooking.totalPrice);
   const currency = property.currency || "INR";
+  const confirmationNumber = backendBooking.confirmationNumber || bookingId;
+  const paymentId = backendBooking.paymentDetails?.paymentId ||
+    backendBooking.paymentDetails?.transactionId ||
+    "Not provided";
+  const roomTypeName = backendBooking.roomTypeName || "Room";
   const formatCurrency = (amount) => new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency,
@@ -217,9 +307,11 @@ const PaymentSuccess = () => {
   const handleDownloadReceipt = () => {
     printReceipt({
       bookingId,
-      confirmationNumber: backendBooking?.confirmationNumber,
+      confirmationNumber,
       property: property.name,
       location: property.location,
+      roomType: roomTypeName,
+      paymentId,
       checkIn: formatDate(searchParams?.dates?.startDate),
       checkOut: formatDate(searchParams?.dates?.endDate),
       guests: searchParams?.guests,
@@ -242,10 +334,13 @@ const PaymentSuccess = () => {
 Here is your booking confirmation.
 
 Booking ID: ${bookingId}
+Confirmation number: ${confirmationNumber}
 Property: ${property.name}
+Room: ${roomTypeName}
 Check-in: ${formatDate(searchParams?.dates?.startDate)}
 Check-out: ${formatDate(searchParams?.dates?.endDate)}
 Total: ${formatCurrency(totalAmount)}
+Payment ID: ${paymentId}
 
 Thank you for booking with FastBooking.`,
     )}`;
@@ -344,6 +439,9 @@ Thank you for booking with FastBooking.`,
 
                       {property.location}
                     </div>
+                    <p className="mt-2 text-sm text-slate-700">
+                      <span className="font-semibold">Room:</span> {roomTypeName}
+                    </p>
 
                     {/* Rating */}
 
@@ -508,6 +606,12 @@ Thank you for booking with FastBooking.`,
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-yellow-700">
+                      Confirmation number
+                    </p>
+                    <p className="mt-1 font-bold tracking-wide text-blue-950">
+                      {confirmationNumber}
+                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-yellow-700">
                       Booking ID
                     </p>
 
@@ -526,6 +630,12 @@ Thank you for booking with FastBooking.`,
                     {copied ? "Copied" : "Copy ID"}
                   </button>
                 </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Payment ID
+                </p>
+                <p className="mt-1 break-all font-semibold text-slate-900">{paymentId}</p>
               </div>
 
               {/* SECURE PAYMENT */}
@@ -573,7 +683,7 @@ Thank you for booking with FastBooking.`,
 
           <button
             type="button"
-            onClick={() => navigate("/account")}
+            onClick={() => navigate("/account/bookings")}
             className="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-5 py-3.5 font-bold text-blue-900 shadow-sm transition hover:bg-blue-50"
           >
             <Home size={18} />

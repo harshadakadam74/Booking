@@ -6,6 +6,7 @@ const { authenticate } = require("../middlewares/Authenticate");
 
 // Public
 router.get("/product/:productId", ReviewController.getReviewsByProduct);
+router.get("/property/:propertyId", ReviewController.getReviewsByProperty);
 
 // Authenticated User
 router.post("/", authenticate, ReviewController.createReview);

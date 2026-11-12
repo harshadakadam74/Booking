@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays, MapPin, Star, Users } from "lucide-react";
-import { getHotelAvailability, getHotelById } from "../services/destinationService";
+import { getHotelAvailability, getHotelById, getHotelReviews } from "../services/destinationService";
 
 const dateValue = (date) => {
   const year = date.getFullYear();
@@ -40,6 +40,8 @@ const HotelDetails = () => {
   const [availability, setAvailability] = useState(null);
   const [availabilityError, setAvailabilityError] = useState("");
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsError, setReviewsError] = useState("");
 
   const roomTypes = useMemo(
     () => (Array.isArray(hotel?.roomTypes) ? hotel.roomTypes : []),
@@ -49,6 +51,7 @@ const HotelDetails = () => {
     hotel?.streetAddress || hotel?.address,
     hotel?.city || hotel?.location,
     hotel?.state,
+    hotel?.postalCode,
     hotel?.country,
   ].filter(Boolean).join(", "), [hotel]);
   const isValidHotelId = /^[a-f\d]{24}$/i.test(id);
@@ -102,6 +105,21 @@ const HotelDetails = () => {
       return String(roomTypes[0]?._id || "");
     });
   }, [hotel, roomTypes, searchParams]);
+
+  useEffect(() => {
+    let active = true;
+    if (!hotel) return () => { active = false; };
+    getHotelReviews(id)
+      .then((result) => {
+        if (active) setReviews(result);
+      })
+      .catch((error) => {
+        if (active) setReviewsError(error.response?.data?.message || error.message || "Unable to load reviews.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [hotel, id]);
 
   const resetAvailability = () => {
     setAvailability(null);
@@ -183,7 +201,8 @@ const HotelDetails = () => {
   }
 
   const selectedRoom = roomTypes.find((room) => String(room._id) === roomTypeId);
-  const image = hotel.image || hotel.images?.[0];
+  const images = [...new Set([hotel.image, ...(hotel.images || [])].filter(Boolean))];
+  const image = images[0];
   const listedPrice = Number(selectedRoom?.price ?? hotel.price);
   const pricing = availability?.pricing;
 
@@ -210,11 +229,51 @@ const HotelDetails = () => {
               {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
                 <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-slate-700">
                   <Star size={16} className="fill-[#E3AE32] text-[#E3AE32]" />
-                  {Number(hotel.rating).toFixed(1)} ({hotel.ratingCount} ratings)
+                  Guest rating {Number(hotel.rating).toFixed(1)} ({hotel.ratingCount} {hotel.ratingSource || "recorded"} ratings)
                 </p>
               )}
+              {Number(hotel.starRating) > 0 && <p className="mt-2 text-sm font-semibold text-[#082B5C]">Hotel category: {hotel.starRating} stars</p>}
               {hotel.description && <p className="mt-4 leading-6 text-slate-600">{hotel.description}</p>}
               {!!hotel.amenities?.length && <p className="mt-4 text-sm text-slate-600"><strong className="text-[#082B5C]">Amenities:</strong> {hotel.amenities.join(" · ")}</p>}
+              {hotel.breakfastIncluded && <p className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">Breakfast included</p>}
+              {images.length > 1 && (
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {images.slice(1, 7).map((src) => <img key={src} src={src} alt={`${hotel.name} view`} loading="lazy" className="h-20 w-full rounded-lg object-cover" />)}
+                </div>
+              )}
+              {hotel.geoLocation?.coordinates?.length === 2 && (
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${hotel.geoLocation.coordinates[1]}&mlon=${hotel.geoLocation.coordinates[0]}#map=16/${hotel.geoLocation.coordinates[1]}/${hotel.geoLocation.coordinates[0]}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex text-sm font-semibold text-[#082B5C] underline decoration-[#E3AE32] underline-offset-4"
+                >
+                  View location map
+                </a>
+              )}
+              {hotel.policies && Object.values(hotel.policies).some(Boolean) && (
+                <section className="mt-5 rounded-xl bg-slate-50 p-4">
+                  <h2 className="font-bold text-[#082B5C]">Hotel policies</h2>
+                  <dl className="mt-2 space-y-2 text-sm text-slate-600">
+                    {Object.entries(hotel.policies).filter(([, value]) => value).map(([name, value]) => (
+                      <div key={name}><dt className="font-semibold capitalize text-slate-800">{name}</dt><dd>{value}</dd></div>
+                    ))}
+                  </dl>
+                </section>
+              )}
+              <section className="mt-5">
+                <h2 className="font-bold text-[#082B5C]">Guest reviews</h2>
+                {reviewsError ? <p role="alert" className="mt-2 text-sm text-slate-600">{reviewsError}</p> : reviews.length ? (
+                  <div className="mt-2 max-h-56 space-y-3 overflow-y-auto">
+                    {reviews.map((review) => (
+                      <article key={review._id} className="rounded-xl border border-slate-100 p-3">
+                        <p className="flex items-center gap-1 text-sm font-bold text-[#082B5C]"><Star size={14} className="fill-[#E3AE32] text-[#E3AE32]" />{review.rating}/5 <span className="font-normal text-slate-500">· {review.userId?.name || "Guest"}</span></p>
+                        {review.comment && <p className="mt-1 text-sm leading-5 text-slate-600">{review.comment}</p>}
+                      </article>
+                    ))}
+                  </div>
+                ) : <p className="mt-2 text-sm text-slate-500">No guest reviews have been submitted for this hotel yet.</p>}
+              </section>
 
               <div className="mt-6 border-t border-slate-100 pt-5">
                 <p className="text-2xl font-extrabold text-[#082B5C]">
@@ -223,6 +282,7 @@ const HotelDetails = () => {
                 </p>
                 <p className="mt-1 text-xs text-slate-500">Final availability and price are verified by the booking service.</p>
               </div>
+              <p className="mt-1 text-xs text-slate-500">Check-in {hotel.checkInTime || "15:00"} · Check-out {hotel.checkOutTime || "11:00"}</p>
 
               <form onSubmit={checkAvailability} className="mt-6 space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5">
                 <h2 className="font-bold text-[#082B5C]">Choose your stay</h2>
@@ -275,7 +335,7 @@ const HotelDetails = () => {
                     <>
                       <p className="font-bold text-emerald-900">Available for your dates</p>
                       <p className="mt-1 text-sm text-emerald-800">
-                        {pricing?.nights} night{pricing?.nights === 1 ? "" : "s"} · {rooms} room{Number(rooms) === 1 ? "" : "s"} · {formatPrice(pricing?.totalPrice, pricing?.currency || hotel.currency || "INR")}
+                        {availability.inventory?.available} room{Number(availability.inventory?.available) === 1 ? "" : "s"} available · {pricing?.nights} night{pricing?.nights === 1 ? "" : "s"} · {rooms} room{Number(rooms) === 1 ? "" : "s"} · {formatPrice(pricing?.totalPrice, pricing?.currency || hotel.currency || "INR")}
                       </p>
                       <button type="button" onClick={continueToCheckout} className="mt-3 w-full rounded-xl bg-[#E3AE32] px-5 py-3 font-extrabold text-[#082B5C] transition hover:bg-amber-400">
                         Continue to checkout

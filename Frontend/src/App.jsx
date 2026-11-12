@@ -24,6 +24,7 @@ import HotelDetails from "./Pages/HotelDetails";
 import TripPlanner from "./Pages/TripPlanner";
 import Payment from "./Pages/Payment";
 import PaymentSuccess from "./Pages/PaymentSuccess";
+import PaymentFailed from "./Pages/PaymentFailed";
 import UserAccount from "./Pages/UserAccount";
 import OwnerProperties from "./Pages/OwnerProperties";
 import AdminDestinations from "./Pages/AdminDestinations";
@@ -69,6 +70,7 @@ const App = () => {
           <Route path="/deals" element={<Deals />}></Route>
           <Route path="/book" element={<BookPage />}></Route>
           <Route path="/book-place" element={<BookPlace />}></Route>
+          <Route path="/hotels/:id" element={<HotelDetails />}></Route>
           <Route path="/hotel/:id" element={<HotelDetails />}></Route>
           <Route path="/trip-planner" element={<TripPlanner />}></Route>
           <Route path="/ai-assistant" element={<AIWorkspace />}></Route>
@@ -158,6 +160,22 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <PaymentSuccess />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path="/payment/success"
+            element={
+              <ProtectedRoute>
+                <PaymentSuccess />
+              </ProtectedRoute>
+            }
+          ></Route>
+          <Route
+            path="/payment/failed"
+            element={
+              <ProtectedRoute>
+                <PaymentFailed />
               </ProtectedRoute>
             }
           ></Route>

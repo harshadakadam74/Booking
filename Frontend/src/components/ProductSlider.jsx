@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Star } from "lucide-react";
+import { Heart, MapPin, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
+
+const readFavorites = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem("fastBookingFavorites") || "[]");
+    return Array.isArray(saved) ? saved.map(String) : [];
+  } catch (error) {
+    console.error("Unable to load saved favorites:", error);
+    return [];
+  }
+};
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -15,7 +25,7 @@ const formatPrice = (price, currency = "INR") => {
   }
 };
 
-const HotelCard = ({ hotel }) => {
+const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
   const hotelId = String(hotel._id || "");
   const city = hotel.city || hotel.location || "";
   const address = [hotel.streetAddress || hotel.address, city, hotel.state]
@@ -31,6 +41,12 @@ const HotelCard = ({ hotel }) => {
         <div className="h-52 bg-gradient-to-br from-[#082B5C] to-[#E3AE32]" aria-label="No hotel image available" />
       )}
       <div className="p-5">
+        <div className="mb-3 flex flex-wrap gap-2">
+          {hotel.breakfastIncluded && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Breakfast included</span>}
+          {bestSeller && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best seller</span>}
+          {Number(hotel.ratingCount) > 0 && Number(hotel.rating) >= 4.5 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#082B5C]">Top rated</span>}
+          {Number(hotel.starRating) > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{hotel.starRating}-star hotel</span>}
+        </div>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-bold text-[#082B5C]">{hotel.name}</h3>
@@ -39,13 +55,19 @@ const HotelCard = ({ hotel }) => {
               <span>{address || "India"}</span>
             </p>
           </div>
-          {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
-            <span className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-sm font-bold text-[#082B5C]">
-              <Star size={14} className="fill-[#E3AE32] text-[#E3AE32]" />
-              {Number(hotel.rating).toFixed(1)}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
+              <span className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-sm font-bold text-[#082B5C]">
+                <Star size={14} className="fill-[#E3AE32] text-[#E3AE32]" />
+                {Number(hotel.rating).toFixed(1)}
+              </span>
+            )}
+            <button type="button" onClick={() => toggleFavorite(hotelId)} aria-label={favorites.includes(hotelId) ? "Remove from favorites" : "Add to favorites"} className="rounded-full border border-slate-200 p-2 text-rose-600 hover:bg-rose-50">
+              <Heart size={17} fill={favorites.includes(hotelId) ? "currentColor" : "none"} />
+            </button>
+          </div>
         </div>
+        {Number(hotel.ratingCount) > 0 && <p className="mt-2 text-xs text-slate-500">Guest rating · {Number(hotel.ratingCount).toLocaleString("en-IN")} ratings{hotel.ratingSource ? ` · ${hotel.ratingSource}` : ""}</p>}
         <p className="mt-3 min-h-10 text-sm text-slate-500">
           {hotel.amenities?.length ? hotel.amenities.slice(0, 3).join(" · ") : hotel.propertyType || hotel.type || "Hotel stay"}
         </p>
@@ -56,13 +78,13 @@ const HotelCard = ({ hotel }) => {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/hotel/${encodeURIComponent(hotelId)}`}
+              to={`/hotels/${encodeURIComponent(hotelId)}`}
               className="rounded-lg border border-[#082B5C] px-3 py-2 text-sm font-bold text-[#082B5C] transition hover:bg-blue-50"
             >
               View details
             </Link>
             <Link
-              to={`/hotel/${encodeURIComponent(hotelId)}`}
+              to={`/hotels/${encodeURIComponent(hotelId)}`}
               className="rounded-lg bg-[#082B5C] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#123f77]"
             >
               Book now
@@ -74,7 +96,7 @@ const HotelCard = ({ hotel }) => {
   );
 };
 
-const HotelSection = ({ title, subtitle, hotels }) => (
+const HotelSection = ({ title, subtitle, hotels, favorites, toggleFavorite }) => (
   <section className="mt-12">
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -87,7 +109,15 @@ const HotelSection = ({ title, subtitle, hotels }) => (
     </div>
     {hotels.length ? (
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {hotels.slice(0, 6).map((hotel) => <HotelCard key={hotel._id} hotel={hotel} />)}
+        {hotels.slice(0, 8).map((hotel, index) => (
+          <HotelCard
+            key={hotel._id}
+            hotel={hotel}
+            favorites={favorites}
+            toggleFavorite={toggleFavorite}
+            bestSeller={title === "Popular hotels" && index === 0 && Number(hotel.bookingCount) > 0}
+          />
+        ))}
       </div>
     ) : (
       <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No hotels are currently available in this section.</p>
@@ -100,6 +130,21 @@ const ProductSlider = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [favorites, setFavorites] = useState(readFavorites);
+
+  const toggleFavorite = (hotelId) => {
+    setFavorites((current) => {
+      const next = current.includes(hotelId)
+        ? current.filter((id) => id !== hotelId)
+        : [...current, hotelId];
+      try {
+        localStorage.setItem("fastBookingFavorites", JSON.stringify(next));
+      } catch (storageError) {
+        console.error("Unable to save hotel favorites:", storageError);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -107,9 +152,9 @@ const ProductSlider = () => {
       setLoading(true);
       setError("");
       try {
-        const options = { country: "India", page: 1, limit: 12, includeDemo: false };
+        const options = { country: "India", page: 1, limit: 24, includeDemo: false };
         const [featured, popular, recent] = await Promise.all([
-          listHotels({ ...options, sortBy: "rating" }),
+          listHotels({ ...options, sortBy: "rating", minRating: 4 }),
           listHotels({ ...options, sortBy: "popularity" }),
           listHotels({ ...options, sortBy: "newest" }),
         ]);
@@ -172,9 +217,9 @@ const ProductSlider = () => {
           </div>
         ) : (
           <>
-            <HotelSection title="Featured hotels" subtitle="Highly rated stays from real listings" hotels={sections.featured} />
-            <HotelSection title="Popular hotels" subtitle="Places with the most recorded guest ratings" hotels={sections.popular} />
-            <HotelSection title="Recently added" subtitle="The latest approved properties in our database" hotels={sections.recent} />
+            <HotelSection title="Featured hotels" subtitle="Highly rated stays from real guest ratings" hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection title="Popular hotels" subtitle="Stays ranked by verified FastBooking reservations" hotels={sections.popular} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection title="Recently added" subtitle="The latest approved properties in our database" hotels={sections.recent} favorites={favorites} toggleFavorite={toggleFavorite} />
             {cities.length > 0 && (
               <section className="mt-12">
                 <h2 className="text-2xl font-extrabold text-[#082B5C]">Explore hotels across Indian cities</h2>

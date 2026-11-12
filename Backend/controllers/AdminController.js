@@ -14,14 +14,39 @@ const {
 
 const validId = (id) => mongoose.Types.ObjectId.isValid(id) && /^[a-f\d]{24}$/i.test(id);
 const escapedRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizeIdentityValue = (value) => String(value || '')
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLowerCase();
+const hotelCity = (property) => property.city || String(property.location || '').split(',')[0].trim();
+const hotelAddress = (property) => property.streetAddress || property.address || '';
+const hotelIdentityQuery = (property) => {
+  const city = hotelCity(property);
+  return {
+    name: new RegExp(`^${escapedRegex(property.name.trim())}$`, 'i'),
+    $or: [
+      { normalizedCity: normalizeIdentityValue(city) },
+      { city: new RegExp(`^${escapedRegex(city)}$`, 'i') },
+      { location: new RegExp(`^${escapedRegex(city)}(?:,|$)`, 'i') },
+    ],
+  };
+};
+const sameHotelIdentity = (left, right) => (
+  normalizeIdentityValue(left.name) === normalizeIdentityValue(right.name) &&
+  normalizeIdentityValue(hotelCity(left)) === normalizeIdentityValue(hotelCity(right)) &&
+  (!hotelAddress(left) || !hotelAddress(right) ||
+    normalizeIdentityValue(hotelAddress(left)) === normalizeIdentityValue(hotelAddress(right)))
+);
 const statusValues = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'];
 
 const validatePropertyInput = (body, existing) => {
   const fields = [
-    'name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency',
+    'name', 'location', 'address', 'streetAddress', 'postalCode', 'city', 'state', 'country', 'currency',
     'type', 'propertyType', 'category', 'description', 'image', 'images', 'price', 'totalRooms',
-    'availableRooms', 'maxGuestsPerRoom', 'amenities', 'facilities', 'roomTypes',
-    'checkInTime', 'checkOutTime', 'workTripFriendly', 'rating', 'ratingCount',
+    'availableRooms', 'maxGuestsPerRoom', 'amenities', 'facilities', 'roomTypes', 'policies',
+    'checkInTime', 'checkOutTime', 'workTripFriendly', 'breakfastIncluded', 'starRating', 'rating', 'ratingCount',
     'ratingSource', 'active',
   ];
   const values = {};
@@ -35,7 +60,7 @@ const validatePropertyInput = (body, existing) => {
   const totalRooms = values.totalRooms === undefined ? existing?.totalRooms : Number(values.totalRooms);
   const availableRooms = values.availableRooms === undefined ? existing?.availableRooms : Number(values.availableRooms);
 
-  for (const field of ['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'rating', 'ratingCount']) {
+  for (const field of ['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'starRating', 'rating', 'ratingCount']) {
     if (values[field] !== undefined &&
       (values[field] === null || values[field] === '' || !Number.isFinite(Number(values[field])))) {
       return { error: `${field} must be a valid number.` };
@@ -62,7 +87,7 @@ const validatePropertyInput = (body, existing) => {
   }
   for (const field of [
     'address', 'streetAddress', 'city', 'state', 'country', 'propertyType', 'category',
-    'ratingSource', 'checkInTime', 'checkOutTime',
+    'postalCode', 'ratingSource', 'checkInTime', 'checkOutTime',
   ]) {
     if (values[field] !== undefined &&
       (typeof values[field] !== 'string' ||
@@ -146,6 +171,10 @@ const validatePropertyInput = (body, existing) => {
     (Number(values.rating) < 0 || Number(values.rating) > 5)) {
     return { error: 'Rating must be between 0 and 5.' };
   }
+  if (values.starRating !== undefined &&
+    (Number(values.starRating) < 1 || Number(values.starRating) > 5)) {
+    return { error: 'Hotel star rating must be between 1 and 5.' };
+  }
   if (values.ratingCount !== undefined &&
     (!Number.isInteger(Number(values.ratingCount)) || Number(values.ratingCount) < 0)) {
     return { error: 'Rating count must be a non-negative whole number.' };
@@ -158,11 +187,23 @@ const validatePropertyInput = (body, existing) => {
   if (values.active !== undefined && typeof values.active !== 'boolean') {
     return { error: 'Active status must be true or false.' };
   }
+  if (values.breakfastIncluded !== undefined && typeof values.breakfastIncluded !== 'boolean') {
+    return { error: 'Breakfast included must be true or false.' };
+  }
+  if (values.policies !== undefined && (
+    !values.policies || typeof values.policies !== 'object' || Array.isArray(values.policies) ||
+    Object.entries(values.policies).some(([key, value]) => (
+      !['cancellation', 'children', 'pets', 'general'].includes(key) ||
+      typeof value !== 'string' || value.length > 1000
+    ))
+  )) {
+    return { error: 'Hotel policies must contain supported text fields of up to 1000 characters each.' };
+  }
 
   const updates = {};
   Object.entries(values).forEach(([field, value]) => {
-    if (['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'rating', 'ratingCount'].includes(field)) updates[field] = Number(value);
-    else if (['name', 'location', 'address', 'streetAddress', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'category', 'checkInTime', 'checkOutTime', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
+    if (['price', 'totalRooms', 'availableRooms', 'maxGuestsPerRoom', 'starRating', 'rating', 'ratingCount'].includes(field)) updates[field] = Number(value);
+    else if (['name', 'location', 'address', 'streetAddress', 'postalCode', 'city', 'state', 'country', 'currency', 'type', 'propertyType', 'category', 'checkInTime', 'checkOutTime', 'description', 'image', 'ratingSource'].includes(field) && typeof value === 'string') {
       updates[field] = value.trim();
     } else if (['amenities', 'facilities'].includes(field)) updates[field] = value.map((item) => item.trim());
     else if (field === 'images') updates.images = value.map((item) => item.trim());
@@ -324,6 +365,15 @@ const createProperty = async (req, res) => {
       updates.totalRooms === undefined || updates.availableRooms === undefined) {
       return ApiResponse.error(res, 400, 'Name, location, price, total rooms and available rooms are required.');
     }
+    const city = updates.city || updates.location.split(',')[0].trim();
+    const identity = { ...updates, city };
+    const matchingProperties = await Property.find(hotelIdentityQuery(identity))
+      .select('name city normalizedCity location address streetAddress')
+      .lean();
+    const duplicate = matchingProperties.some((existing) => sameHotelIdentity(existing, identity));
+    if (duplicate) {
+      return ApiResponse.error(res, 409, 'A hotel with this name and location already exists.');
+    }
     const hasLatitude = latitude !== undefined && latitude !== '';
     const hasLongitude = longitude !== undefined && longitude !== '';
     if (hasLatitude !== hasLongitude) {
@@ -346,7 +396,7 @@ const createProperty = async (req, res) => {
       image: updates.image || '',
       amenities: updates.amenities || [],
       images: updates.images || (updates.image ? [updates.image] : []),
-      city: updates.city || updates.location.split(',')[0].trim(),
+      city,
       country: updates.country || 'India',
       propertyType: updates.propertyType || updates.type || 'Hotel',
       category: updates.category || updates.propertyType || updates.type || 'Hotel',
@@ -393,7 +443,7 @@ const importProperties = async (req, res) => {
     )) {
       return ApiResponse.error(res, 400, `Hotel record ${index + 1} has invalid coordinates.`);
     }
-    properties.push({
+    const property = {
       ...updates,
       city: updates.city || updates.location.split(',')[0].trim(),
       country: updates.country || 'India',
@@ -408,9 +458,21 @@ const importProperties = async (req, res) => {
       ...(hasLatitude ? {
         geoLocation: { type: 'Point', coordinates: [parsedLongitude, parsedLatitude] },
       } : {}),
-    });
+    };
+    if (properties.some((existing) => sameHotelIdentity(existing, property))) {
+      return ApiResponse.error(res, 409, `Hotel record ${index + 1} duplicates another record in this import.`);
+    }
+    properties.push(property);
   }
   try {
+    const matchingProperties = await Property.find({
+      $or: properties.map(hotelIdentityQuery),
+    }).select('name city normalizedCity location address streetAddress').lean();
+    const duplicate = properties.find((property) =>
+      matchingProperties.some((existing) => sameHotelIdentity(existing, property)));
+    if (duplicate) {
+      return ApiResponse.error(res, 409, 'One or more hotels already exist with the same name and location.');
+    }
     const created = await Property.create(properties);
     return ApiResponse.success(res, {
       imported: created.length,
@@ -418,7 +480,10 @@ const importProperties = async (req, res) => {
     }, 'Hotel records imported successfully.', 201);
   } catch (error) {
     console.error('Admin hotel import failed:', error.message);
-    return ApiResponse.error(res, 400, 'Unable to import hotel records. Check the submitted fields.');
+    const statusCode = error.code === 11000 ? 409 : error.name === 'ValidationError' ? 400 : 500;
+    return ApiResponse.error(res, statusCode, statusCode === 500
+      ? 'Unable to import hotel records due to a server error.'
+      : 'Unable to import hotel records. Check the submitted fields.');
   }
 };
 
@@ -445,16 +510,17 @@ const uploadHotelImage = async (req, res) => {
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
     return ApiResponse.error(res, 503, 'Hotel image upload is not configured. Set the Cloudinary server environment variables.');
   }
-  if (!req.file) return ApiResponse.error(res, 400, 'Select an image file to upload.');
+  const files = [...(req.files?.image || []), ...(req.files?.images || []), ...(req.file ? [req.file] : [])];
+  if (!files.length) return ApiResponse.error(res, 400, 'Select at least one image file to upload.');
   try {
-    const result = await new Promise((resolve, reject) => {
+    const uploads = await Promise.all(files.map((file) => new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: 'fastbooking/hotels', resource_type: 'image' },
-        (error, uploaded) => error ? reject(error) : resolve(uploaded)
+        (error, uploaded) => error ? reject(error) : resolve(uploaded.secure_url)
       );
-      stream.end(req.file.buffer);
-    });
-    return ApiResponse.success(res, { url: result.secure_url }, 'Hotel image uploaded.');
+      stream.end(file.buffer);
+    })));
+    return ApiResponse.success(res, { url: uploads[0], urls: uploads }, 'Hotel images uploaded.');
   } catch (error) {
     console.error('Hotel image upload failed:', error.message);
     return ApiResponse.error(res, 502, 'Unable to upload the hotel image.');

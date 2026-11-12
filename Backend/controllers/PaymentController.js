@@ -3,7 +3,11 @@ const PaymentService = require('../services/PaymentService');
 const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const Property = require('../models/Property');
-const { findRoomType } = require('../services/bookingInventory');
+const {
+  findRoomType,
+  getBookedRooms,
+  getRemainingRooms,
+} = require('../services/bookingInventory');
 const ApiResponse = require('../Utils/ApiResponse');
 
 const recordSuccessfulBookingPayment = async (bookingId, paymentDetails) => {
@@ -54,6 +58,28 @@ const createOrder = async (req, res) => {
     }
     if (booking.roomTypeId && !findRoomType(listing, booking.roomTypeId)) {
       return ApiResponse.error(res, 409, 'The selected room type is no longer available.');
+    }
+    const bookedRooms = await getBookedRooms({
+      property: listing,
+      checkIn: booking.checkInDate,
+      checkOut: booking.checkOutDate,
+      excludeBookingId: booking._id,
+    });
+    if (getRemainingRooms(listing, bookedRooms) < booking.numberOfRooms) {
+      return ApiResponse.error(res, 409, 'There are no longer enough hotel rooms available for this booking.');
+    }
+    if (booking.roomTypeId) {
+      const roomType = findRoomType(listing, booking.roomTypeId);
+      const bookedRoomTypeRooms = await getBookedRooms({
+        property: listing,
+        checkIn: booking.checkInDate,
+        checkOut: booking.checkOutDate,
+        excludeBookingId: booking._id,
+        roomTypeId: booking.roomTypeId,
+      });
+      if (getRemainingRooms(roomType, bookedRoomTypeRooms) < booking.numberOfRooms) {
+        return ApiResponse.error(res, 409, 'There are no longer enough rooms of this type available.');
+      }
     }
 
     const amount = Number(booking.totalPrice);

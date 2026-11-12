@@ -17,6 +17,7 @@ import {
   checkBookingEligibility,
   createBooking,
   createPaymentOrder,
+  getBookingById,
   verifyPayment,
 } from "../services/bookingService";
 import { getHotelById } from "../services/destinationService";
@@ -216,6 +217,9 @@ const Payment = () => {
         numberOfGuests:
           searchParams.guests.adults + searchParams.guests.children,
         numberOfRooms: searchParams.guests.rooms,
+        ...(new URLSearchParams(location.search).get("bookingId")
+          ? { bookingId: new URLSearchParams(location.search).get("bookingId") }
+          : {}),
         ...(roomTypeId ? { roomTypeId } : {}),
       };
 
@@ -432,67 +436,73 @@ const Payment = () => {
     setIsProcessing(true);
     setBookingError("");
 
+    let pendingBookingId = new URLSearchParams(location.search).get("bookingId") || "";
     try {
-      const detectedLocation =
-        detectedGuestLocation || await getGuestLocation();
-      const detectedAddress = detectedLocation?.detectedAddress || {};
-      const nextBillingAddress = {
-        address: billingAddress.address || detectedAddress.address || "",
-        city: billingAddress.city || detectedAddress.city || "",
-        state: billingAddress.state || detectedAddress.state || "",
-        zipCode: billingAddress.zipCode || detectedAddress.zipCode || "",
-        country: billingAddress.country || detectedAddress.country || "",
-      };
+      let booking;
+      if (pendingBookingId) {
+        const response = await getBookingById(pendingBookingId);
+        booking = response?.booking;
+        const bookingMatchesCheckout = booking?.bookingStatus === "PENDING" &&
+          booking?.paymentStatus !== "SUCCESS" &&
+          String(booking.propertyId) === propertyId &&
+          new Date(booking.checkInDate).toISOString().slice(0, 10) ===
+            new Date(searchParams.dates.startDate).toISOString().slice(0, 10) &&
+          new Date(booking.checkOutDate).toISOString().slice(0, 10) ===
+            new Date(searchParams.dates.endDate).toISOString().slice(0, 10) &&
+          Number(booking.numberOfRooms) === Number(searchParams.guests.rooms) &&
+          String(booking.roomTypeId || "") === String(roomTypeId || "");
+        if (!bookingMatchesCheckout) {
+          throw new Error("This pending booking no longer matches the checkout. Return to the hotel and check availability again.");
+        }
+        if (Number(booking.totalPrice) !== Number(eligibility?.pricing?.totalPrice)) {
+          throw new Error("The hotel price changed. Return to the hotel and start a new booking at the current price.");
+        }
+      } else {
+        const detectedLocation = detectedGuestLocation || await getGuestLocation();
+        const detectedAddress = detectedLocation?.detectedAddress || {};
+        const nextBillingAddress = {
+          address: billingAddress.address || detectedAddress.address || "",
+          city: billingAddress.city || detectedAddress.city || "",
+          state: billingAddress.state || detectedAddress.state || "",
+          zipCode: billingAddress.zipCode || detectedAddress.zipCode || "",
+          country: billingAddress.country || detectedAddress.country || "",
+        };
+        setBillingAddress(nextBillingAddress);
 
-      setBillingAddress(nextBillingAddress);
+        if (!validateForm(nextBillingAddress)) {
+          setIsProcessing(false);
+          return;
+        }
 
-      if (!validateForm(nextBillingAddress)) {
-        setIsProcessing(false);
-        return;
+        const bookingPayload = {
+          property: property.name,
+          propertyId,
+          billingAddress: {
+            address: nextBillingAddress.address.trim(),
+            city: nextBillingAddress.city.trim(),
+            state: nextBillingAddress.state.trim(),
+            zipCode: nextBillingAddress.zipCode.trim(),
+            country: nextBillingAddress.country,
+          },
+          checkInDate: searchParams.dates.startDate,
+          checkOutDate: searchParams.dates.endDate,
+          numberOfGuests:
+            Number(searchParams?.guests?.adults || 1) +
+            Number(searchParams?.guests?.children || 0),
+          numberOfRooms: Number(searchParams?.guests?.rooms || 1),
+          specialRequests: "",
+          guestName: user?.name || "",
+          guestEmail: user?.email || "",
+          guestPhone: user?.mobile || user?.phone || "",
+          guestLocation: detectedLocation?.coordinates || null,
+        };
+        if (roomTypeId) bookingPayload.roomTypeId = roomTypeId;
+        bookingIdempotencyKey.current ||= window.crypto.randomUUID();
+        const response = await createBooking(bookingPayload, bookingIdempotencyKey.current);
+        booking = response?.booking || response || null;
+        pendingBookingId = String(booking?._id || booking?.id || "");
       }
 
-      const bookingPayload = {
-        property: property.name,
-        propertyId,
-        billingAddress: {
-          address: nextBillingAddress.address.trim(),
-          city: nextBillingAddress.city.trim(),
-          state: nextBillingAddress.state.trim(),
-          zipCode: nextBillingAddress.zipCode.trim(),
-          country: nextBillingAddress.country,
-        },
-
-        checkInDate: searchParams.dates.startDate,
-
-        checkOutDate: searchParams.dates.endDate,
-
-        numberOfGuests:
-          Number(searchParams?.guests?.adults || 1) +
-          Number(searchParams?.guests?.children || 0),
-
-        numberOfRooms:
-          Number(searchParams?.guests?.rooms || 1),
-
-        specialRequests: "",
-
-        guestName: user?.name || "",
-
-        guestEmail: user?.email || "",
-
-        guestPhone:
-          user?.mobile ||
-          user?.phone ||
-          "",
-
-        guestLocation: detectedLocation?.coordinates || null,
-      };
-
-      if (roomTypeId) bookingPayload.roomTypeId = roomTypeId;
-
-      bookingIdempotencyKey.current ||= window.crypto.randomUUID();
-      const response = await createBooking(bookingPayload, bookingIdempotencyKey.current);
-
-      const booking = response?.booking || response || null;
       const bookingId = booking?._id || booking?.id;
       if (!bookingId) throw new Error("Booking ID was not returned by the server");
 
@@ -542,7 +552,7 @@ const Payment = () => {
         throw new Error("The server did not confirm the paid booking.");
       }
 
-      navigate("/payment-success", {
+      navigate(`/payment/success?bookingId=${encodeURIComponent(bookingId)}`, {
         replace: true,
         state: {
           property,
@@ -554,12 +564,20 @@ const Payment = () => {
       });
     } catch (error) {
       console.error("Booking creation error:", error);
-
-      setBookingError(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Booking creation failed. Please try again."
-      );
+      if (pendingBookingId) {
+        const failureParams = new URLSearchParams(location.search);
+        failureParams.set("bookingId", pendingBookingId);
+        navigate(`/payment/failed?${failureParams.toString()}`, {
+          replace: true,
+          state: { message: error?.response?.data?.message || error?.message || "Payment could not be completed." },
+        });
+      } else {
+        setBookingError(
+          error?.response?.data?.message ||
+            error?.message ||
+            "Booking creation failed. Please try again."
+        );
+      }
     } finally {
       setIsProcessing(false);
     }

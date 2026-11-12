@@ -10,6 +10,8 @@ const printReceipt = ({
   confirmationNumber,
   property,
   location,
+  roomType,
+  paymentId,
   status = "Confirmed",
   checkIn,
   checkOut,
@@ -68,6 +70,8 @@ const printReceipt = ({
       <section class="section grid">
         <div><div class="label">Booking ID</div><div class="value">${escapeHtml(bookingId)}</div></div>
         <div><div class="label">Confirmation</div><div class="value">${escapeHtml(confirmationNumber)}</div></div>
+        <div><div class="label">Room</div><div class="value">${escapeHtml(roomType)}</div></div>
+        <div><div class="label">Payment ID</div><div class="value">${escapeHtml(paymentId)}</div></div>
         <div><div class="label">Check-in</div><div class="value">${escapeHtml(checkIn)}</div></div>
         <div><div class="label">Check-out</div><div class="value">${escapeHtml(checkOut)}</div></div>
         <div><div class="label">Guests</div><div class="value">${escapeHtml(guestText)}</div></div>

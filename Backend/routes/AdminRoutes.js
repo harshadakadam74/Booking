@@ -8,7 +8,7 @@ const { admin } = require('../middlewares/AdminMiddleware');
 router.use(authenticate, admin);
 const hotelImageUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 20 },
   fileFilter: (req, file, callback) => {
     if (!/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) {
       callback(new Error('Hotel images must be JPEG, PNG, WebP, or GIF files.'));
@@ -18,7 +18,10 @@ const hotelImageUpload = multer({
   },
 });
 const parseHotelImage = (req, res, next) => {
-  hotelImageUpload.single('image')(req, res, (error) => {
+  hotelImageUpload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'images', maxCount: 20 },
+  ])(req, res, (error) => {
     if (error) {
       const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
       return res.status(status).json({ message: error.message });

@@ -30,6 +30,13 @@ export const getHotelAvailability = async (hotelId, params) => {
   return response.data?.eligibility;
 };
 
+export const getHotelReviews = async (hotelId) => {
+  const response = await apiClient.get(
+    `/api/v1/reviews/property/${encodeURIComponent(hotelId)}`
+  );
+  return response.data?.data?.reviews || response.data?.reviews || [];
+};
+
 export const fetchAdminDestinations = async (params) => {
   const response = await apiClient.get('/api/v1/destinations/admin', { params });
   return response.data?.data ?? response.data;

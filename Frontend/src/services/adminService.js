@@ -53,6 +53,17 @@ export const uploadAdminHotelImage = (image) => {
   );
 };
 
+export const uploadAdminHotelImages = (images) => {
+  const formData = new FormData();
+  images.forEach((image) => formData.append('images', image));
+  return request(
+    () => apiClient.post('/api/v1/admin/hotels/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+    'Unable to upload hotel images.',
+  );
+};
+
 export const updateAdminHotel = (hotelId, payload) => request(
   () => apiClient.put(`/api/v1/admin/hotels/${hotelId}`, payload),
   'Unable to update hotel.',

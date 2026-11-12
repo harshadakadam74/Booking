@@ -1,4 +1,5 @@
 const Review = require('../models/Review');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Booking = require('../models/Booking');
 const ApiResponse = require('../Utils/ApiResponse');
@@ -91,6 +92,24 @@ const getReviewsByProduct = async (req, res) => {
   }
 };
 
+const getReviewsByProperty = async (req, res) => {
+  const { propertyId } = req.params;
+  if (!/^[a-f\d]{24}$/i.test(propertyId) || !mongoose.Types.ObjectId.isValid(propertyId)) {
+    return ApiResponse.error(res, 400, 'A valid hotel ID is required');
+  }
+  try {
+    const reviews = await Review.find({ propertyId })
+      .populate('userId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    return ApiResponse.success(res, { reviews }, 'Hotel reviews loaded successfully');
+  } catch (error) {
+    console.error('Hotel reviews could not be loaded:', error.message);
+    return ApiResponse.error(res, 500, 'Unable to load hotel reviews');
+  }
+};
+
 const updateReview = async (req, res) => {
   try {
     const review = await Review.findById(req.params.id);
@@ -128,4 +147,12 @@ const deleteReview = async (req, res) => {
   }
 };
 
-module.exports = { createReview, createBookingReview, getBookingReview, getReviewsByProduct, updateReview, deleteReview };
+module.exports = {
+  createReview,
+  createBookingReview,
+  getBookingReview,
+  getReviewsByProduct,
+  getReviewsByProperty,
+  updateReview,
+  deleteReview,
+};

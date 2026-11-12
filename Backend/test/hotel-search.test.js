@@ -248,6 +248,77 @@ test('booking eligibility rejects an invalid MongoDB hotel ID', async () => {
   assert.match(response.body.message, /valid hotel ID/i);
 });
 
+test("checkout revalidation excludes only the owner's matching pending booking from inventory", async () => {
+  const propertyId = new mongoose.Types.ObjectId();
+  const bookingId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  const checkInDate = new Date();
+  checkInDate.setDate(checkInDate.getDate() + 2);
+  checkInDate.setHours(0, 0, 0, 0);
+  const checkOutDate = new Date(checkInDate);
+  checkOutDate.setDate(checkOutDate.getDate() + 1);
+  const property = {
+    _id: propertyId,
+    name: 'Test Hotel',
+    price: 100,
+    totalRooms: 1,
+    availableRooms: 1,
+    maxGuestsPerRoom: 2,
+    currency: 'INR',
+    roomTypes: [],
+    active: true,
+    approvalStatus: 'approved',
+  };
+  const pendingBooking = {
+    _id: bookingId,
+    propertyId,
+    checkInDate,
+    checkOutDate,
+    numberOfGuests: 1,
+    numberOfRooms: 1,
+    bookingStatus: 'PENDING',
+    paymentStatus: 'PENDING',
+  };
+  const originalPropertyFindById = Property.findById;
+  const originalBookingFindOne = Booking.findOne;
+  const originalBookingAggregate = Booking.aggregate;
+  let pendingBookingFilter;
+  let inventoryPipeline;
+  try {
+    Property.findById = async () => property;
+    Booking.findOne = async (filter) => {
+      pendingBookingFilter = filter;
+      return pendingBooking;
+    };
+    Booking.aggregate = async (pipeline) => {
+      inventoryPipeline = pipeline;
+      return [{ roomsBooked: 0 }];
+    };
+
+    const response = createResponse();
+    await BookingController.getBookingEligibility({
+      user: { _id: userId },
+      body: {
+        bookingId: bookingId.toString(),
+        propertyId: propertyId.toString(),
+        checkInDate,
+        checkOutDate,
+        numberOfGuests: 1,
+        numberOfRooms: 1,
+      },
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.eligibility.eligible, true);
+    assert.equal(String(pendingBookingFilter.user), userId.toString());
+    assert.equal(inventoryPipeline[0].$match._id.$ne.toString(), bookingId.toString());
+  } finally {
+    Property.findById = originalPropertyFindById;
+    Booking.findOne = originalBookingFindOne;
+    Booking.aggregate = originalBookingAggregate;
+  }
+});
+
 test('hotel lookup distinguishes malformed IDs, missing hotels, and successful reads', async () => {
   const invalidResponse = createResponse();
   await PropertyController.getPropertyById({ params: { id: 'invalid' } }, invalidResponse);

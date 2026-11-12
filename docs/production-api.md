@@ -70,7 +70,8 @@ defaults to `http://localhost:4545/api/v1`. Copy `Backend/.env.example` to
 The homepage loads featured, popular, and recently added hotels from
 `GET /hotels?country=India`; it does not use seeded or hardcoded hotel-card data.
 `GET /hotels` also supports the same paginated filters as the search route.
-Hotel cards open `/hotel/:id`, which reloads the listing by MongoDB `_id` and
+Hotel cards open `/hotels/:id` (the legacy `/hotel/:id` URL remains supported),
+which reloads the listing by MongoDB `_id` and
 lets the customer select dates, guest count, rooms, and an embedded room type.
 Before checkout, the page calls `GET /hotels/:id/availability`. Checkout puts
 the hotel ID and selected details in the `/payment` URL so refresh, browser
@@ -96,6 +97,15 @@ it has no separate physical Room collection. Where a hotel has embedded
 checks both hotel-level and selected room-type inventory/capacity, and charges
 the room-type price. Listings with no `roomTypes` continue using hotel-level
 inventory.
+
+The admin hotel form uses the existing `/admin/hotels` routes and supports
+listing details, address and postal code, coordinates, images, amenities,
+embedded room types and inventory, policies, check-in/out times, activation,
+and approval. Image uploads require the backend's Cloudinary configuration;
+the admin upload endpoint accepts JPEG, PNG, WebP, or GIF files up to 5 MB each.
+Existing listings are not replaced by this feature. The public hotel review
+endpoint is `GET /reviews/property/:propertyId`; its ratings and reviews are
+database-backed, not synthesized.
 
 There is no tax or discount policy configured in the existing application.
 Checkout displays the database-calculated room-rate total and does not invent
@@ -180,7 +190,9 @@ Create a Postman environment with:
    signature. Confirm the returned booking is `CONFIRMED` only after successful
    verification.
 8. **Admin:** use an ADMIN JWT for `GET {{baseUrl}}/admin/dashboard` and
-   `GET {{baseUrl}}/admin/bookings`.
+   `GET {{baseUrl}}/admin/bookings`. Create or update listings through
+   `/admin/hotels`; upload hotel image files with multipart form data to
+   `/admin/hotels/images` using the `image` or `images` field.
 
 Run the same sequence locally and against the deployed URL. In the production
 browser's Network tab, verify every API request uses the HTTPS backend domain
