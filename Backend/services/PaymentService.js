@@ -21,6 +21,10 @@ const retrieveRazorpayPayment = async (paymentId) => {
   return getRazorpay().payments.fetch(paymentId);
 };
 
+const refundRazorpayPayment = async (paymentId) => {
+  return getRazorpay().payments.refund(paymentId, {});
+};
+
 const createStripePaymentIntent = async ({ amount, currency, metadata }) => {
   const stripe = getStripeClient();
   return stripe.paymentIntents.create({ amount, currency, metadata });
@@ -71,6 +75,7 @@ const handleWebhook = async (req) => {
 module.exports = {
   createRazorpayOrder,
   retrieveRazorpayPayment,
+  refundRazorpayPayment,
   createStripePaymentIntent,
   retrieveStripePaymentIntent,
   verifyRazorpaySignature,

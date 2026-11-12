@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
+const PaymentIntent = require("../models/PaymentIntent");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 const { randomUUID } = require("crypto");
@@ -69,6 +70,7 @@ const getBookingEligibility = async (req, res) => {
       propertyId,
       roomTypeId,
       bookingId,
+      paymentIntentId,
       checkInDate,
       checkOutDate,
       numberOfGuests,
@@ -101,6 +103,7 @@ const getBookingEligibility = async (req, res) => {
     }
 
     let existingPendingBooking;
+    let existingPaymentIntent;
     if (bookingId !== undefined) {
       if (typeof bookingId !== "string" ||
         !/^[a-f\d]{24}$/i.test(bookingId) ||
@@ -122,6 +125,32 @@ const getBookingEligibility = async (req, res) => {
         String(existingPendingBooking.roomTypeId || "") === String(roomTypeId || "");
       if (!bookingMatchesRequest) {
         return res.status(409).json({ message: "The pending booking no longer matches these checkout details." });
+      }
+    }
+    if (paymentIntentId !== undefined) {
+      if (typeof paymentIntentId !== "string" ||
+        !/^[a-f\d]{24}$/i.test(paymentIntentId) ||
+        !mongoose.Types.ObjectId.isValid(paymentIntentId)) {
+        return res.status(400).json({ message: "A valid payment reservation ID is required." });
+      }
+      existingPaymentIntent = await PaymentIntent.findOne({
+        _id: paymentIntentId,
+        userId: req.user._id,
+      });
+      if (!existingPaymentIntent) {
+        return res.status(404).json({ message: "Payment reservation not found." });
+      }
+      const intentMatchesRequest =
+        existingPaymentIntent.status === "PENDING" &&
+        existingPaymentIntent.expiresAt > new Date() &&
+        String(existingPaymentIntent.propertyId) === propertyId &&
+        existingPaymentIntent.checkInDate?.toISOString().slice(0, 10) === checkIn?.toISOString().slice(0, 10) &&
+        existingPaymentIntent.checkOutDate?.toISOString().slice(0, 10) === checkOut?.toISOString().slice(0, 10) &&
+        Number(existingPaymentIntent.numberOfGuests) === guests &&
+        Number(existingPaymentIntent.numberOfRooms) === rooms &&
+        String(existingPaymentIntent.roomTypeId || "") === String(roomTypeId || "");
+      if (!intentMatchesRequest) {
+        return res.status(409).json({ message: "The payment reservation no longer matches these checkout details." });
       }
     }
 
@@ -174,6 +203,7 @@ const getBookingEligibility = async (req, res) => {
         checkIn,
         checkOut,
         excludeBookingId: existingPendingBooking?._id,
+        excludePaymentIntentId: existingPaymentIntent?._id,
       });
       propertyAvailableRooms = getRemainingRooms(listing, bookedRooms);
       availableRooms = propertyAvailableRooms;
@@ -183,6 +213,7 @@ const getBookingEligibility = async (req, res) => {
           checkIn,
           checkOut,
           excludeBookingId: existingPendingBooking?._id,
+          excludePaymentIntentId: existingPaymentIntent?._id,
           roomTypeId: selectedRoomType._id,
         });
         roomTypeAvailableRooms = getRemainingRooms(selectedRoomType, bookedRoomTypeRooms);
@@ -513,6 +544,13 @@ const createBooking = async (req, res) => {
       }
     }
   }
+};
+
+const rejectUnpaidBookingCreation = (req, res) => {
+  if (!req.user?._id) return res.status(401).json({ message: "Authentication required." });
+  return res.status(409).json({
+    message: "Bookings are created only after verified payment. Start checkout through the payment order endpoint.",
+  });
 };
 
 // Get all bookings for a user
@@ -860,6 +898,7 @@ const adminUpdateBookingStatus = async (req, res) => {
 
 module.exports = {
   createBooking,
+  rejectUnpaidBookingCreation,
   getBookingEligibility,
   getUserBookings,
   getBookingById,

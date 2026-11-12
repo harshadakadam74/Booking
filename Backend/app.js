@@ -3,23 +3,9 @@ const app = express();
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { errorHandler } = require('./middlewares/ErrorMiddleware');
+const { createCorsOptions } = require('./config/corsOptions');
 
-const allowedOrigins = new Set([
-  'https://booking-l2vm.vercel.app',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  ...(process.env.CLIENT_URL || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-]);
-
-app.use(cors({
-  origin(origin, callback) {
-    callback(null, !origin || allowedOrigins.has(origin));
-  },
-  credentials: true,
-}));
+app.use(cors(createCorsOptions()));
 app.use(express.json({ limit: '5mb' }));
 
 const Auth_Route = require('./routes/AuthRoutes');

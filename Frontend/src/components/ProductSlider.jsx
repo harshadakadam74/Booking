@@ -2,16 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, MapPin, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
-
-const readFavorites = () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem("fastBookingFavorites") || "[]");
-    return Array.isArray(saved) ? saved.map(String) : [];
-  } catch (error) {
-    console.error("Unable to load saved favorites:", error);
-    return [];
-  }
-};
+import {
+  HOTEL_FAVORITES_EVENT,
+  readHotelFavoriteIds,
+  writeHotelFavoriteIds,
+} from "../utils/hotelFavorites";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -42,8 +37,9 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
       )}
       <div className="p-5">
         <div className="mb-3 flex flex-wrap gap-2">
+          {hotel.isDemo && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">DEMO · NOT A REAL HOTEL</span>}
           {hotel.breakfastIncluded && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Breakfast included</span>}
-          {bestSeller && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best seller</span>}
+          {!hotel.isDemo && bestSeller && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best seller</span>}
           {Number(hotel.ratingCount) > 0 && Number(hotel.rating) >= 4.5 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#082B5C]">Top rated</span>}
           {Number(hotel.starRating) > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{hotel.starRating}-star hotel</span>}
         </div>
@@ -56,7 +52,7 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
+            {Number(hotel.ratingCount) > 0 && Number(hotel.rating) > 0 && Number.isFinite(Number(hotel.rating)) && (
               <span className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-sm font-bold text-[#082B5C]">
                 <Star size={14} className="fill-[#E3AE32] text-[#E3AE32]" />
                 {Number(hotel.rating).toFixed(1)}
@@ -127,10 +123,11 @@ const HotelSection = ({ title, subtitle, hotels, favorites, toggleFavorite }) =>
 
 const ProductSlider = () => {
   const [sections, setSections] = useState({ featured: [], popular: [], recent: [] });
+  const [citySections, setCitySections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const [favorites, setFavorites] = useState(readFavorites);
+  const [favorites, setFavorites] = useState(readHotelFavoriteIds);
 
   const toggleFavorite = (hotelId) => {
     setFavorites((current) => {
@@ -138,7 +135,7 @@ const ProductSlider = () => {
         ? current.filter((id) => id !== hotelId)
         : [...current, hotelId];
       try {
-        localStorage.setItem("fastBookingFavorites", JSON.stringify(next));
+        writeHotelFavoriteIds(next);
       } catch (storageError) {
         console.error("Unable to save hotel favorites:", storageError);
       }
@@ -147,16 +144,37 @@ const ProductSlider = () => {
   };
 
   useEffect(() => {
+    const syncFavorites = () => setFavorites(readHotelFavoriteIds());
+    window.addEventListener(HOTEL_FAVORITES_EVENT, syncFavorites);
+    window.addEventListener("storage", syncFavorites);
+    return () => {
+      window.removeEventListener(HOTEL_FAVORITES_EVENT, syncFavorites);
+      window.removeEventListener("storage", syncFavorites);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const loadHotels = async () => {
       setLoading(true);
       setError("");
       try {
-        const options = { country: "India", page: 1, limit: 24, includeDemo: false };
-        const [featured, popular, recent] = await Promise.all([
+        const options = {
+          country: "India",
+          page: 1,
+          limit: 24,
+          ...(import.meta.env.DEV ? { includeDemo: true } : {}),
+        };
+        const [featured, popular, recent, ...cityResults] = await Promise.all([
           listHotels({ ...options, sortBy: "rating", minRating: 4 }),
           listHotels({ ...options, sortBy: "popularity" }),
           listHotels({ ...options, sortBy: "newest" }),
+          ...["Jaipur", "Mumbai", "Goa"].map((destination) => listHotels({
+            ...options,
+            destination,
+            sortBy: "recommended",
+            limit: 8,
+          })),
         ]);
         if (active) {
           setSections({
@@ -164,10 +182,15 @@ const ProductSlider = () => {
             popular: popular.properties || [],
             recent: recent.properties || [],
           });
+          setCitySections(["Jaipur", "Mumbai", "Goa"].map((city, index) => ({
+            city,
+            hotels: cityResults[index].properties || [],
+          })));
         }
       } catch (requestError) {
         if (active) {
           setSections({ featured: [], popular: [], recent: [] });
+          setCitySections([]);
           setError(requestError.response?.data?.message || requestError.message || "Unable to load hotels right now.");
         }
       } finally {
@@ -202,7 +225,9 @@ const ProductSlider = () => {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">FastBooking stays</p>
           <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Book your next stay directly</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
-            Explore real, approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout.
+            {import.meta.env.DEV
+              ? "Explore approved hotel listings and clearly labeled development samples. Choose a real hotel, confirm its availability, then continue to secure checkout."
+              : "Explore real, approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout."}
           </p>
         </div>
 
@@ -218,8 +243,24 @@ const ProductSlider = () => {
         ) : (
           <>
             <HotelSection title="Featured hotels" subtitle="Highly rated stays from real guest ratings" hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
-            <HotelSection title="Popular hotels" subtitle="Stays ranked by verified FastBooking reservations" hotels={sections.popular} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection
+              title="Popular hotels"
+              subtitle={import.meta.env.DEV ? "Current listings and clearly labeled development samples" : "Stays ranked by verified FastBooking reservations"}
+              hotels={sections.popular}
+              favorites={favorites}
+              toggleFavorite={toggleFavorite}
+            />
             <HotelSection title="Recently added" subtitle="The latest approved properties in our database" hotels={sections.recent} favorites={favorites} toggleFavorite={toggleFavorite} />
+            {citySections.map(({ city, hotels }) => (
+              <HotelSection
+                key={city}
+                title={`Hotels in ${city}`}
+                subtitle={`Available approved listings in ${city}`}
+                hotels={hotels}
+                favorites={favorites}
+                toggleFavorite={toggleFavorite}
+              />
+            ))}
             {cities.length > 0 && (
               <section className="mt-12">
                 <h2 className="text-2xl font-extrabold text-[#082B5C]">Explore hotels across Indian cities</h2>

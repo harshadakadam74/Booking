@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import {
   checkBookingEligibility,
-  createBooking,
   createPaymentOrder,
   getBookingById,
   verifyPayment,
+  verifyLegacyBookingPayment,
 } from "../services/bookingService";
 import { getHotelById } from "../services/destinationService";
 
@@ -78,6 +78,30 @@ const Payment = () => {
   const [locationStatus, setLocationStatus] = useState("");
   const [detectedGuestLocation, setDetectedGuestLocation] = useState(null);
   const bookingIdempotencyKey = useRef(null);
+  const paymentIdempotencyStorageKey = [
+    "fastBookingPayment",
+    propertyId,
+    searchParams.dates.startDate?.toISOString().slice(0, 10) || "",
+    searchParams.dates.endDate?.toISOString().slice(0, 10) || "",
+    searchParams.guests.adults + searchParams.guests.children,
+    searchParams.guests.rooms,
+    roomTypeId,
+  ].join(":");
+  const getPaymentIdempotencyKey = () => {
+    if (bookingIdempotencyKey.current) return bookingIdempotencyKey.current;
+    try {
+      bookingIdempotencyKey.current = sessionStorage.getItem(paymentIdempotencyStorageKey);
+    } catch (storageError) {
+      console.error("Unable to read the payment retry key:", storageError);
+    }
+    bookingIdempotencyKey.current ||= window.crypto.randomUUID();
+    try {
+      sessionStorage.setItem(paymentIdempotencyStorageKey, bookingIdempotencyKey.current);
+    } catch (storageError) {
+      console.error("Unable to save the payment retry key:", storageError);
+    }
+    return bookingIdempotencyKey.current;
+  };
   const pricePerNight = Number(
     eligibility?.pricing?.pricePerNight ??
       selectedRoomType?.price ??
@@ -219,6 +243,9 @@ const Payment = () => {
         numberOfRooms: searchParams.guests.rooms,
         ...(new URLSearchParams(location.search).get("bookingId")
           ? { bookingId: new URLSearchParams(location.search).get("bookingId") }
+          : {}),
+        ...(new URLSearchParams(location.search).get("paymentIntentId")
+          ? { paymentIntentId: new URLSearchParams(location.search).get("paymentIntentId") }
           : {}),
         ...(roomTypeId ? { roomTypeId } : {}),
       };
@@ -437,6 +464,9 @@ const Payment = () => {
     setBookingError("");
 
     let pendingBookingId = new URLSearchParams(location.search).get("bookingId") || "";
+    let paymentIntentId = new URLSearchParams(location.search).get("paymentIntentId") || "";
+    let bookingId = pendingBookingId;
+    let reservationPayload;
     try {
       let booking;
       if (pendingBookingId) {
@@ -457,7 +487,7 @@ const Payment = () => {
         if (Number(booking.totalPrice) !== Number(eligibility?.pricing?.totalPrice)) {
           throw new Error("The hotel price changed. Return to the hotel and start a new booking at the current price.");
         }
-      } else {
+      } else if (!paymentIntentId) {
         const detectedLocation = detectedGuestLocation || await getGuestLocation();
         const detectedAddress = detectedLocation?.detectedAddress || {};
         const nextBillingAddress = {
@@ -497,20 +527,31 @@ const Payment = () => {
           guestLocation: detectedLocation?.coordinates || null,
         };
         if (roomTypeId) bookingPayload.roomTypeId = roomTypeId;
-        bookingIdempotencyKey.current ||= window.crypto.randomUUID();
-        const response = await createBooking(bookingPayload, bookingIdempotencyKey.current);
-        booking = response?.booking || response || null;
-        pendingBookingId = String(booking?._id || booking?.id || "");
+        reservationPayload = bookingPayload;
       }
-
-      const bookingId = booking?._id || booking?.id;
-      if (!bookingId) throw new Error("Booking ID was not returned by the server");
 
       const loaded = await loadRazorpay();
       if (!loaded) throw new Error("Razorpay Checkout failed to load");
 
-      const { order, key } = await createPaymentOrder(bookingId);
-      const expectedOrderAmount = Math.round(Number(booking.totalPrice) * 100);
+      const orderResult = await createPaymentOrder(
+        pendingBookingId
+          ? pendingBookingId
+          : paymentIntentId
+            ? { paymentIntentId }
+            : reservationPayload,
+        !pendingBookingId && !paymentIntentId ? getPaymentIdempotencyKey() : undefined
+      );
+      paymentIntentId = String(orderResult.paymentIntentId || paymentIntentId);
+      if (paymentIntentId) {
+        const nextParams = new URLSearchParams(location.search);
+        nextParams.set("paymentIntentId", paymentIntentId);
+        navigate(
+          { pathname: location.pathname, search: `?${nextParams.toString()}` },
+          { replace: true }
+        );
+      }
+      const { order, key } = orderResult;
+      const expectedOrderAmount = Math.round(Number(eligibility?.pricing?.totalPrice) * 100);
       if (!key || !order?.id || !Number.isInteger(Number(order.amount)) ||
         Number(order.amount) <= 0 ||
         Number(order.amount) !== expectedOrderAmount || order.currency !== "INR") {
@@ -532,7 +573,9 @@ const Payment = () => {
           theme: { color: "#0B5ED7" },
           handler: async (paymentResponse) => {
             try {
-              const verificationResult = await verifyPayment(bookingId, paymentResponse);
+              const verificationResult = pendingBookingId
+                ? await verifyLegacyBookingPayment(pendingBookingId, paymentResponse)
+                : await verifyPayment(paymentIntentId, paymentResponse);
               const verifiedBooking = verificationResult?.booking;
               if (verifiedBooking?.bookingStatus !== "CONFIRMED" ||
                 verifiedBooking?.paymentStatus !== "SUCCESS") {
@@ -552,6 +595,13 @@ const Payment = () => {
         throw new Error("The server did not confirm the paid booking.");
       }
 
+      bookingId = String(confirmedBooking._id || confirmedBooking.id || "");
+      if (!bookingId) throw new Error("The server did not return the confirmed booking ID.");
+      try {
+        sessionStorage.removeItem(paymentIdempotencyStorageKey);
+      } catch (storageError) {
+        console.error("Unable to clear the payment retry key:", storageError);
+      }
       navigate(`/payment/success?bookingId=${encodeURIComponent(bookingId)}`, {
         replace: true,
         state: {
@@ -563,10 +613,11 @@ const Payment = () => {
         },
       });
     } catch (error) {
-      console.error("Booking creation error:", error);
-      if (pendingBookingId) {
+      console.error("Payment processing error:", error);
+      if (pendingBookingId || paymentIntentId) {
         const failureParams = new URLSearchParams(location.search);
-        failureParams.set("bookingId", pendingBookingId);
+        if (pendingBookingId) failureParams.set("bookingId", pendingBookingId);
+        if (paymentIntentId) failureParams.set("paymentIntentId", paymentIntentId);
         navigate(`/payment/failed?${failureParams.toString()}`, {
           replace: true,
           state: { message: error?.response?.data?.message || error?.message || "Payment could not be completed." },
@@ -575,7 +626,7 @@ const Payment = () => {
         setBookingError(
           error?.response?.data?.message ||
             error?.message ||
-            "Booking creation failed. Please try again."
+          "Payment could not be started. Please try again."
         );
       }
     } finally {

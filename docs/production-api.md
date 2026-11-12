@@ -12,6 +12,8 @@
   return 400, missing records return 404, and database failures return 500.
 - `GET /api/v1/hotels/:id/availability` checks a hotel's current status, room,
   dates, guest capacity, inventory, and server-calculated price.
+- Public hotel search excludes demo listings by default. `includeDemo=true` is
+  honored only when the backend runs with `NODE_ENV=development`.
 - The repository has a Vercel static-frontend configuration, but no backend
   hosting configuration or deployed backend domain. Do not substitute a guessed
   production URL.
@@ -43,10 +45,13 @@
    repository does not contain the deployed domain; use the URL assigned by the
    backend host.
 
-The backend permits the configured Vercel origin and local Vite origins. It
-does not use wildcard origins with credentials. JWT bearer tokens remain the
-authentication mechanism; Axios also sends credentials for any existing
-cookie-based integrations.
+The backend permits the configured Vercel origin and, in development only,
+HTTP loopback origins (`localhost`, `127.0.0.1`, or `::1`) on Vite's port.
+This accommodates Vite selecting a different port when 5173 is occupied.
+Production does not allow loopback origins, even if they are accidentally
+included in `CLIENT_URL`. CORS credentials are enabled without a wildcard
+origin, and preflight requests allow the API methods and headers used by the
+JWT bearer-token and idempotent booking flows.
 
 ## Configure Vercel
 
@@ -67,6 +72,23 @@ defaults to `http://localhost:4545/api/v1`. Copy `Backend/.env.example` to
 
 ## Booking and payment behavior
 
+## Hotel inventory and development samples
+
+The Jaipur record in `Backend/scripts/seedDemoHotels.js` is explicitly a
+synthetic demo listing, not a verified hotel. Production search excludes it,
+so a zero-result Jaipur search does not establish a city-matching failure; it
+usually means the production database has no approved, active, non-demo Jaipur
+records matching the selected filters. No real listing data is bundled or
+fabricated by the frontend.
+
+In local development, set `NODE_ENV=development` in `Backend/.env` and run
+`npm run seed:demo-hotels` from `Backend` to add clearly labeled samples. The
+seed is idempotent and refuses to run in other environments. Development
+search and homepage sections may request those samples; they are marked
+`DEMO · NOT A REAL HOTEL`, and the backend prevents demo bookings. Production
+listings must be added by an administrator or imported from an authorized
+source, then approved and activated in the existing admin hotel manager.
+
 The homepage loads featured, popular, and recently added hotels from
 `GET /hotels?country=India`; it does not use seeded or hardcoded hotel-card data.
 `GET /hotels` also supports the same paginated filters as the search route.
@@ -82,14 +104,18 @@ a booking by hotel name.
 Checkout calls authenticated `POST /bookings/eligibility` before enabling
 payment. The response includes `eligibility.eligible` and structured
 `eligibility.reasons`; lookup/transport failures are shown separately and can be
-retried. Booking creation repeats its own validation, validates the billing
-address, locks hotel inventory, calculates the amount from the database, and
-creates a pending booking. Payment orders are created from that server amount,
-re-used for retries, and payment completion is accepted only after Razorpay
-signature and captured-payment details are checked by the backend. The success
-page requires a backend booking with both `bookingStatus: "CONFIRMED"` and
-`paymentStatus: "SUCCESS"`. No simulated payment-success route is exposed.
-Booking requests carry an idempotency key.
+retried. `POST /payments/create-order` repeats hotel, room, date, capacity,
+billing-address, and inventory validation, then creates a temporary
+`PaymentIntent` that holds inventory for 15 minutes. Its amount is calculated
+from current database prices; no `Booking` document is created before payment.
+Razorpay order creation is idempotent and can reuse the active reservation.
+After the backend verifies the Razorpay signature and confirms the captured
+amount, it creates the `Booking` as `CONFIRMED` and `SUCCESS`. If inventory
+cannot be honored after capture, the backend initiates a refund and records the
+reservation outcome instead of confirming an unavailable stay. Existing
+pending bookings created before this change remain readable and can complete
+their legacy payment flow. The public `POST /bookings/create` route now returns
+409; no simulated payment-success route is exposed.
 
 This application currently models room inventory as a count on a hotel listing;
 it has no separate physical Room collection. Where a hotel has embedded
@@ -110,6 +136,9 @@ database-backed, not synthesized.
 There is no tax or discount policy configured in the existing application.
 Checkout displays the database-calculated room-rate total and does not invent
 additional charges or discounts.
+The homepage discovery banner and `/deals` route therefore do not advertise
+unsupported discounts; `/deals` shows current approved hotel listings and their
+database-listed rates. Nearby searches also exclude demo listings.
 
 Card number, expiry, and CVV fields are not collected by FastBooking. They are
 entered in Razorpay Checkout. The development-only dummy payment route is
@@ -126,6 +155,7 @@ Create a Postman environment with:
 | `hotelId` | A real approved MongoDB hotel ID | A real approved production hotel ID |
 | `roomTypeId` | An embedded room-type `_id` for that hotel | An embedded room-type `_id` for that hotel |
 | `bookingId` | Set from booking response | Set from booking response |
+| `paymentIntentId` | Set from payment order response | Set from payment order response |
 
 1. **Health:** `GET {{baseUrl}}/health`. Expect HTTP 200 and a connected database.
 2. **Hotels:** `GET {{baseUrl}}/hotels` (or `/hotels/`) lists active, approved,
@@ -157,9 +187,9 @@ Create a Postman environment with:
    ```
    Continue only if `eligibility.eligible` is `true`.
    A malformed hotel ID returns 400 and a deleted hotel returns 404.
-5. **Create booking:** `POST {{baseUrl}}/bookings/create`, bearer token
-   `{{token}}`, header `Idempotency-Key: {{$guid}}`, and the eligibility JSON
-   plus a billing address, for example:
+5. **Create payment order and temporary inventory hold:**
+   `POST {{baseUrl}}/payments/create-order`, bearer token `{{token}}`,
+   header `Idempotency-Key: {{$guid}}`, body:
    ```json
    {
      "propertyId": "{{hotelId}}",
@@ -168,6 +198,7 @@ Create a Postman environment with:
      "checkOutDate": "2026-12-03",
      "numberOfGuests": 2,
      "numberOfRooms": 1,
+     "paymentMethod": "RAZORPAY",
      "billingAddress": {
        "address": "12 Example Road",
        "city": "Nanded",
@@ -179,17 +210,16 @@ Create a Postman environment with:
    ```
    Use future dates and a valid current hotel/room. Omit `roomTypeId` only for
    listings that have no embedded room types. Do not send an authoritative
-   amount. Save `booking._id` as `bookingId`; its status must be `PENDING`.
-6. **Create payment order:** `POST {{baseUrl}}/payments/create-order`,
-   bearer token, body `{"bookingId":"{{bookingId}}","paymentMethod":"RAZORPAY"}`.
-   The amount in the returned gateway order is calculated from the booking.
-7. **Verify and confirm:** Complete a real Razorpay Test Mode checkout from the
-   frontend. The frontend submits the gateway-returned
+   amount. Save the returned `paymentIntentId`; the order amount is calculated
+   by the backend. `POST /bookings/create` should return 409 and create no
+   booking record.
+6. **Verify and confirm:** Complete a real Razorpay Test Mode checkout from the
+   frontend. The frontend submits `paymentIntentId` and the gateway-returned
    `razorpay_order_id`, `razorpay_payment_id`, and `razorpay_signature` to
    `POST {{baseUrl}}/payments/verify`. Do not handcraft a success response or
-   signature. Confirm the returned booking is `CONFIRMED` only after successful
-   verification.
-8. **Admin:** use an ADMIN JWT for `GET {{baseUrl}}/admin/dashboard` and
+   signature. A booking is returned only after successful verification and
+   must have `bookingStatus: "CONFIRMED"` and `paymentStatus: "SUCCESS"`.
+7. **Admin:** use an ADMIN JWT for `GET {{baseUrl}}/admin/dashboard` and
    `GET {{baseUrl}}/admin/bookings`. Create or update listings through
    `/admin/hotels`; upload hotel image files with multipart form data to
    `/admin/hotels/images` using the `image` or `images` field.

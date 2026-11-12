@@ -11,145 +11,94 @@ import {
   ArrowRight,
   Search,
 } from "lucide-react";
+import { getHotelById } from "../../services/destinationService";
+import {
+  HOTEL_FAVORITES_EVENT,
+  readHotelFavoriteIds,
+  writeHotelFavoriteIds,
+} from "../../utils/hotelFavorites";
 
-const FAVORITES_KEY = "fastBookingFavorites";
-
-const favoriteProperties = [
-  {
-    id: 1,
-    name: "Luxury Downtown Hotel",
-    location: "New York, USA",
-    rating: 4.8,
-    price: 250,
-    image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop",
-    description:
-      "Skyline views, premium amenities, and breakfast included.",
-  },
-  {
-    id: 2,
-    name: "Cozy Boutique Hotel",
-    location: "New York, USA",
-    rating: 4.6,
-    price: 180,
-    image:
-      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&h=600&fit=crop",
-    description:
-      "Intimate stay with local charm and wellness perks.",
-  },
-  {
-    id: 5,
-    name: "Beachfront Resort",
-    location: "Miami, USA",
-    rating: 4.9,
-    price: 350,
-    image:
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop",
-    description:
-      "Oceanfront luxury with spa access and private beach entry.",
-  },
-];
-
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop";
+const formatPrice = (price, currency = "INR") => {
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(Number(price));
+  } catch {
+    return `${currency} ${Number(price).toLocaleString("en-IN")}`;
+  }
+};
 
 const AccountFavorites = () => {
   const navigate = useNavigate();
 
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // =====================================================
-  // LOAD FAVORITES
-  // =====================================================
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const loadFavorites = () => {
+    let active = true;
+    const loadFavorites = async () => {
+      setLoading(true);
+      setLoadError("");
       try {
-        const saved = JSON.parse(
-          localStorage.getItem(FAVORITES_KEY) || "[]"
-        );
-
-        if (!Array.isArray(saved)) {
-          setFavorites([]);
-          return;
+        const favoriteIds = readHotelFavoriteIds();
+        const lookups = await Promise.allSettled(favoriteIds.map(async (id) => {
+          if (!/^[a-f\d]{24}$/i.test(id)) throw new Error("Saved hotel ID is invalid.");
+          const property = await getHotelById(id);
+          if (!property || String(property._id) !== id) {
+            throw new Error("Saved hotel could not be found.");
+          }
+          if (property.active === false ||
+            (property.approvalStatus && property.approvalStatus !== "approved")) {
+            throw new Error("Saved hotel is no longer available.");
+          }
+          return {
+            ...property,
+            id: String(property._id),
+            location: [
+              property.city || property.location,
+              property.state,
+              property.country,
+            ].filter(Boolean).join(", "),
+          };
+        }));
+        if (!active) return;
+        const loadedProperties = lookups
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value);
+        setFavorites(loadedProperties);
+        const failedLookups = lookups.filter((result) => result.status === "rejected").length;
+        if (failedLookups) {
+          setLoadError(`${failedLookups} saved listing${failedLookups === 1 ? " could" : "s could"} not be loaded. It may have been removed or is no longer approved.`);
         }
-
-        /*
-          Supports both formats:
-
-          [1, 2, 5]
-
-          and:
-
-          [{ id: 1 }, { id: 2 }]
-        */
-
-        const favoriteIds = saved
-          .map((item) => {
-            if (item && typeof item === "object") {
-              return item.id || item._id;
-            }
-
-            return item;
-          })
-          .filter(Boolean);
-
-        const matched = favoriteProperties.filter((property) =>
-          favoriteIds.some(
-            (id) => String(id) === String(property.id)
-          )
-        );
-
-        setFavorites(matched);
       } catch (error) {
-        console.error("Failed to load favorites:", error);
-        setFavorites([]);
+        if (active) {
+          console.error("Failed to load favorites:", error);
+          setFavorites([]);
+          setLoadError(error.message || "Unable to load saved hotels.");
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadFavorites();
-
-    const handleStorageChange = (event) => {
-      if (event.key === FAVORITES_KEY) {
-        loadFavorites();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(HOTEL_FAVORITES_EVENT, loadFavorites);
+    window.addEventListener("storage", loadFavorites);
 
     return () => {
-      window.removeEventListener(
-        "storage",
-        handleStorageChange
-      );
+      active = false;
+      window.removeEventListener(HOTEL_FAVORITES_EVENT, loadFavorites);
+      window.removeEventListener("storage", loadFavorites);
     };
   }, []);
 
-  // =====================================================
-  // REMOVE FAVORITE
-  // =====================================================
-
   const removeFavorite = (propertyId) => {
     try {
-      const saved = JSON.parse(
-        localStorage.getItem(FAVORITES_KEY) || "[]"
-      );
-
-      const updated = saved.filter((item) => {
-        const id =
-          item && typeof item === "object"
-            ? item.id || item._id
-            : item;
-
-        return String(id) !== String(propertyId);
-      });
-
-      localStorage.setItem(
-        FAVORITES_KEY,
-        JSON.stringify(updated)
+      writeHotelFavoriteIds(
+        readHotelFavoriteIds().filter((id) => String(id) !== String(propertyId))
       );
 
       setFavorites((previous) =>
@@ -160,6 +109,7 @@ const AccountFavorites = () => {
       );
     } catch (error) {
       console.error("Unable to remove favorite:", error);
+      setLoadError("Unable to update your favorites. Please try again.");
     }
   };
 
@@ -167,15 +117,7 @@ const AccountFavorites = () => {
   // VIEW STAY
   // =====================================================
 
-  const handleViewStay = (property) => {
-    navigate("/book-place", {
-      state: {
-        location: property.location,
-        property: property.name,
-        price: property.price,
-      },
-    });
-  };
+  const handleViewStay = (property) => navigate(`/hotels/${encodeURIComponent(property.id)}`);
 
   // =====================================================
   // LOADING
@@ -271,6 +213,12 @@ const AccountFavorites = () => {
           </div>
         </div>
 
+        {loadError && (
+          <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            {loadError}
+          </p>
+        )}
+
         {/* Empty State */}
 
         {favorites.length === 0 ? (
@@ -350,15 +298,21 @@ const AccountFavorites = () => {
 
                   <div className="relative h-56 overflow-hidden">
 
-                    <img
-                      src={property.image}
-                      alt={property.name}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      onError={(event) => {
-                        event.currentTarget.src =
-                          FALLBACK_IMAGE;
-                      }}
-                    />
+                    {property.image || property.images?.[0] ? (
+                      <img
+                        src={property.image || property.images[0]}
+                        alt={property.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                          event.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                    ) : null}
+                    <div className={`${property.image || property.images?.[0] ? "hidden" : "flex"} h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500`}>
+                      Image unavailable
+                    </div>
 
                     <div className="absolute inset-0 bg-gradient-to-t from-[#082B5C]/70 via-transparent to-transparent" />
 
@@ -381,22 +335,18 @@ const AccountFavorites = () => {
 
                     {/* Rating */}
 
-                    <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#A56F00] shadow-md">
-
-                      <Star
-                        size={14}
-                        fill="currentColor"
-                      />
-
-                      {property.rating}
-
-                    </div>
+                    {Number(property.rating) > 0 && Number(property.ratingCount) > 0 && (
+                      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#A56F00] shadow-md">
+                        <Star size={14} fill="currentColor" />
+                        {Number(property.rating).toFixed(1)}
+                      </div>
+                    )}
 
                     {/* Price */}
 
                     <div className="absolute bottom-4 right-4 rounded-full bg-[#082B5C] px-3 py-1.5 text-xs font-bold text-white shadow-md">
 
-                      ${property.price}
+                      {formatPrice(property.price, property.currency || "INR")}
 
                       <span className="font-normal text-blue-100">
                         {" "}
@@ -442,7 +392,7 @@ const AccountFavorites = () => {
                     </div>
 
                     <p className="mt-4 min-h-[48px] text-sm leading-6 text-slate-500">
-                      {property.description}
+                      {property.description || property.amenities?.slice(0, 3).join(" · ") || "Hotel details and amenities"}
                     </p>
 
                     {/* Bottom */}

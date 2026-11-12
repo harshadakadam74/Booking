@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Tag, ArrowRight } from "lucide-react";
+import { Compass, ArrowRight } from "lucide-react";
 
 const Offers_Deals = () => {
   return (
@@ -9,57 +9,52 @@ const Offers_Deals = () => {
       <div className="mb-6">
         <div className="mb-2 flex items-center gap-2">
           <div className="rounded-lg bg-[#FFF8E7] p-2">
-            <Tag size={20} className="text-[#C58A18]" />
+            <Compass size={20} className="text-[#C58A18]" />
           </div>
 
           <h2 className="text-xl font-bold text-[#082B5C] sm:text-2xl md:text-3xl">
-            Offers
+            Find your next getaway
           </h2>
         </div>
 
         <p className="text-sm text-slate-500 sm:text-base">
-          Promotions, deals and special offers for you
+          Discover available stays for your next trip
         </p>
       </div>
 
-      {/* Offer Card */}
+      {/* Destination discovery banner */}
       <div className="group flex flex-col items-center gap-5 overflow-hidden rounded-2xl border border-blue-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#C58A18]/40 hover:shadow-lg sm:p-6 md:flex-row">
 
         {/* Image */}
         <div className="relative w-full shrink-0 md:w-44">
           <img
             src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
-            alt="Travel Offer"
+            alt="Tropical beach destination"
             className="h-44 w-full rounded-xl object-cover sm:h-52 md:h-44"
           />
 
-          {/* Gold Discount Badge */}
-          <span className="absolute left-3 top-3 rounded-full bg-[#C58A18] px-3 py-1 text-xs font-bold text-white shadow-md">
-            15% OFF
-          </span>
         </div>
 
         {/* Content */}
         <div className="w-full flex-1 text-center md:text-left">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#C58A18] sm:text-sm">
-            Special Deal
+            Travel inspiration
           </p>
 
           <h3 className="mb-2 text-lg font-bold text-[#082B5C] sm:text-xl md:text-2xl">
-            At least 15% off
+            A stay worth looking forward to
           </h3>
 
           <p className="mb-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Save on your next stay with FastBooking special offers.
-            Discover great hotels and enjoy exclusive discounts.
+            Explore real hotel listings, compare current room prices, and check availability before you book.
           </p>
 
           {/* Button */}
           <Link
-            to="/deals"
+            to="/book-place"
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#082B5C] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#C58A18] hover:shadow-md sm:text-base md:w-auto"
           >
-            Explore Deals
+            Explore stays
             <ArrowRight size={17} />
           </Link>
         </div>

@@ -3,6 +3,18 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const demoImage = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80';
+const demoCityListings = [
+  ['Bengaluru', 'Karnataka', 3600],
+  ['Chennai', 'Tamil Nadu', 3400],
+  ['Udaipur', 'Rajasthan', 3900],
+  ['Manali', 'Himachal Pradesh', 3200],
+  ['Shimla', 'Himachal Pradesh', 3300],
+  ['Agra', 'Uttar Pradesh', 3000],
+  ['Lonavala', 'Maharashtra', 3500],
+  ['Nashik', 'Maharashtra', 2900],
+  ['Mahabaleshwar', 'Maharashtra', 3100],
+  ['Aurangabad', 'Maharashtra', 2800],
+];
 
 const demoListings = [
   {
@@ -282,9 +294,38 @@ const demoListings = [
     approvalStatus: 'approved',
     active: true,
   },
+  ...demoCityListings.map(([city, state, price]) => ({
+    name: `FastBooking Demo Hotel - ${city}`,
+    location: `${city}, ${state}, India`,
+    city,
+    state,
+    country: 'India',
+    currency: 'INR',
+    image: demoImage,
+    images: [demoImage],
+    type: 'Hotel',
+    propertyType: 'Hotel',
+    description: 'Synthetic development-only sample. This is not a real hotel listing.',
+    price,
+    totalRooms: 10,
+    availableRooms: 10,
+    maxGuestsPerRoom: 3,
+    amenities: ['Wi-Fi', 'Parking'],
+    roomTypes: [{ name: 'Demo standard room', price, maxGuests: 3, totalRooms: 10, availableRooms: 10 }],
+    isDemo: true,
+    isVerified: false,
+    listingSource: 'demo',
+    sourceProvider: 'fastbooking-demo',
+    externalListingId: `demo:india:${city.toLowerCase()}:001`,
+    approvalStatus: 'approved',
+    active: true,
+  })),
 ];
 
 const run = async () => {
+  if (process.env.NODE_ENV !== 'development') {
+    throw new Error('Demo hotel listings can only be seeded when NODE_ENV=development.');
+  }
   if (!process.env.MONGO_URI) throw new Error('MONGO_URI must be configured.');
   await mongoose.connect(process.env.MONGO_URI);
   const operations = demoListings.map((listing) => ({

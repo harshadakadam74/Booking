@@ -12,10 +12,12 @@ const { propertyOwner } = require('../middlewares/PropertyOwnerMiddleware');
 const { validateDestination } = require('../controllers/DestinationController');
 const PaymentService = require('../services/PaymentService');
 const Booking = require('../models/Booking');
+const PaymentIntent = require('../models/PaymentIntent');
 const Property = require('../models/Property');
 const PropertyController = require('../controllers/PropertyController');
 const mongoose = require('mongoose');
 const Destination = require('../models/Destination');
+const { createCorsOptions } = require('../config/corsOptions');
 
 const expectedStatesAndTerritories = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
@@ -38,6 +40,41 @@ const createResponse = () => ({
     this.body = body;
     return this;
   },
+});
+
+test('CORS permits local Vite loopback ports in development and restricts production origins', () => {
+  const developmentOptions = createCorsOptions({
+    NODE_ENV: 'development',
+    CLIENT_URL: 'http://localhost:5173,http://127.0.0.1:5173',
+  });
+  const productionOptions = createCorsOptions({
+    NODE_ENV: 'production',
+    CLIENT_URL: 'https://booking-l2vm.vercel.app,http://localhost:5173',
+  });
+
+  const checkOrigin = (origin, validator) => new Promise((resolve, reject) => {
+    validator(origin, (error, allowed) => error ? reject(error) : resolve(allowed));
+  });
+
+  return Promise.all([
+    checkOrigin('http://localhost:5174', developmentOptions.origin),
+    checkOrigin('http://127.0.0.1:4173', developmentOptions.origin),
+    checkOrigin('https://booking-l2vm.vercel.app', productionOptions.origin),
+  ]).then(async (results) => {
+    assert.deepEqual(results, [true, true, true]);
+    assert.equal(developmentOptions.credentials, true);
+    assert.ok(developmentOptions.methods.includes('OPTIONS'));
+    assert.ok(developmentOptions.allowedHeaders.includes('Authorization'));
+    assert.ok(developmentOptions.allowedHeaders.includes('Idempotency-Key'));
+    await assert.rejects(
+      checkOrigin('http://localhost:5174', productionOptions.origin),
+      /not allowed by CORS/,
+    );
+    await assert.rejects(
+      checkOrigin('https://untrusted.example', productionOptions.origin),
+      /not allowed by CORS/,
+    );
+  });
 });
 
 test('curated destinations cover every Indian state and union territory', () => {
@@ -108,6 +145,92 @@ test('hotel listing supports newest sort and excludes demo listings by default',
   const pipeline = await buildHotelPipeline(parsed.criteria);
   assert.deepEqual(pipeline[0].$match.isDemo, { $ne: true });
   assert.deepEqual(pipeline.find((stage) => stage.$sort)?.$sort, { createdAt: -1, _id: -1 });
+});
+
+test('demo listings are included only in development when explicitly requested', () => {
+  const originalEnvironment = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'development';
+    assert.equal(parseHotelSearch({ includeDemo: 'true' }).criteria.includeDemo, true);
+
+    process.env.NODE_ENV = 'production';
+    assert.equal(parseHotelSearch({ includeDemo: 'true' }).criteria.includeDemo, false);
+  } finally {
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+  }
+});
+
+test('Jaipur city search falls back to case-insensitive city and location matching', async () => {
+  const originalFindOne = Destination.findOne;
+  Destination.findOne = () => ({ lean: async () => null });
+  try {
+    const parsed = parseHotelSearch({ destination: 'JAIPUR, India' });
+    const pipeline = await buildHotelPipeline(parsed.criteria);
+    const filter = pipeline[0].$match;
+    const destinationFilter = filter.$and.find((clause) =>
+      clause.$or?.some((part) => part.normalizedCity));
+
+    assert.ok(destinationFilter);
+    assert.deepEqual(destinationFilter.$or[0].normalizedCity.$in, ['jaipur']);
+    assert.equal(destinationFilter.$or.some((part) => part.country), false);
+    assert.match(destinationFilter.$or.find((part) => part.location).location, /jaipur/i);
+    assert.deepEqual(filter.isDemo, { $ne: true });
+    assert.deepEqual(filter.$or, [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }]);
+  } finally {
+    Destination.findOne = originalFindOne;
+  }
+});
+
+test('nearby hotel search excludes demo and inactive listings', async () => {
+  const originalAggregate = Property.aggregate;
+  let pipeline;
+  Property.aggregate = async (aggregationPipeline) => {
+    pipeline = aggregationPipeline;
+    return [];
+  };
+
+  try {
+    const response = createResponse();
+    await PropertyController.getNearbyProperties({
+      query: { latitude: '19.076', longitude: '72.8777', radius: '10' },
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(pipeline[0].$geoNear.query.isDemo, { $ne: true });
+    assert.deepEqual(pipeline[0].$geoNear.query.active, { $ne: false });
+  } finally {
+    Property.aggregate = originalAggregate;
+  }
+});
+
+test('hotel listing applies category, breakfast, amenity aliases, and recommendation sorting', async () => {
+  const parsed = parseHotelSearch({
+    minStars: '4',
+    breakfastIncluded: 'true',
+    amenities: 'Wi-Fi, Swimming pool',
+    sortBy: 'recommended',
+  });
+  assert.equal(parsed.error, undefined);
+  const pipeline = await buildHotelPipeline(parsed.criteria);
+  const match = pipeline[0].$match;
+  assert.deepEqual(match.starRating, { $gte: 4 });
+  assert.equal(match.breakfastIncluded, true);
+  const amenityClauses = match.$and.filter((clause) =>
+    clause.$or?.some((part) => part.normalizedAmenities));
+  assert.equal(amenityClauses.length, 2);
+  assert.ok(amenityClauses[0].$or.some((part) => part.normalizedAmenities === 'wifi'));
+  assert.ok(amenityClauses[1].$or.some((part) => part.normalizedAmenities === 'pool'));
+  assert.ok(pipeline.some((stage) => stage.$lookup));
+  assert.deepEqual(pipeline.find((stage) => stage.$sort)?.$sort, {
+    bookingCount: -1,
+    ratingCount: -1,
+    price: 1,
+    name: 1,
+  });
+
+  assert.match(parseHotelSearch({ minStars: '6' }).error, /star category/i);
+  assert.match(parseHotelSearch({ breakfastIncluded: 'yes' }).error, /breakfastIncluded/);
 });
 
 test('city alias, hotel name, price range, sort, and work-trip filters are accepted', () => {
@@ -282,6 +405,7 @@ test("checkout revalidation excludes only the owner's matching pending booking f
   const originalPropertyFindById = Property.findById;
   const originalBookingFindOne = Booking.findOne;
   const originalBookingAggregate = Booking.aggregate;
+  const originalPaymentIntentAggregate = PaymentIntent.aggregate;
   let pendingBookingFilter;
   let inventoryPipeline;
   try {
@@ -294,6 +418,7 @@ test("checkout revalidation excludes only the owner's matching pending booking f
       inventoryPipeline = pipeline;
       return [{ roomsBooked: 0 }];
     };
+    PaymentIntent.aggregate = async () => [{ roomsBooked: 0 }];
 
     const response = createResponse();
     await BookingController.getBookingEligibility({
@@ -316,6 +441,35 @@ test("checkout revalidation excludes only the owner's matching pending booking f
     Property.findById = originalPropertyFindById;
     Booking.findOne = originalBookingFindOne;
     Booking.aggregate = originalBookingAggregate;
+    PaymentIntent.aggregate = originalPaymentIntentAggregate;
+  }
+});
+
+test('active payment intents reserve inventory until checkout expires', async () => {
+  const propertyId = new mongoose.Types.ObjectId();
+  const intentId = new mongoose.Types.ObjectId();
+  const originalBookingAggregate = Booking.aggregate;
+  const originalPaymentIntentAggregate = PaymentIntent.aggregate;
+  let paymentIntentFilter;
+  try {
+    Booking.aggregate = async () => [{ roomsBooked: 2 }];
+    PaymentIntent.aggregate = async (pipeline) => {
+      paymentIntentFilter = pipeline[0].$match;
+      return [{ roomsBooked: 1 }];
+    };
+    const bookedRooms = await require('../services/bookingInventory').getBookedRooms({
+      property: { _id: propertyId },
+      checkIn: new Date('2030-01-01'),
+      checkOut: new Date('2030-01-02'),
+      excludePaymentIntentId: intentId,
+    });
+    assert.equal(bookedRooms, 3);
+    assert.deepEqual(paymentIntentFilter.status, { $in: ['PENDING', 'VERIFYING'] });
+    assert.ok(paymentIntentFilter.expiresAt.$gt instanceof Date);
+    assert.equal(paymentIntentFilter._id.$ne.toString(), intentId.toString());
+  } finally {
+    Booking.aggregate = originalBookingAggregate;
+    PaymentIntent.aggregate = originalPaymentIntentAggregate;
   }
 });
 
@@ -489,6 +643,13 @@ test('booking creation does not resolve hotels by name', async () => {
   }, response);
   assert.equal(response.statusCode, 400);
   assert.match(response.body.message, /hotel ID/i);
+});
+
+test('the public booking creation endpoint cannot create an unpaid booking', () => {
+  const response = createResponse();
+  BookingController.rejectUnpaidBookingCreation({}, response);
+  assert.equal(response.statusCode, 409);
+  assert.match(response.body.message, /verified payment/i);
 });
 
 test('property-owner middleware rejects customers and allows property owners', () => {

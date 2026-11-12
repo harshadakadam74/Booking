@@ -6,6 +6,7 @@ import PropertyType from "../components/PropertyType/PropertyType";
 import TripPlanner from "../components/TripPlanner/TripPlanner";
 import TravelInsights from '../components/TravelInsights';
 import NearbyProperties from '../components/NearbyProperties/NearbyProperties';
+import HotelCarousel from '../components/HotelCarousel';
 
 export function Home() {
  
@@ -19,6 +20,7 @@ export function Home() {
     <TripPlanner />
     <TravelInsights />
     <NearbyProperties />
+    <HotelCarousel />
     </>
   );
 }

@@ -34,7 +34,8 @@ const HotelDetails = () => {
   const [retry, setRetry] = useState(0);
   const [checkIn, setCheckIn] = useState(searchParams.get("checkIn") || dateOffset(1));
   const [checkOut, setCheckOut] = useState(searchParams.get("checkOut") || dateOffset(2));
-  const [guests, setGuests] = useState(searchParams.get("adults") || "2");
+  const [adults, setAdults] = useState(searchParams.get("adults") || "2");
+  const [children, setChildren] = useState(searchParams.get("children") || "0");
   const [rooms, setRooms] = useState(searchParams.get("rooms") || "1");
   const [roomTypeId, setRoomTypeId] = useState(searchParams.get("roomTypeId") || "");
   const [availability, setAvailability] = useState(null);
@@ -144,7 +145,7 @@ const HotelDetails = () => {
       const result = await getHotelAvailability(id, {
         checkIn,
         checkOut,
-        guests,
+        guests: Number(adults) + Number(children),
         rooms,
         ...(roomTypeId ? { roomTypeId } : {}),
       });
@@ -169,8 +170,8 @@ const HotelDetails = () => {
       hotelId: id,
       checkIn,
       checkOut,
-      adults: String(guests),
-      children: "0",
+      adults: String(adults),
+      children: String(children),
       rooms: String(rooms),
     });
     if (roomTypeId) checkoutParams.set("roomTypeId", roomTypeId);
@@ -221,12 +222,17 @@ const HotelDetails = () => {
             )}
             <div className="p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#E3AE32]">Hotel details</p>
+              {hotel.isDemo && (
+                <p className="mt-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-950">
+                  DEMO LISTING · NOT A REAL HOTEL · BOOKINGS DISABLED
+                </p>
+              )}
               <h1 className="mt-2 text-3xl font-extrabold text-[#082B5C]">{hotel.name}</h1>
               <p className="mt-3 flex items-start gap-2 text-sm text-slate-600">
                 <MapPin size={17} className="mt-0.5 shrink-0 text-[#E3AE32]" />
                 {address || hotel.location}
               </p>
-              {Number(hotel.ratingCount) > 0 && Number.isFinite(Number(hotel.rating)) && (
+              {Number(hotel.ratingCount) > 0 && Number(hotel.rating) > 0 && Number.isFinite(Number(hotel.rating)) && (
                 <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-slate-700">
                   <Star size={16} className="fill-[#E3AE32] text-[#E3AE32]" />
                   Guest rating {Number(hotel.rating).toFixed(1)} ({hotel.ratingCount} {hotel.ratingSource || "recorded"} ratings)
@@ -299,11 +305,15 @@ const HotelDetails = () => {
                     <input required type="date" min={checkIn ? followingDate(checkIn) : dateOffset(1)} value={checkOut} disabled={checkingAvailability} onChange={(event) => { setCheckOut(event.target.value); updateBookingParam("checkOut", event.target.value); resetAvailability(); }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal" />
                   </label>
                   <label className="text-sm font-semibold text-slate-700">
-                    Guests
+                    Adults
                     <span className="mt-1 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3">
                       <Users size={16} className="text-[#082B5C]" />
-                      <input required type="number" min="1" max="20" value={guests} disabled={checkingAvailability} onChange={(event) => { setGuests(event.target.value); updateBookingParam("adults", event.target.value); resetAvailability(); }} className="w-full py-2.5 outline-none" />
+                      <input required type="number" min="1" max="20" value={adults} disabled={checkingAvailability} onChange={(event) => { setAdults(event.target.value); updateBookingParam("adults", event.target.value); resetAvailability(); }} className="w-full py-2.5 outline-none" />
                     </span>
+                  </label>
+                  <label className="text-sm font-semibold text-slate-700">
+                    Children
+                    <input type="number" min="0" max="20" value={children} disabled={checkingAvailability} onChange={(event) => { setChildren(event.target.value); updateBookingParam("children", event.target.value); resetAvailability(); }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal" />
                   </label>
                   <label className="text-sm font-semibold text-slate-700">
                     Rooms
@@ -317,7 +327,7 @@ const HotelDetails = () => {
                       <option value="">Select a room type</option>
                       {roomTypes.map((room) => (
                         <option key={room._id} value={room._id}>
-                          {room.name} · {formatPrice(room.price ?? hotel.price, hotel.currency || "INR")} / night
+                          {room.name} · up to {room.maxGuests || hotel.maxGuestsPerRoom || 4} guests · {room.availableRooms ?? "inventory not listed"} listed · {formatPrice(room.price ?? hotel.price, hotel.currency || "INR")} / night
                         </option>
                       ))}
                     </select>

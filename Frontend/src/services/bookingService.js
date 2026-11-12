@@ -73,11 +73,15 @@ export const getAllBookings = async () => {
   }
 };
 
-export const createPaymentOrder = async (bookingId) => {
+export const createPaymentOrder = async (paymentRequest, idempotencyKey) => {
   try {
+    const body = typeof paymentRequest === 'string'
+      ? { bookingId: paymentRequest, paymentMethod: 'RAZORPAY' }
+      : { ...paymentRequest, paymentMethod: 'RAZORPAY' };
     const response = await apiClient.post('/api/v1/payments/create-order', {
-      bookingId,
-      paymentMethod: 'RAZORPAY',
+      ...body,
+    }, {
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
     });
     return response.data?.data || response.data;
   } catch (error) {
@@ -86,7 +90,33 @@ export const createPaymentOrder = async (bookingId) => {
   }
 };
 
-export const verifyPayment = async (bookingId, paymentResponse) => {
+export const verifyPayment = async (paymentIntentId, paymentResponse) => {
+  try {
+    const response = await apiClient.post('/api/v1/payments/verify', {
+      paymentIntentId,
+      paymentMethod: 'RAZORPAY',
+      razorpay_order_id: paymentResponse.razorpay_order_id,
+      razorpay_payment_id: paymentResponse.razorpay_payment_id,
+      razorpay_signature: paymentResponse.razorpay_signature,
+    });
+    return response.data?.data || response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Payment verification failed';
+    throw new Error(message);
+  }
+};
+
+export const verifyCapturedPaymentIntent = async (paymentIntentId) => {
+  try {
+    const response = await apiClient.post('/api/v1/payments/verify', { paymentIntentId });
+    return response.data?.data || response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Unable to confirm payment status';
+    throw new Error(message);
+  }
+};
+
+export const verifyLegacyBookingPayment = async (bookingId, paymentResponse) => {
   try {
     const response = await apiClient.post('/api/v1/payments/verify', {
       bookingId,

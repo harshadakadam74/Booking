@@ -81,6 +81,7 @@ const getNearbyProperties = async (req, res) => {
           spherical: true,
           query: {
             active: { $ne: false },
+            isDemo: { $ne: true },
             $and: [
               { $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }] },
               ...(req.query.type ? [{ $or: [{ type: req.query.type }, { propertyType: req.query.type }] }] : []),

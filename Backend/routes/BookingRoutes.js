@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.post("/eligibility", authenticate, BookingController.getBookingEligibility);
 
-// Create booking (authenticated users)
-router.post("/create", authenticate, BookingController.createBooking);
+// Booking records are created only after the payment gateway confirms capture.
+router.post("/create", authenticate, BookingController.rejectUnpaidBookingCreation);
 
 // Get user's bookings
 router.get("/my-bookings", authenticate, BookingController.getUserBookings);

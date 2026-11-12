@@ -5,7 +5,10 @@ const paymentSchema = new mongoose.Schema(
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
-      required: true,
+    },
+    paymentIntentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PaymentIntent',
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -37,6 +40,8 @@ const paymentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+paymentSchema.index({ paymentIntentId: 1 }, { unique: true, sparse: true });
 
 const Payment = mongoose.model('payments', paymentSchema);
 module.exports = Payment;

@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const mongoose = require('mongoose');
 const Property = require('../models/Property');
 const Booking = require('../models/Booking');
+const PaymentIntent = require('../models/PaymentIntent');
 
 const activeBookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN'];
 
@@ -52,7 +53,14 @@ const releasePropertyBookingLock = async (propertyId, token) => {
   );
 };
 
-const getBookedRooms = async ({ property, checkIn, checkOut, excludeBookingId, roomTypeId }) => {
+const getBookedRooms = async ({
+  property,
+  checkIn,
+  checkOut,
+  excludeBookingId,
+  excludePaymentIntentId,
+  roomTypeId,
+}) => {
   const filter = {
     bookingStatus: { $in: activeBookingStatuses },
     checkInDate: { $lt: checkOut },
@@ -71,11 +79,29 @@ const getBookedRooms = async ({ property, checkIn, checkOut, excludeBookingId, r
     }];
   }
   if (excludeBookingId) filter._id = { $ne: new mongoose.Types.ObjectId(excludeBookingId) };
-  const [reservation = { roomsBooked: 0 }] = await Booking.aggregate([
-    { $match: filter },
-    { $group: { _id: null, roomsBooked: { $sum: '$numberOfRooms' } } },
+  const paymentIntentFilter = {
+    propertyId: property._id,
+    status: { $in: ['PENDING', 'VERIFYING'] },
+    expiresAt: { $gt: new Date() },
+    checkInDate: { $lt: checkOut },
+    checkOutDate: { $gt: checkIn },
+  };
+  if (roomTypeId) paymentIntentFilter.roomTypeId = new mongoose.Types.ObjectId(roomTypeId);
+  if (excludePaymentIntentId) {
+    paymentIntentFilter._id = { $ne: new mongoose.Types.ObjectId(excludePaymentIntentId) };
+  }
+  const [bookingReservations, paymentReservations] = await Promise.all([
+    Booking.aggregate([
+      { $match: filter },
+      { $group: { _id: null, roomsBooked: { $sum: '$numberOfRooms' } } },
+    ]),
+    PaymentIntent.aggregate([
+      { $match: paymentIntentFilter },
+      { $group: { _id: null, roomsBooked: { $sum: '$numberOfRooms' } } },
+    ]),
   ]);
-  return reservation.roomsBooked;
+  return Number(bookingReservations[0]?.roomsBooked || 0) +
+    Number(paymentReservations[0]?.roomsBooked || 0);
 };
 
 const acquireBookingStatusLock = async (booking) => {

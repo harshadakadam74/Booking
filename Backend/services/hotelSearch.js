@@ -69,6 +69,23 @@ const parseHotelSearch = (query = {}) => {
       return { error: 'Minimum rating must be between 1 and 5.' };
     }
   }
+  let minStars;
+  if (query.minStars !== undefined && query.minStars !== '') {
+    minStars = Number(query.minStars);
+    if (!Number.isInteger(minStars) || minStars < 1 || minStars > 5) {
+      return { error: 'Minimum hotel star category must be a whole number between 1 and 5.' };
+    }
+  }
+  const breakfastIncluded = query.breakfastIncluded === undefined || query.breakfastIncluded === ''
+    ? false
+    : ['true', true].includes(query.breakfastIncluded)
+      ? true
+      : ['false', false].includes(query.breakfastIncluded)
+        ? false
+        : null;
+  if (breakfastIncluded === null) {
+    return { error: 'breakfastIncluded must be true or false.' };
+  }
 
   const checkIn = query.checkIn ? new Date(query.checkIn) : null;
   const checkOut = query.checkOut ? new Date(query.checkOut) : null;
@@ -112,10 +129,11 @@ const parseHotelSearch = (query = {}) => {
     return { error: 'Currency must be a three-letter currency code.' };
   }
   if (query.sortBy !== undefined && typeof query.sortBy !== 'string') {
-    return { error: 'Sort must be price, price_desc, rating, popularity, or newest.' };
+    return { error: 'Sort must be recommended, price, price_desc, rating, popularity, or newest.' };
   }
   const sortBy = query.sortBy?.trim().toLowerCase() || 'price_asc';
   const sortValues = {
+    recommended: 'recommended',
     price: 'price_asc',
     price_asc: 'price_asc',
     price_desc: 'price_desc',
@@ -124,7 +142,7 @@ const parseHotelSearch = (query = {}) => {
     newest: 'newest',
   };
   if (!Object.hasOwn(sortValues, sortBy)) {
-    return { error: 'Sort must be price, price_desc, rating, popularity, or newest.' };
+    return { error: 'Sort must be recommended, price, price_desc, rating, popularity, or newest.' };
   }
   const workTrip = query.workTrip === undefined || query.workTrip === ''
     ? false
@@ -157,6 +175,8 @@ const parseHotelSearch = (query = {}) => {
       minPrice,
       budget,
       minRating,
+      minStars,
+      breakfastIncluded,
       amenities: [...new Set(amenities)],
       propertyType,
       category,
@@ -167,7 +187,8 @@ const parseHotelSearch = (query = {}) => {
       checkOut,
       page,
       limit,
-      includeDemo: query.includeDemo === 'true' || query.includeDemo === true,
+      includeDemo: process.env.NODE_ENV === 'development' &&
+        (query.includeDemo === 'true' || query.includeDemo === true),
     },
   };
 };
@@ -257,20 +278,35 @@ const buildHotelPipeline = async (criteria) => {
     filter.$and ||= [];
     filter.$and.push({ rating: { $gte: criteria.minRating }, ratingCount: { $gt: 0 } });
   }
+  if (criteria.minStars !== undefined) {
+    filter.starRating = { $gte: criteria.minStars };
+  }
+  if (criteria.breakfastIncluded) filter.breakfastIncluded = true;
   if (criteria.amenities.length) {
     filter.$and ||= [];
+    const amenityAliases = {
+      'wi-fi': ['wi-fi', 'wifi', 'free wi-fi', 'free wifi'],
+      wifi: ['wi-fi', 'wifi', 'free wi-fi', 'free wifi'],
+      'swimming pool': ['swimming pool', 'pool'],
+      pool: ['swimming pool', 'pool'],
+      'air conditioning': ['air conditioning', 'air-conditioning', 'ac'],
+      ac: ['air conditioning', 'air-conditioning', 'ac'],
+    };
     criteria.amenities.forEach((amenity) => {
+      const terms = amenityAliases[amenity] || [amenity];
       filter.$and.push({
         $or: [
-          { normalizedAmenities: amenity },
-          {
-            amenities: {
-              $elemMatch: {
-                $regex: `^\\s*${escapeRegex(amenity)}\\s*$`,
-                $options: 'i',
+          ...terms.flatMap((term) => [
+            { normalizedAmenities: term },
+            {
+              amenities: {
+                $elemMatch: {
+                  $regex: `^\\s*${escapeRegex(term)}\\s*$`,
+                  $options: 'i',
+                },
               },
             },
-          },
+          ]),
         ],
       });
     });
@@ -292,7 +328,7 @@ const buildHotelPipeline = async (criteria) => {
 
   const pipeline = [
     { $match: filter },
-    ...(criteria.sortBy === 'popularity' ? [{
+    ...(['popularity', 'recommended'].includes(criteria.sortBy) ? [{
       $lookup: {
         from: Booking.collection.name,
         let: { propertyId: '$_id' },
@@ -372,7 +408,7 @@ const buildHotelPipeline = async (criteria) => {
         ? { price: -1, name: 1 }
         : criteria.sortBy === 'rating'
           ? { rating: -1, ratingCount: -1, price: 1, name: 1 }
-          : criteria.sortBy === 'popularity'
+          : ['popularity', 'recommended'].includes(criteria.sortBy)
             ? { bookingCount: -1, ratingCount: -1, price: 1, name: 1 }
             : criteria.sortBy === 'newest'
               ? { createdAt: -1, _id: -1 }

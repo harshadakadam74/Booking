@@ -236,9 +236,6 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
         className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
       />
     </label>
-    <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Hotel policies (JSON object)
-      <textarea rows={3} value={form.policies} onChange={(event) => setForm((current) => ({ ...current, policies: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs font-normal" placeholder='{"cancellation":"...","children":"...","pets":"...","general":"..."}' />
-    </label>
   );
 
   return (
@@ -288,6 +285,9 @@ const HotelEditor = ({ hotel, saving, onClose, onSave, onUploadImage }) => {
             </label>
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Room types (JSON array)
               <textarea rows={4} value={form.roomTypes} onChange={(event) => setForm((current) => ({ ...current, roomTypes: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs font-normal" placeholder={'[{"name":"Standard","price":2500,"maxGuests":2,"totalRooms":10,"availableRooms":8}]'} />
+            </label>
+            <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Hotel policies (JSON object)
+              <textarea rows={3} value={form.policies} onChange={(event) => setForm((current) => ({ ...current, policies: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs font-normal" placeholder='{"cancellation":"...","children":"...","pets":"...","general":"..."}' />
             </label>
             <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">Description
               <textarea rows={3} maxLength={4000} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-blue-700" />
