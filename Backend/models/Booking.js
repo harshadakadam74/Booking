@@ -83,6 +83,13 @@ const bookingSchema = new mongoose.Schema(
     guestName: String,
     guestEmail: String,
     guestPhone: String,
+    billingAddress: {
+      address: { type: String, trim: true, maxlength: 200 },
+      city: { type: String, trim: true, maxlength: 100 },
+      state: { type: String, trim: true, maxlength: 100 },
+      zipCode: { type: String, trim: true, maxlength: 10 },
+      country: { type: String, trim: true, uppercase: true, minlength: 2, maxlength: 2 },
+    },
     guestLocation: {
       latitude: Number,
       longitude: Number,

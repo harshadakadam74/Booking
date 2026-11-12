@@ -1,5 +1,25 @@
 const Property = require('../models/Property');
+const mongoose = require('mongoose');
 const { parseHotelSearch, searchHotels } = require('../services/hotelSearch');
+
+const getPropertyById = async (req, res) => {
+  const { id } = req.params;
+  if (!/^[a-f\d]{24}$/i.test(id) || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'A valid hotel ID is required.' });
+  }
+
+  try {
+    const property = await Property.findById(id).lean();
+    if (!property) {
+      return res.status(404).json({ message: 'Hotel not found.' });
+    }
+
+    return res.status(200).json({ message: 'Hotel fetched successfully.', property });
+  } catch (error) {
+    console.error('Hotel lookup failed:', error.message);
+    return res.status(500).json({ message: 'Unable to load this hotel right now.' });
+  }
+};
 
 const getProperties = async (req, res) => {
   try {
@@ -63,4 +83,4 @@ const getNearbyProperties = async (req, res) => {
   }
 };
 
-module.exports = { getProperties, getNearbyProperties };
+module.exports = { getPropertyById, getProperties, getNearbyProperties };

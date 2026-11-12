@@ -25,12 +25,48 @@ const getDateRangeError = (checkIn, checkOut) => {
   return "";
 };
 
+const validateBillingAddress = (address) => {
+  if (!address || typeof address !== "object" || Array.isArray(address)) {
+    return { error: "A billing address is required." };
+  }
+
+  const value = {
+    address: String(address.address || "").trim(),
+    city: String(address.city || "").trim(),
+    state: String(address.state || "").trim(),
+    zipCode: String(address.zipCode || "").trim(),
+    country: String(address.country || "").trim().toUpperCase(),
+  };
+  if (value.address.length < 5 || value.address.length > 200) {
+    return { error: "Address must be between 5 and 200 characters." };
+  }
+  if (value.city.length < 2 || value.city.length > 100) {
+    return { error: "City must be between 2 and 100 characters." };
+  }
+  if (value.state.length < 2 || value.state.length > 100) {
+    return { error: "State must be between 2 and 100 characters." };
+  }
+  if (!/^[A-Z]{2}$/.test(value.country)) {
+    return { error: "Select a valid country." };
+  }
+  const validPostalCode = value.country === "IN"
+    ? /^[1-9]\d{5}$/.test(value.zipCode)
+    : /^[A-Za-z0-9][A-Za-z0-9 -]{1,9}$/.test(value.zipCode);
+  if (!validPostalCode) {
+    return {
+      error: value.country === "IN"
+        ? "Enter a valid 6-digit Indian PIN code."
+        : "Enter a valid postal code.",
+    };
+  }
+  return { value };
+};
+
 const getBookingEligibility = async (req, res) => {
   try {
     const {
       propertyId,
       roomTypeId,
-      property,
       checkInDate,
       checkOutDate,
       numberOfGuests,
@@ -43,10 +79,9 @@ const getBookingEligibility = async (req, res) => {
     const guests = Number(numberOfGuests);
     const rooms = Number(numberOfRooms);
 
-    if (!propertyId && (typeof property !== "string" || !property.trim())) {
-      reasons.push({ code: "HOTEL_REQUIRED", message: "Select a hotel to continue." });
-    } else if (propertyId && !mongoose.Types.ObjectId.isValid(propertyId)) {
-      reasons.push({ code: "INVALID_HOTEL_ID", message: "The selected hotel ID is invalid." });
+    if (typeof propertyId !== "string" || !/^[a-f\d]{24}$/i.test(propertyId) ||
+      !mongoose.Types.ObjectId.isValid(propertyId)) {
+      return res.status(400).json({ message: "A valid hotel ID is required." });
     }
     if (dateError) reasons.push({ code: "INVALID_DATES", message: dateError });
     if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
@@ -58,47 +93,47 @@ const getBookingEligibility = async (req, res) => {
 
     let listing;
     let selectedRoomType;
-    if (!reasons.some(({ code }) => code === "HOTEL_REQUIRED" || code === "INVALID_HOTEL_ID")) {
-      const propertyFilter = propertyId
-        ? { _id: propertyId }
-        : { name: property.trim() };
-      listing = await Property.findOne(propertyFilter);
-      if (!listing) {
-        reasons.push({ code: "HOTEL_NOT_FOUND", message: "The selected hotel could not be found." });
+    listing = await Property.findById(propertyId);
+    if (!listing) {
+      return res.status(404).json({ message: "The selected hotel could not be found." });
+    }
+
+    if (listing.active === false) {
+      reasons.push({ code: "HOTEL_INACTIVE", message: "This hotel is inactive and cannot be booked." });
+    }
+    if (listing.approvalStatus && listing.approvalStatus !== "approved") {
+      reasons.push({ code: "HOTEL_UNAPPROVED", message: "This hotel has not been approved for booking." });
+    }
+    if (listing.isDemo) {
+      reasons.push({ code: "DEMO_LISTING", message: "Demo listings cannot be booked." });
+    }
+    if (listing.currency && listing.currency !== "INR") {
+      reasons.push({ code: "UNSUPPORTED_CURRENCY", message: "Online payment is currently available only for INR listings." });
+    }
+    if (listing.roomTypes?.length) {
+      if (!roomTypeId) {
+        reasons.push({ code: "ROOM_REQUIRED", message: "Select a room type to continue." });
+      } else if (typeof roomTypeId !== "string" ||
+        !/^[a-f\d]{24}$/i.test(roomTypeId) ||
+        !mongoose.Types.ObjectId.isValid(roomTypeId)) {
+        reasons.push({ code: "INVALID_ROOM_ID", message: "The selected room type ID is invalid." });
       } else {
-        if (listing.active === false) {
-          reasons.push({ code: "HOTEL_INACTIVE", message: "This hotel is inactive and cannot be booked." });
-        }
-        if (listing.approvalStatus && listing.approvalStatus !== "approved") {
-          reasons.push({ code: "HOTEL_UNAPPROVED", message: "This hotel has not been approved for booking." });
-        }
-        if (listing.isDemo) {
-          reasons.push({ code: "DEMO_LISTING", message: "Demo listings cannot be booked." });
-        }
-        if (listing.roomTypes?.length) {
-          if (!roomTypeId) {
-            reasons.push({ code: "ROOM_REQUIRED", message: "Select a room type to continue." });
-          } else if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
-            reasons.push({ code: "INVALID_ROOM_ID", message: "The selected room type ID is invalid." });
-          } else {
-            selectedRoomType = findRoomType(listing, roomTypeId);
-            if (!selectedRoomType) {
-              reasons.push({ code: "ROOM_NOT_FOUND", message: "The selected room type does not belong to this hotel." });
-            }
-          }
-        } else if (roomTypeId) {
-          reasons.push({ code: "ROOM_NOT_FOUND", message: "This hotel has no matching room type." });
-        }
-        if (Number.isInteger(guests) && Number.isInteger(rooms) &&
-          selectedRoomType &&
-          guests > Number(selectedRoomType.maxGuests || listing.maxGuestsPerRoom || 4) * rooms) {
-          reasons.push({ code: "GUEST_CAPACITY", message: "The selected room type does not have enough guest capacity." });
-        } else if (Number.isInteger(guests) && Number.isInteger(rooms) &&
-          !listing.roomTypes?.length &&
-          guests > Number(listing.maxGuestsPerRoom || 4) * rooms) {
-          reasons.push({ code: "GUEST_CAPACITY", message: "The selected rooms do not have enough guest capacity." });
+        selectedRoomType = findRoomType(listing, roomTypeId);
+        if (!selectedRoomType) {
+          reasons.push({ code: "ROOM_NOT_FOUND", message: "The selected room type does not belong to this hotel." });
         }
       }
+    } else if (roomTypeId) {
+      reasons.push({ code: "ROOM_NOT_FOUND", message: "This hotel has no matching room type." });
+    }
+    if (Number.isInteger(guests) && Number.isInteger(rooms) &&
+      selectedRoomType &&
+      guests > Number(selectedRoomType.maxGuests || listing.maxGuestsPerRoom || 4) * rooms) {
+      reasons.push({ code: "GUEST_CAPACITY", message: "The selected room type does not have enough guest capacity." });
+    } else if (Number.isInteger(guests) && Number.isInteger(rooms) &&
+      !listing.roomTypes?.length &&
+      guests > Number(listing.maxGuestsPerRoom || 4) * rooms) {
+      reasons.push({ code: "GUEST_CAPACITY", message: "The selected rooms do not have enough guest capacity." });
     }
 
     let availableRooms;
@@ -174,7 +209,6 @@ const createBooking = async (req, res) => {
   let bookingLock;
   try {
     const {
-      property,
       propertyId,
       roomTypeId,
       checkInDate,
@@ -187,6 +221,7 @@ const createBooking = async (req, res) => {
       guestEmail,
       guestPhone,
       guestLocation,
+      billingAddress,
     } = req.body || {};
     const idempotencyKey = String(req.headers?.["idempotency-key"] || "").trim();
 
@@ -204,7 +239,7 @@ const createBooking = async (req, res) => {
       }
     }
 
-    if ((!propertyId && (typeof property !== "string" || !property.trim())) ||
+    if (!propertyId ||
       !checkInDate || !checkOutDate ||
       !Number.isInteger(Number(numberOfGuests)) ||
       !Number.isInteger(Number(numberOfRooms)) ||
@@ -212,11 +247,12 @@ const createBooking = async (req, res) => {
       Number(numberOfRooms) < 1 || Number(numberOfRooms) > 10 ||
       Number(numberOfRooms) > Number(numberOfGuests)) {
       return res.status(400).json({
-        message: "Provide a hotel, valid stay dates, 1–20 guests, and 1–10 rooms.",
+        message: "Provide a hotel ID, valid stay dates, 1–20 guests, and 1–10 rooms.",
       });
     }
 
-    if (propertyId && !mongoose.Types.ObjectId.isValid(propertyId)) {
+    if (typeof propertyId !== "string" || !/^[a-f\d]{24}$/i.test(propertyId) ||
+      !mongoose.Types.ObjectId.isValid(propertyId)) {
       return res.status(400).json({ message: "A valid hotel ID is required." });
     }
 
@@ -230,10 +266,11 @@ const createBooking = async (req, res) => {
       (typeof specialRequests !== 'string' || specialRequests.length > 2000)) {
       return res.status(400).json({ message: "Special requests must be 2000 characters or fewer." });
     }
-    const propertyFilter = propertyId
-      ? { _id: propertyId }
-      : { name: property.trim() };
-    const listing = await Property.findOne(propertyFilter);
+    const validatedBillingAddress = validateBillingAddress(billingAddress);
+    if (validatedBillingAddress.error) {
+      return res.status(400).json({ message: validatedBillingAddress.error });
+    }
+    const listing = await Property.findById(propertyId);
     if (!listing) {
       return res.status(404).json({
         message: "The selected hotel could not be found.",
@@ -270,6 +307,9 @@ const createBooking = async (req, res) => {
         },
       });
     }
+    if (listing.currency && listing.currency !== "INR") {
+      return res.status(409).json({ message: "Online payment is currently available only for INR listings." });
+    }
 
     let selectedRoomType;
     if (listing.roomTypes?.length) {
@@ -282,7 +322,8 @@ const createBooking = async (req, res) => {
           },
         });
       }
-      if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
+      if (typeof roomTypeId !== "string" || !/^[a-f\d]{24}$/i.test(roomTypeId) ||
+        !mongoose.Types.ObjectId.isValid(roomTypeId)) {
         return res.status(400).json({
           message: "A valid room type ID is required.",
           eligibility: {
@@ -405,6 +446,7 @@ const createBooking = async (req, res) => {
       guestEmail: guestEmail || req.user.email,
       guestPhone: guestPhone || req.user.mobile,
       guestLocation,
+      billingAddress: validatedBillingAddress.value,
     });
 
     return res.status(201).json({
@@ -792,4 +834,5 @@ module.exports = {
   getAllBookings,
   adminUpdateBookingStatus,
   getDateRangeError,
+  validateBillingAddress,
 };

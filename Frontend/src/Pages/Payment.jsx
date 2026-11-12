@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   CreditCard,
@@ -16,26 +16,53 @@ import {
 import {
   checkBookingEligibility,
   createBooking,
-  createDummyPayment,
   createPaymentOrder,
   verifyPayment,
 } from "../services/bookingService";
+import { getHotelById } from "../services/destinationService";
+
+const parseDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const { property, searchParams } = location.state || {};
+  const routeState = location.state || {};
+  const routeProperty = routeState.property;
+  const urlParams = new URLSearchParams(location.search);
+  const propertyId = urlParams.get("hotelId") || routeProperty?._id || "";
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      location: routeState.searchParams?.location || "",
+      dates: {
+        startDate: parseDate(params.get("checkIn") || routeState.searchParams?.dates?.startDate),
+        endDate: parseDate(params.get("checkOut") || routeState.searchParams?.dates?.endDate),
+        key: "selection",
+      },
+      guests: {
+        adults: Number(params.get("adults") ?? routeState.searchParams?.guests?.adults ?? 1),
+        children: Number(params.get("children") ?? routeState.searchParams?.guests?.children ?? 0),
+        rooms: Number(params.get("rooms") ?? routeState.searchParams?.guests?.rooms ?? 1),
+      },
+    };
+  }, [location.search, routeState.searchParams]);
+  const isValidPropertyId = /^[a-f\d]{24}$/i.test(propertyId);
+  const [property, setProperty] = useState(null);
+  const [hotelLoading, setHotelLoading] = useState(isValidPropertyId);
+  const [hotelLookupError, setHotelLookupError] = useState(null);
+  const [hotelRetryCount, setHotelRetryCount] = useState(0);
   const roomTypes = Array.isArray(property?.roomTypes) ? property.roomTypes : [];
-  const initialRoomTypeId = String(property?.roomTypes?.[0]?._id || "");
-  const [roomTypeId, setRoomTypeId] = useState(initialRoomTypeId);
+  const [roomTypeId, setRoomTypeId] = useState(urlParams.get("roomTypeId") || "");
   const selectedRoomType = roomTypes.find((roomType) => String(roomType._id) === roomTypeId);
-
-  const [paymentMethod, setPaymentMethod] = useState("card");
 
   const [billingAddress, setBillingAddress] = useState({
     address: "",
     city: "",
+    state: "",
     zipCode: "",
     country: "",
   });
@@ -45,6 +72,8 @@ const Payment = () => {
   const [bookingError, setBookingError] = useState("");
   const [eligibility, setEligibility] = useState(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(true);
+  const [eligibilityError, setEligibilityError] = useState("");
+  const [eligibilityRetryCount, setEligibilityRetryCount] = useState(0);
   const [locationStatus, setLocationStatus] = useState("");
   const [detectedGuestLocation, setDetectedGuestLocation] = useState(null);
   const bookingIdempotencyKey = useRef(null);
@@ -105,38 +134,90 @@ const Payment = () => {
   };
 
   useEffect(() => {
-    setRoomTypeId(initialRoomTypeId);
-  }, [initialRoomTypeId, property?._id, property?.id, property?.name]);
+    let active = true;
+
+    const loadHotel = async () => {
+      if (!isValidPropertyId) {
+        setProperty(null);
+        setHotelLookupError({
+          status: 400,
+          message: propertyId
+            ? "The hotel ID in this checkout link is invalid."
+            : "Hotel details are missing. Please select a hotel again.",
+        });
+        setHotelLoading(false);
+        return;
+      }
+
+      setHotelLoading(true);
+      setHotelLookupError(null);
+      setProperty(null);
+      try {
+        const hotel = await getHotelById(propertyId);
+        if (!hotel || String(hotel._id) !== propertyId) {
+          throw new Error("The hotel lookup returned an inconsistent hotel ID.");
+        }
+        if (active) setProperty(hotel);
+      } catch (error) {
+        if (active) {
+          setHotelLookupError({
+            status: error.response?.status,
+            message: error.response?.data?.message || error.message || "Unable to load hotel details.",
+          });
+        }
+      } finally {
+        if (active) setHotelLoading(false);
+      }
+    };
+
+    loadHotel();
+    return () => {
+      active = false;
+    };
+  }, [isValidPropertyId, propertyId, hotelRetryCount]);
+
+  useEffect(() => {
+    if (!property) return;
+    const requestedRoomTypeId = new URLSearchParams(location.search).get("roomTypeId");
+    setRoomTypeId((current) => {
+      if (requestedRoomTypeId) return requestedRoomTypeId;
+      if (current && property.roomTypes?.some((roomType) => String(roomType._id) === current)) {
+        return current;
+      }
+      return String(property.roomTypes?.[0]?._id || "");
+    });
+  }, [property, location.search]);
 
   useEffect(() => {
     let active = true;
 
     const validateEligibility = async () => {
-      if (!property || !searchParams?.dates?.startDate || !searchParams?.dates?.endDate) {
+      if (hotelLoading || !property || !isValidPropertyId ||
+        !searchParams.dates.startDate || !searchParams.dates.endDate) {
         setEligibility({
           eligible: false,
-          reasons: [{ code: "MISSING_BOOKING_DETAILS", message: "Hotel and stay dates are required." }],
+          reasons: [{
+            code: "MISSING_BOOKING_DETAILS",
+            message: "A hotel and valid stay dates are required.",
+          }],
         });
+        setEligibilityError("");
         setEligibilityLoading(false);
         return;
       }
 
       setEligibilityLoading(true);
       setEligibility(null);
-      const propertyId = property._id || property.id;
+      setEligibilityError("");
       const request = {
-        property: property.name,
+        propertyId,
         checkInDate: searchParams.dates.startDate,
         checkOutDate: searchParams.dates.endDate,
         numberOfGuests:
-          Number(searchParams?.guests?.adults || 1) +
-          Number(searchParams?.guests?.children || 0),
-        numberOfRooms: Number(searchParams?.guests?.rooms || 1),
+          searchParams.guests.adults + searchParams.guests.children,
+        numberOfRooms: searchParams.guests.rooms,
         ...(roomTypeId ? { roomTypeId } : {}),
       };
-      if (typeof propertyId === "string" && /^[a-f\d]{24}$/i.test(propertyId)) {
-        request.propertyId = propertyId;
-      }
 
       try {
         const result = await checkBookingEligibility(request);
@@ -145,16 +226,16 @@ const Payment = () => {
             eligible: false,
             reasons: [{ code: "VALIDATION_FAILED", message: "The server did not return booking eligibility." }],
           });
+          setEligibilityError("");
         }
       } catch (error) {
         if (active) {
-          setEligibility({
-            eligible: false,
-            reasons: [{
-              code: "VALIDATION_FAILED",
-              message: error.response?.data?.message || error.message || "Unable to validate this booking.",
-            }],
-          });
+          setEligibility(null);
+          setEligibilityError(
+            error.response?.status === 404
+              ? "This hotel or room is no longer available."
+              : error.response?.data?.message || error.message || "Unable to verify availability right now."
+          );
         }
       } finally {
         if (active) setEligibilityLoading(false);
@@ -167,12 +248,16 @@ const Payment = () => {
     };
   }, [
     property,
-    searchParams?.dates?.startDate,
-    searchParams?.dates?.endDate,
-    searchParams?.guests?.adults,
-    searchParams?.guests?.children,
-    searchParams?.guests?.rooms,
+    propertyId,
+    isValidPropertyId,
+    hotelLoading,
+    searchParams.dates.startDate,
+    searchParams.dates.endDate,
+    searchParams.guests.adults,
+    searchParams.guests.children,
+    searchParams.guests.rooms,
     roomTypeId,
+    eligibilityRetryCount,
   ]);
 
   // =========================================================
@@ -182,11 +267,11 @@ const Payment = () => {
   const validateForm = (address = billingAddress) => {
     const newErrors = {};
 
-    if (!searchParams?.dates?.startDate) {
+    if (!searchParams.dates.startDate) {
       newErrors.booking = "Check-in date is missing.";
     }
 
-    if (!searchParams?.dates?.endDate) {
+    if (!searchParams.dates.endDate) {
       newErrors.booking = "Check-out date is missing.";
     }
 
@@ -195,20 +280,29 @@ const Payment = () => {
     }
 
     // Billing validation
-    if (!address.address.trim()) {
-      newErrors.address = "Address is required.";
+    if (address.address.trim().length < 5 || address.address.trim().length > 200) {
+      newErrors.address = "Enter an address between 5 and 200 characters.";
     }
 
-    if (!address.city.trim()) {
-      newErrors.city = "City is required.";
+    if (address.city.trim().length < 2 || address.city.trim().length > 100) {
+      newErrors.city = "Enter a city between 2 and 100 characters.";
     }
 
-    if (!address.zipCode.trim()) {
-      newErrors.zipCode = "ZIP code is required.";
+    if (address.state.trim().length < 2 || address.state.trim().length > 100) {
+      newErrors.state = "Enter a state or region between 2 and 100 characters.";
     }
 
-    if (!address.country.trim()) {
-      newErrors.country = "Country is required.";
+    const validPostalCode = address.country === "IN"
+      ? /^[1-9]\d{5}$/.test(address.zipCode.trim())
+      : /^[A-Za-z0-9][A-Za-z0-9 -]{1,9}$/.test(address.zipCode.trim());
+    if (!validPostalCode) {
+      newErrors.zipCode = address.country === "IN"
+        ? "Enter a valid 6-digit Indian PIN code."
+        : "Enter a valid postal code.";
+    }
+
+    if (!/^[A-Z]{2}$/.test(address.country)) {
+      newErrors.country = "Select a valid country.";
     }
 
     setErrors(newErrors);
@@ -245,6 +339,7 @@ const Payment = () => {
           .filter(Boolean)
           .join(" "),
         city: address.city || address.town || address.village || "",
+        state: address.state || address.region || address.province || "",
         zipCode: address.postcode || "",
         country: supportedCountries.includes(address.country_code?.toUpperCase())
           ? address.country_code.toUpperCase()
@@ -300,6 +395,7 @@ const Payment = () => {
       setBillingAddress((previous) => ({
         address: previous.address || detectedAddress.address || "",
         city: previous.city || detectedAddress.city || "",
+        state: previous.state || detectedAddress.state || "",
         zipCode: previous.zipCode || detectedAddress.zipCode || "",
         country: previous.country || detectedAddress.country || "",
       }));
@@ -317,9 +413,10 @@ const Payment = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
-    if (eligibilityLoading || eligibility?.eligible !== true) {
+    if (eligibilityLoading || eligibilityError || eligibility?.eligible !== true) {
       setBookingError(
-        eligibility?.reasons?.map((reason) => reason.message).join(" ") ||
+        eligibilityError ||
+          eligibility?.reasons?.map((reason) => reason.message).join(" ") ||
           "Wait for the server to confirm this hotel is bookable."
       );
       return;
@@ -342,6 +439,7 @@ const Payment = () => {
       const nextBillingAddress = {
         address: billingAddress.address || detectedAddress.address || "",
         city: billingAddress.city || detectedAddress.city || "",
+        state: billingAddress.state || detectedAddress.state || "",
         zipCode: billingAddress.zipCode || detectedAddress.zipCode || "",
         country: billingAddress.country || detectedAddress.country || "",
       };
@@ -355,6 +453,14 @@ const Payment = () => {
 
       const bookingPayload = {
         property: property.name,
+        propertyId,
+        billingAddress: {
+          address: nextBillingAddress.address.trim(),
+          city: nextBillingAddress.city.trim(),
+          state: nextBillingAddress.state.trim(),
+          zipCode: nextBillingAddress.zipCode.trim(),
+          country: nextBillingAddress.country,
+        },
 
         checkInDate: searchParams.dates.startDate,
 
@@ -381,10 +487,6 @@ const Payment = () => {
         guestLocation: detectedLocation?.coordinates || null,
       };
 
-      const propertyId = property._id || property.id;
-      if (typeof propertyId === "string" && /^[a-f\d]{24}$/i.test(propertyId)) {
-        bookingPayload.propertyId = propertyId;
-      }
       if (roomTypeId) bookingPayload.roomTypeId = roomTypeId;
 
       bookingIdempotencyKey.current ||= window.crypto.randomUUID();
@@ -394,25 +496,16 @@ const Payment = () => {
       const bookingId = booking?._id || booking?.id;
       if (!bookingId) throw new Error("Booking ID was not returned by the server");
 
-      if (paymentMethod === "dummy") {
-        const dummyResult = await createDummyPayment(bookingId);
-        navigate("/payment-success", {
-          replace: true,
-          state: {
-            property,
-            searchParams,
-            total: calculateTotal(),
-            booking: dummyResult?.booking || booking,
-            paymentMethod: "DUMMY",
-          },
-        });
-        return;
-      }
-
       const loaded = await loadRazorpay();
       if (!loaded) throw new Error("Razorpay Checkout failed to load");
 
       const { order, key } = await createPaymentOrder(bookingId);
+      const expectedOrderAmount = Math.round(Number(booking.totalPrice) * 100);
+      if (!key || !order?.id || !Number.isInteger(Number(order.amount)) ||
+        Number(order.amount) <= 0 ||
+        Number(order.amount) !== expectedOrderAmount || order.currency !== "INR") {
+        throw new Error("The payment gateway returned an invalid order. No payment was started.");
+      }
       const confirmedBooking = await new Promise((resolve, reject) => {
         const razorpay = new window.Razorpay({
           key,
@@ -430,7 +523,12 @@ const Payment = () => {
           handler: async (paymentResponse) => {
             try {
               const verificationResult = await verifyPayment(bookingId, paymentResponse);
-              resolve(verificationResult?.booking);
+              const verifiedBooking = verificationResult?.booking;
+              if (verifiedBooking?.bookingStatus !== "CONFIRMED" ||
+                verifiedBooking?.paymentStatus !== "SUCCESS") {
+                throw new Error("Payment was not verified as successful. The booking is not confirmed.");
+              }
+              resolve(verifiedBooking);
             } catch (error) {
               reject(new Error(error?.message || "Payment verification failed"));
             }
@@ -440,6 +538,9 @@ const Payment = () => {
         razorpay.on("payment.failed", () => reject(new Error("Payment failed")));
         razorpay.open();
       });
+      if (!confirmedBooking) {
+        throw new Error("The server did not confirm the paid booking.");
+      }
 
       navigate("/payment-success", {
         replace: true,
@@ -447,7 +548,7 @@ const Payment = () => {
           property,
           searchParams,
           total: calculateTotal(),
-          booking: confirmedBooking || booking,
+          booking: confirmedBooking,
           paymentMethod: "RAZORPAY",
         },
       });
@@ -479,7 +580,20 @@ const Payment = () => {
   // NO BOOKING DATA
   // =========================================================
 
-  if (!property || !searchParams) {
+  if (hotelLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />
+          Loading hotel details…
+        </div>
+      </div>
+    );
+  }
+
+  if (!property) {
+    const hotelWasDeleted = hotelLookupError?.status === 404;
+    const invalidHotelLink = hotelLookupError?.status === 400;
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-12">
         <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center">
@@ -492,23 +606,44 @@ const Payment = () => {
             </div>
 
             <h2 className="mt-6 text-2xl font-bold text-slate-900">
-              No Booking Information Found
+              {hotelWasDeleted ? "Hotel no longer exists" : invalidHotelLink ? "Invalid hotel link" : "Hotel details unavailable"}
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Please select a property and booking dates
-              before continuing to payment.
+              {hotelLookupError?.message || "Select a hotel from search results before continuing to checkout."}
             </p>
 
             <button
               type="button"
-              onClick={() => navigate("/")}
+              onClick={() => invalidHotelLink || hotelWasDeleted
+                ? navigate("/book-place")
+                : setHotelRetryCount((count) => count + 1)}
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-800"
             >
               <ArrowLeft size={17} />
-              Go Home
+              {invalidHotelLink || hotelWasDeleted ? "Search hotels" : "Retry"}
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!searchParams.dates.startDate || !searchParams.dates.endDate) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-slate-50 px-4">
+        <div className="max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <h2 className="text-2xl font-bold text-slate-900">Stay dates are missing</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Choose check-in and check-out dates from hotel search before continuing to checkout.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/book-place")}
+            className="mt-6 rounded-xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white"
+          >
+            Search hotels
+          </button>
         </div>
       </div>
     );
@@ -622,8 +757,17 @@ const Payment = () => {
                       className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
                       value={roomTypeId}
                       onChange={(event) => {
-                        setRoomTypeId(event.target.value);
+                        const nextRoomTypeId = event.target.value;
+                        setRoomTypeId(nextRoomTypeId);
                         setBookingError("");
+                        setEligibilityError("");
+                        const nextParams = new URLSearchParams(location.search);
+                        if (nextRoomTypeId) nextParams.set("roomTypeId", nextRoomTypeId);
+                        else nextParams.delete("roomTypeId");
+                        navigate(
+                          { pathname: location.pathname, search: nextParams.toString() ? `?${nextParams}` : "" },
+                          { replace: true, state: routeState }
+                        );
                       }}
                       required
                     >
@@ -648,29 +792,16 @@ const Payment = () => {
                     Payment Method
                   </label>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4">
 
                     {/* CARD */}
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setPaymentMethod("card");
-                        setBookingError("");
-                      }}
-                      className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition ${
-                        paymentMethod === "card"
-                          ? "border-blue-700 bg-blue-50 text-blue-800 shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-blue-200"
-                      }`}
+                      onClick={() => setBookingError("")}
+                      className="flex items-center gap-3 rounded-2xl border-2 border-blue-700 bg-blue-50 p-4 text-left text-blue-800 shadow-sm transition"
                     >
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                          paymentMethod === "card"
-                            ? "bg-blue-700 text-white"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white">
                         <CreditCard size={21} />
                       </div>
 
@@ -684,49 +815,7 @@ const Payment = () => {
                         </p>
                       </div>
 
-                      {paymentMethod === "card" && (
-                        <CheckCircle
-                          size={19}
-                          className="ml-auto shrink-0 text-blue-700"
-                        />
-                      )}
-                    </button>
-
-                    {/* DUMMY PAYMENT */}
-
-                    <button
-                      type="button"
-                      disabled={!import.meta.env.DEV}
-                      onClick={() => {
-                        setPaymentMethod("dummy");
-                        setBookingError("");
-                      }}
-                      className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition ${
-                        paymentMethod === "dummy"
-                          ? "border-yellow-500 bg-yellow-50 text-yellow-800 shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-yellow-200"
-                      }`}
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-lg font-bold text-white">
-                        P
-                      </div>
-
-                      <div>
-                        <p className="font-semibold">
-                          Dummy payment
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          Development testing only
-                        </p>
-                      </div>
-
-                      {paymentMethod === "dummy" && (
-                        <CheckCircle
-                          size={19}
-                          className="ml-auto shrink-0 text-yellow-600"
-                        />
-                      )}
+                      <CheckCircle size={19} className="ml-auto shrink-0 text-blue-700" />
                     </button>
 
                   </div>
@@ -736,8 +825,7 @@ const Payment = () => {
                     CARD FORM
                 ================================================== */}
 
-                {paymentMethod === "card" ? (
-                  <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit}>
 
                     <div className="mb-8 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                       <Shield size={20} className="mt-0.5 shrink-0" />
@@ -794,7 +882,7 @@ const Payment = () => {
                           )}
                         </div>
 
-                        {/* CITY + ZIP */}
+                        {/* CITY + STATE + PIN */}
 
                         <div className="grid gap-5 sm:grid-cols-2">
 
@@ -806,7 +894,7 @@ const Payment = () => {
                             <input
                               type="text"
                               autoComplete="address-level2"
-                              placeholder="Mumbai"
+                              placeholder="Nanded"
                               className={inputClass(
                                 "city"
                               )}
@@ -830,6 +918,30 @@ const Payment = () => {
 
                           <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">
+                              State
+                            </label>
+
+                            <input
+                              type="text"
+                              autoComplete="address-level1"
+                              placeholder="Maharashtra"
+                              className={inputClass("state")}
+                              value={billingAddress.state}
+                              onChange={(event) => setBillingAddress((previous) => ({
+                                ...previous,
+                                state: event.target.value,
+                              }))}
+                            />
+
+                            {errors.state && (
+                              <p className="mt-1 text-sm font-medium text-red-500">
+                                {errors.state}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-sm font-semibold text-slate-700">
                               ZIP / PIN Code
                             </label>
 
@@ -844,20 +956,10 @@ const Payment = () => {
                               value={
                                 billingAddress.zipCode
                               }
-                              onChange={(e) =>
-                                setBillingAddress(
-                                  (prev) => ({
-                                    ...prev,
-                                    zipCode:
-                                      e.target.value
-                                        .replace(
-                                          /\D/g,
-                                          ""
-                                        )
-                                        .slice(0, 10),
-                                  })
-                                )
-                              }
+                              onChange={(event) => setBillingAddress((previous) => ({
+                                ...previous,
+                                zipCode: event.target.value.replace(/[^A-Za-z0-9 -]/g, "").slice(0, 10),
+                              }))}
                             />
 
                             {errors.zipCode && (
@@ -903,7 +1005,7 @@ const Payment = () => {
                               United States
                             </option>
 
-                            <option value="UK">
+                            <option value="GB">
                               United Kingdom
                             </option>
 
@@ -937,7 +1039,19 @@ const Payment = () => {
                     {eligibilityLoading && (
                       <p className="mb-5 text-sm text-slate-600">Checking hotel availability…</p>
                     )}
-                    {!eligibilityLoading && eligibility?.eligible !== true && (
+                    {!eligibilityLoading && eligibilityError && (
+                      <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <span>{eligibilityError}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEligibilityRetryCount((count) => count + 1)}
+                          className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 font-semibold hover:bg-red-100"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                    {!eligibilityLoading && !eligibilityError && eligibility?.eligible !== true && (
                       <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
                         {eligibility?.reasons?.map((reason) => reason.message).join(" ") ||
                           "The server could not confirm this hotel is bookable."}
@@ -955,7 +1069,7 @@ const Payment = () => {
 
                     <button
                       type="submit"
-                      disabled={isProcessing || eligibilityLoading || eligibility?.eligible !== true}
+                      disabled={isProcessing || eligibilityLoading || Boolean(eligibilityError) || eligibility?.eligible !== true}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-700 to-blue-800 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:from-blue-800 hover:to-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isProcessing ? (
@@ -972,56 +1086,6 @@ const Payment = () => {
                     </button>
 
                   </form>
-                ) : (
-
-                  /* ==================================================
-                     DUMMY PAYMENT
-                  ================================================== */
-
-                  <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-8 text-center">
-
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-700 text-2xl font-bold text-white shadow-lg">
-                      P
-                    </div>
-
-                    <h3 className="text-xl font-bold text-slate-900">
-                      Complete payment
-                    </h3>
-
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                      This test payment confirms the booking without charging money.
-                    </p>
-
-                    {(bookingError || errors.booking) && (
-                      <div className="mx-auto mt-5 max-w-md rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {bookingError || errors.booking}
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={isProcessing || eligibilityLoading || eligibility?.eligible !== true}
-                      className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-700 px-8 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          Complete dummy payment
-                          <ArrowLeft
-                            size={17}
-                            className="rotate-180"
-                          />
-                        </>
-                      )}
-                    </button>
-
-                  </div>
-                )}
 
               </div>
             </div>
@@ -1049,11 +1113,15 @@ const Payment = () => {
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
 
                   <div className="relative">
-                    <img
-                      src={property.image}
-                      alt={property.name}
-                      className="h-52 w-full object-cover"
-                    />
+                    {property.image || property.images?.[0]
+                      ? (
+                        <img
+                          src={property.image || property.images[0]}
+                          alt={property.name}
+                          className="h-52 w-full object-cover"
+                        />
+                      )
+                      : <div className="h-52 bg-slate-100" aria-label="No hotel image available" />}
 
                     <div className="absolute left-3 top-3 rounded-full bg-blue-950/90 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
                       FastBooking
@@ -1075,20 +1143,22 @@ const Payment = () => {
                       {property.location}
                     </div>
 
-                    <div className="mt-3 flex items-center gap-1">
+                    {Number(property.ratingCount) > 0 && Number.isFinite(Number(property.rating)) && (
+                      <div className="mt-3 flex items-center gap-1">
                       <Star
                         size={16}
                         className="fill-yellow-500 text-yellow-500"
                       />
 
                       <span className="text-sm font-bold text-slate-700">
-                        {property.rating || "4.5"}
+                        {Number(property.rating).toFixed(1)}
                       </span>
 
                       <span className="text-xs text-slate-400">
-                        Excellent stay
+                        {property.ratingCount} recorded rating{property.ratingCount === 1 ? "" : "s"}
                       </span>
-                    </div>
+                      </div>
+                    )}
 
                   </div>
                 </div>

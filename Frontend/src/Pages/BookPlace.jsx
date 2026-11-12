@@ -113,6 +113,12 @@ const BookPlace = () => {
   };
 
   const startBooking = (property) => {
+    const propertyId = String(property?._id || '');
+    if (!/^[a-f\d]{24}$/i.test(propertyId)) {
+      setError('This hotel has an invalid database ID. Please search again.');
+      return;
+    }
+
     const dates = filters.checkIn && filters.checkOut
       ? { startDate: new Date(filters.checkIn), endDate: new Date(filters.checkOut), key: 'selection' }
       : (() => {
@@ -129,11 +135,20 @@ const BookPlace = () => {
         guests: { adults: Number(filters.guests), children: 0, rooms: Number(filters.rooms) },
       },
     };
+    const checkoutParams = new URLSearchParams({
+      hotelId: propertyId,
+      checkIn: new Date(dates.startDate).toISOString().slice(0, 10),
+      checkOut: new Date(dates.endDate).toISOString().slice(0, 10),
+      adults: String(bookingState.searchParams.guests.adults),
+      children: String(bookingState.searchParams.guests.children),
+      rooms: String(bookingState.searchParams.guests.rooms),
+    });
+    const checkoutPath = `/payment?${checkoutParams.toString()}`;
     if (!localStorage.getItem('authToken')) {
-      navigate('/login', { state: { from: '/payment', ...bookingState } });
+      navigate('/login', { state: { from: checkoutPath, bookingState } });
       return;
     }
-    navigate('/payment', { state: bookingState });
+    navigate(checkoutPath, { state: bookingState });
   };
 
   return (

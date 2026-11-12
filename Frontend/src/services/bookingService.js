@@ -102,16 +102,6 @@ export const verifyPayment = async (bookingId, paymentResponse) => {
   }
 };
 
-export const createDummyPayment = async (bookingId) => {
-  try {
-    const response = await apiClient.post('/api/v1/payments/dummy-payment', { bookingId });
-    return response.data?.data || response.data;
-  } catch (error) {
-    const message = error.response?.data?.message || error.message || 'Dummy payment failed';
-    throw new Error(message);
-  }
-};
-
 export const createBookingReview = async (payload) => {
   try {
     const response = await apiClient.post('/api/v1/reviews/booking', payload);

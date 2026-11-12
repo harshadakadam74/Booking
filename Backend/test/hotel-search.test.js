@@ -12,6 +12,8 @@ const { propertyOwner } = require('../middlewares/PropertyOwnerMiddleware');
 const { validateDestination } = require('../controllers/DestinationController');
 const PaymentService = require('../services/PaymentService');
 const Booking = require('../models/Booking');
+const Property = require('../models/Property');
+const PropertyController = require('../controllers/PropertyController');
 const mongoose = require('mongoose');
 const Destination = require('../models/Destination');
 
@@ -221,10 +223,11 @@ test('date search requires a future, increasing stay range', () => {
   assert.match(BookingController.getDateRangeError(yesterday, tomorrow), /past/);
 });
 
-test('booking eligibility failures are returned as structured reasons', async () => {
+test('booking eligibility rejects an invalid MongoDB hotel ID', async () => {
   const response = createResponse();
   await BookingController.getBookingEligibility({
     body: {
+      propertyId: 'not-an-object-id',
       checkInDate: 'invalid',
       checkOutDate: '2030-01-03',
       numberOfGuests: 0,
@@ -232,12 +235,59 @@ test('booking eligibility failures are returned as structured reasons', async ()
     },
   }, response);
 
-  assert.equal(response.statusCode, 200);
-  assert.equal(response.body.eligibility.eligible, false);
-  assert.deepEqual(
-    response.body.eligibility.reasons.map(({ code }) => code),
-    ['HOTEL_REQUIRED', 'INVALID_DATES', 'INVALID_GUESTS', 'INVALID_ROOMS']
-  );
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.message, /valid hotel ID/i);
+});
+
+test('hotel lookup distinguishes malformed IDs, missing hotels, and successful reads', async () => {
+  const invalidResponse = createResponse();
+  await PropertyController.getPropertyById({ params: { id: 'invalid' } }, invalidResponse);
+  assert.equal(invalidResponse.statusCode, 400);
+
+  const originalFindById = Property.findById;
+  try {
+    Property.findById = () => ({ lean: async () => null });
+    const missingResponse = createResponse();
+    await PropertyController.getPropertyById({
+      params: { id: '507f1f77bcf86cd799439011' },
+    }, missingResponse);
+    assert.equal(missingResponse.statusCode, 404);
+
+    const expectedHotel = { _id: '507f1f77bcf86cd799439011', name: 'Test Hotel' };
+    Property.findById = () => ({ lean: async () => expectedHotel });
+    const foundResponse = createResponse();
+    await PropertyController.getPropertyById({
+      params: { id: expectedHotel._id },
+    }, foundResponse);
+    assert.equal(foundResponse.statusCode, 200);
+    assert.deepEqual(foundResponse.body.property, expectedHotel);
+  } finally {
+    Property.findById = originalFindById;
+  }
+});
+
+test('billing address accepts Indian PIN formats without city-to-PIN mappings', () => {
+  for (const [city, zipCode] of [
+    ['Nanded', '431600'],
+    ['Basmath', '431512'],
+  ]) {
+    const result = BookingController.validateBillingAddress({
+      address: '12 Example Road',
+      city,
+      state: 'Maharashtra',
+      zipCode,
+      country: 'IN',
+    });
+    assert.equal(result.error, undefined);
+  }
+
+  assert.match(BookingController.validateBillingAddress({
+    address: '12 Example Road',
+    city: 'Nanded',
+    state: 'Maharashtra',
+    zipCode: '43160',
+    country: 'IN',
+  }).error, /6-digit Indian PIN/i);
 });
 
 test('Razorpay signatures are verified safely, including malformed signatures', () => {
@@ -310,6 +360,22 @@ test('booking creation rejects invalid dates before hotel lookup', async () => {
     },
   }, response);
   assert.equal(response.statusCode, 400);
+});
+
+test('booking creation does not resolve hotels by name', async () => {
+  const response = createResponse();
+  await BookingController.createBooking({
+    body: {
+      property: 'Hotel entered by name',
+      checkInDate: '2030-01-01',
+      checkOutDate: '2030-01-02',
+      numberOfGuests: 1,
+      numberOfRooms: 1,
+    },
+    headers: {},
+  }, response);
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.message, /hotel ID/i);
 });
 
 test('property-owner middleware rejects customers and allows property owners', () => {

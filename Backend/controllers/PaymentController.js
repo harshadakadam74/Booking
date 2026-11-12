@@ -46,10 +46,10 @@ const createOrder = async (req, res) => {
     if (booking.bookingStatus !== 'PENDING') {
       return ApiResponse.error(res, 409, 'Payment is only available for pending bookings.');
     }
-    const listing = booking.propertyId
-      ? await Property.findById(booking.propertyId)
-      : await Property.findOne({ name: booking.property });
-    if (!listing || listing.active === false || (listing.approvalStatus && listing.approvalStatus !== 'approved') || listing.isDemo) {
+    const listing = booking.propertyId ? await Property.findById(booking.propertyId) : null;
+    if (!listing || listing.active === false ||
+      (listing.approvalStatus && listing.approvalStatus !== 'approved') ||
+      listing.isDemo || (listing.currency && listing.currency !== 'INR')) {
       return ApiResponse.error(res, 409, 'This hotel is no longer eligible for payment.');
     }
     if (booking.roomTypeId && !findRoomType(listing, booking.roomTypeId)) {
@@ -259,59 +259,9 @@ const getPaymentHistory = async (req, res) => {
   }
 };
 
-const createDummyPayment = async (req, res) => {
-  try {
-    if (process.env.NODE_ENV !== 'development') {
-      return ApiResponse.error(res, 404, 'Dummy payments are disabled in production');
-    }
-
-    const { bookingId } = req.body;
-    if (!bookingId) return ApiResponse.error(res, 400, 'bookingId is required');
-
-    const booking = await Booking.findOne({ _id: bookingId, user: req.user._id });
-    if (!booking) return ApiResponse.error(res, 404, 'Booking not found');
-    if (booking.paymentStatus === 'SUCCESS') {
-      return ApiResponse.error(res, 400, 'Booking is already paid');
-    }
-    if (booking.bookingStatus !== 'PENDING') {
-      return ApiResponse.error(res, 409, 'Payment is only available for pending bookings.');
-    }
-
-    const transactionId = `DUMMY_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const payment = await PaymentService.savePayment({
-      userId: req.user._id,
-      bookingId,
-      amount: booking.totalPrice,
-      paymentMethod: 'DUMMY',
-      transactionId,
-      paymentStatus: 'SUCCESS',
-      metadata: { dummy: true, method: 'Dummy Payment' },
-    });
-
-    const paymentDetails = {
-      paymentMethod: 'DUMMY',
-      paymentId: transactionId,
-      transactionId,
-      amount: booking.totalPrice,
-    };
-    const settledBooking = await recordSuccessfulBookingPayment(booking._id, paymentDetails);
-    if (!settledBooking) return ApiResponse.error(res, 404, 'Booking not found after payment.');
-
-    const message = settledBooking.bookingStatus === 'CANCELLED'
-      ? 'Payment was recorded after this booking was cancelled. Contact support to arrange a refund.'
-      : 'Dummy payment successful';
-    return ApiResponse.success(res, { payment, booking: settledBooking }, message);
-  } catch (error) {
-    return ApiResponse.error(res, 500, error.message || 'Dummy payment failed');
-  }
-};
-
 module.exports = {
   createOrder,
   verifyPayment,
-  createDummyPayment,
   handleWebhook,
   getPaymentHistory,
 };

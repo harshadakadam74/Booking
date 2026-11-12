@@ -14,5 +14,6 @@ router.delete('/owner/:id', authenticate, propertyOwner, PropertyOwnerController
 router.get('/search', PropertyController.getProperties);
 router.get('/', PropertyController.getProperties);
 router.get('/nearby', PropertyController.getNearbyProperties);
+router.get('/:id', PropertyController.getPropertyById);
 
 module.exports = router;

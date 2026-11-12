@@ -8,14 +8,22 @@ import {
   ArrowRight,
   ShieldCheck,
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   loginUser,
   fetchUserProfile,
 } from "../../services/authService";
 
 const Login = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const redirectTo = typeof location.state?.from === "string"
+    ? location.state.from
+    : location.state?.from?.pathname
+      ? `${location.state.from.pathname}${location.state.from.search || ""}${location.state.from.hash || ""}`
+      : "/";
+  const redirectState = location.state?.bookingState ||
+    (location.state?.property ? location.state : undefined);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -34,9 +42,9 @@ const Login = () => {
     const token = localStorage.getItem("authToken");
 
     if (token) {
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true, state: redirectState });
     }
-  }, [navigate]);
+  }, [navigate, redirectTo, redirectState]);
 
   // --------------------------------------------------
   // HANDLE INPUT
@@ -127,7 +135,7 @@ const Login = () => {
       }
 
       // Redirect
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true, state: redirectState });
     } catch (error) {
       console.error("Login error:", error);
 

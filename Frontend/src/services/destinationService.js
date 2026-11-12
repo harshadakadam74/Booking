@@ -12,6 +12,11 @@ export const searchHotels = async (params) => {
   return response.data;
 };
 
+export const getHotelById = async (hotelId) => {
+  const response = await apiClient.get(`/api/v1/hotels/${encodeURIComponent(hotelId)}`);
+  return response.data?.property;
+};
+
 export const fetchAdminDestinations = async (params) => {
   const response = await apiClient.get('/api/v1/destinations/admin', { params });
   return response.data?.data ?? response.data;

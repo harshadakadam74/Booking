@@ -5,6 +5,8 @@
 - The Express API mounts bookings at `/api/v1/bookings`, and
   `POST /api/v1/bookings/create` is an existing route.
 - Hotel APIs are mounted at `/api/v1/hotels` and `/api/v1/properties`.
+- `GET /api/v1/hotels/:id` looks up a hotel by its MongoDB `_id`; malformed IDs
+  return 400, missing records return 404, and database failures return 500.
 - The repository has a Vercel static-frontend configuration, but no backend
   hosting configuration or deployed backend domain. Do not substitute a guessed
   production URL.
@@ -60,14 +62,23 @@ defaults to `http://localhost:4545/api/v1`. Copy `Backend/.env.example` to
 
 ## Booking and payment behavior
 
+Hotel search returns the MongoDB `_id`. Checkout puts that ID and the selected
+dates/guest counts in the `/payment` URL so refresh, browser history, and direct
+links can restore the request. The checkout then retrieves the current database
+record with `GET /hotels/:id`; it never fabricates a hotel or resolves a booking
+by hotel name. It also retains router state for in-app navigation.
+
 Checkout calls authenticated `POST /bookings/eligibility` before enabling
 payment. The response includes `eligibility.eligible` and structured
-`eligibility.reasons`. Booking creation repeats its own validation, locks hotel
-inventory, calculates the amount from the database, and creates a pending
-booking. Payment orders are created from that server amount, re-used for
-retries, and payment completion is accepted only after Razorpay signature and
-captured-payment details are checked by the backend. Booking requests carry an
-idempotency key.
+`eligibility.reasons`; lookup/transport failures are shown separately and can be
+retried. Booking creation repeats its own validation, validates the billing
+address, locks hotel inventory, calculates the amount from the database, and
+creates a pending booking. Payment orders are created from that server amount,
+re-used for retries, and payment completion is accepted only after Razorpay
+signature and captured-payment details are checked by the backend. The success
+page requires a backend booking with both `bookingStatus: "CONFIRMED"` and
+`paymentStatus: "SUCCESS"`. No simulated payment-success route is exposed.
+Booking requests carry an idempotency key.
 
 This application currently models room inventory as a count on a hotel listing;
 it has no separate physical Room collection. Where a hotel has embedded
@@ -97,6 +108,9 @@ Create a Postman environment with:
    `GET {{baseUrl}}/hotels/search?destination=Pune&checkIn=2026-12-01&checkOut=2026-12-03&guests=2&rooms=1`.
    Replace the dates with future dates. Copy `hotelId` from a returned hotel's
    `_id` and `roomTypeId` from that same hotel's `roomTypes[]._id`.
+   Then request `GET {{baseUrl}}/hotels/{{hotelId}}`. Expect HTTP 200 and a
+   `property` object with the matching `_id`. A malformed `id` must return 400;
+   a valid but deleted ID must return 404. A database failure returns 500.
 3. **Login:** `POST {{baseUrl}}/auth/login` with the existing login JSON. Save
    the returned JWT as `token`.
 4. **Eligibility:** `POST {{baseUrl}}/bookings/eligibility`, bearer token
@@ -112,11 +126,30 @@ Create a Postman environment with:
    }
    ```
    Continue only if `eligibility.eligible` is `true`.
+   A malformed hotel ID returns 400 and a deleted hotel returns 404.
 5. **Create booking:** `POST {{baseUrl}}/bookings/create`, bearer token
-   `{{token}}`, header `Idempotency-Key: {{$guid}}`, and the same JSON plus
-   optional guest information. Omit `roomTypeId` only for listings that have
-   no embedded room types. Do not send an authoritative amount. Save
-   `booking._id` as `bookingId`; its status must be `PENDING`.
+   `{{token}}`, header `Idempotency-Key: {{$guid}}`, and the eligibility JSON
+   plus a billing address, for example:
+   ```json
+   {
+     "propertyId": "{{hotelId}}",
+     "roomTypeId": "{{roomTypeId}}",
+     "checkInDate": "2026-12-01",
+     "checkOutDate": "2026-12-03",
+     "numberOfGuests": 2,
+     "numberOfRooms": 1,
+     "billingAddress": {
+       "address": "12 Example Road",
+       "city": "Nanded",
+       "state": "Maharashtra",
+       "zipCode": "431600",
+       "country": "IN"
+     }
+   }
+   ```
+   Use future dates and a valid current hotel/room. Omit `roomTypeId` only for
+   listings that have no embedded room types. Do not send an authoritative
+   amount. Save `booking._id` as `bookingId`; its status must be `PENDING`.
 6. **Create payment order:** `POST {{baseUrl}}/payments/create-order`,
    bearer token, body `{"bookingId":"{{bookingId}}","paymentMethod":"RAZORPAY"}`.
    The amount in the returned gateway order is calculated from the booking.
@@ -131,6 +164,9 @@ Create a Postman environment with:
 
 Run the same sequence locally and against the deployed URL. In the production
 browser's Network tab, verify every API request uses the HTTPS backend domain
-and that no request targets `localhost`. A production API request without an
-API URL is rejected by the frontend client rather than silently falling back
-to localhost.
+and that no request targets `localhost`. The deployed page was inspected during
+this fix and its requests currently target `http://localhost:4545/api/v1`;
+configure `VITE_API_URL` in Vercel Production and redeploy before expecting
+production hotel search or checkout to work. A production API request without
+an API URL is rejected by the current frontend client rather than silently
+falling back to localhost.

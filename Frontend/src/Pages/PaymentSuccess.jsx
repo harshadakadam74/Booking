@@ -23,23 +23,17 @@ const PaymentSuccess = () => {
   const {
     property,
     searchParams,
-    total,
     booking: backendBooking,
   } = location.state || {};
 
   const [copied, setCopied] = useState(false);
   const hasSavedBooking = useRef(false);
-
-  // Use backend booking ID when available
-  const [bookingId] = useState(() => {
-    const backendId =
-      backendBooking?.id || backendBooking?._id || backendBooking?.bookingId;
-
-    if (backendId) return String(backendId);
-
-    const stamp = new Date().getTime().toString();
-    return `BK${stamp.slice(-8)}`;
-  });
+  const bookingId = String(
+    backendBooking?.id || backendBooking?._id || backendBooking?.bookingId || ""
+  );
+  const isPaymentConfirmed = backendBooking?.bookingStatus === "CONFIRMED" &&
+    backendBooking?.paymentStatus === "SUCCESS" &&
+    Boolean(bookingId);
 
   // --------------------------------------------------
   // FORMAT DATE
@@ -85,8 +79,7 @@ const PaymentSuccess = () => {
     if (
       !property ||
       !searchParams ||
-      total === undefined ||
-      total === null ||
+      !isPaymentConfirmed ||
       hasSavedBooking.current
     ) {
       return;
@@ -103,7 +96,7 @@ const PaymentSuccess = () => {
 
         property: property.name,
         location: property.location,
-        image: property.image,
+        image: property.image || property.images?.[0] || "",
 
         checkIn: searchParams.dates
           ? new Date(searchParams.dates.startDate).toISOString().split("T")[0]
@@ -117,15 +110,14 @@ const PaymentSuccess = () => {
 
         status: "confirmed",
 
-        total: Number(total),
+        total: Number(backendBooking.totalPrice),
 
         bookedAt: new Date().toISOString(),
 
         propertyType: property.type,
 
-        rating: property.rating || 4.8,
-
-        reviews: property.reviews || 124,
+        rating: property.rating,
+        reviews: property.ratingCount,
       };
 
       const existingBookings = localStorage.getItem("userBookings");
@@ -140,13 +132,13 @@ const PaymentSuccess = () => {
     } catch (error) {
       console.error("Unable to save booking:", error);
     }
-  }, [bookingId, property, searchParams, total, backendBooking]);
+  }, [bookingId, property, searchParams, backendBooking, isPaymentConfirmed]);
 
   // --------------------------------------------------
   // NO BOOKING
   // --------------------------------------------------
 
-  if (!property) {
+  if (!property || !searchParams || !isPaymentConfirmed) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-16">
         <div className="mx-auto max-w-lg rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-xl">
@@ -155,11 +147,11 @@ const PaymentSuccess = () => {
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900">
-            Booking information was not found
+            {isPaymentConfirmed ? "Booking information was not found" : "Payment is not confirmed"}
           </h2>
 
           <p className="mt-2 text-sm text-slate-500">
-            Please return home and start your booking again.
+            No successful payment confirmation is available for this booking. Return to your bookings or start again.
           </p>
 
           <button
@@ -178,19 +170,18 @@ const PaymentSuccess = () => {
   // CALCULATIONS
   // --------------------------------------------------
 
-  const nights = getStayLength(searchParams?.dates);
-
-  const subtotal = Number(property.price || 0) * nights;
-
-  const fees = Math.max(0, Number(total || 0) - subtotal);
-
-  const totalAmount = Number(total || subtotal + fees);
+  const nights = Number(backendBooking.numberOfNights) || getStayLength(searchParams?.dates);
+  const rooms = Number(backendBooking.numberOfRooms || searchParams?.guests?.rooms || 1);
+  const totalAmount = Number(backendBooking.totalPrice);
+  const currency = property.currency || "INR";
+  const formatCurrency = (amount) => new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+  }).format(Number(amount) || 0);
 
   const adults = searchParams?.guests?.adults || 0;
 
   const children = searchParams?.guests?.children || 0;
-
-  const rooms = searchParams?.guests?.rooms || 1;
 
   const guestSummary = [
     adults ? `${adults} adult${adults > 1 ? "s" : ""}` : null,
@@ -198,7 +189,8 @@ const PaymentSuccess = () => {
     children ? `${children} child${children > 1 ? "ren" : ""}` : null,
   ]
     .filter(Boolean)
-    .join(" • ");
+    .join(" • ") ||
+    `${backendBooking.numberOfGuests} guest${backendBooking.numberOfGuests === 1 ? "" : "s"}`;
 
   // --------------------------------------------------
   // COPY BOOKING ID
@@ -233,7 +225,7 @@ const PaymentSuccess = () => {
       guests: searchParams?.guests,
       rooms,
       total: totalAmount,
-      currency: "$",
+      currency: currency === "INR" ? "₹" : `${currency} `,
     });
   };
 
@@ -253,7 +245,7 @@ Booking ID: ${bookingId}
 Property: ${property.name}
 Check-in: ${formatDate(searchParams?.dates?.startDate)}
 Check-out: ${formatDate(searchParams?.dates?.endDate)}
-Total: $${totalAmount}
+Total: ${formatCurrency(totalAmount)}
 
 Thank you for booking with FastBooking.`,
     )}`;
@@ -324,11 +316,15 @@ Thank you for booking with FastBooking.`,
 
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                  <img
-                    src={property.image}
-                    alt={property.name}
-                    className="h-36 w-full rounded-2xl object-cover shadow-sm sm:h-28 sm:w-28"
-                  />
+                  {property.image || property.images?.[0]
+                    ? (
+                      <img
+                        src={property.image || property.images[0]}
+                        alt={property.name}
+                        className="h-36 w-full rounded-2xl object-cover shadow-sm sm:h-28 sm:w-28"
+                      />
+                    )
+                    : <div className="h-36 w-full rounded-2xl bg-slate-200 sm:h-28 sm:w-28" aria-label="No hotel image available" />}
 
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -351,27 +347,16 @@ Thank you for booking with FastBooking.`,
 
                     {/* Rating */}
 
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <span
-                            key={i}
-                            className={`mr-1 text-base ${
-                              i < Math.floor(property.rating || 4.8)
-                                ? "text-yellow-500"
-                                : "text-slate-300"
-                            }`}
-                          >
-                            ★
-                          </span>
-                        ))}
+                    {Number(property.ratingCount) > 0 && Number.isFinite(Number(property.rating)) && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="flex items-center text-yellow-500" aria-label={`${property.rating} out of 5`}>
+                          {Number(property.rating).toFixed(1)} ★
+                        </div>
+                        <span className="text-sm text-slate-600">
+                          {property.ratingCount} recorded rating{property.ratingCount === 1 ? "" : "s"}
+                        </span>
                       </div>
-
-                      <span className="text-sm text-slate-600">
-                        {property.rating || 4.8} · {property.reviews || 124}{" "}
-                        reviews
-                      </span>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -431,7 +416,7 @@ Thank you for booking with FastBooking.`,
                       </p>
 
                       <p className="mt-1 font-semibold text-slate-900">
-                        {guestSummary || "2 adults"}
+                        {guestSummary}
                       </p>
                     </div>
 
@@ -490,7 +475,7 @@ Thank you for booking with FastBooking.`,
                 </div>
 
                 <div className="rounded-2xl border border-yellow-200 bg-yellow-400 px-4 py-3 text-lg font-extrabold text-blue-950 shadow-sm">
-                  ${totalAmount}
+                  {formatCurrency(totalAmount)}
                 </div>
               </div>
 
@@ -501,15 +486,9 @@ Thank you for booking with FastBooking.`,
                   <span>Room rate</span>
 
                   <span className="font-medium text-slate-900">
-                    ${property.price || 0} × {nights} night
-                    {nights > 1 ? "s" : ""}
+                    {formatCurrency(backendBooking.pricePerNight)} × {nights} night
+                    {nights > 1 ? "s" : ""} × {rooms} room{rooms === 1 ? "" : "s"}
                   </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <span>Taxes & fees</span>
-
-                  <span className="font-medium text-slate-900">${fees}</span>
                 </div>
 
                 <div className="border-t border-slate-200 pt-4">
@@ -517,7 +496,7 @@ Thank you for booking with FastBooking.`,
                     <span className="font-bold text-slate-900">Total Paid</span>
 
                     <span className="text-2xl font-extrabold text-blue-900">
-                      ${totalAmount}
+                      {formatCurrency(totalAmount)}
                     </span>
                   </div>
                 </div>
