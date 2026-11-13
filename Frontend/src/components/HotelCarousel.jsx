@@ -57,12 +57,13 @@ const HotelCarousel = () => {
           sortBy: "recommended",
           page: 1,
           limit: 30,
+          ...(import.meta.env.DEV ? { includeDemo: true } : {}),
         });
         const uniqueHotels = new Map();
         for (const hotel of response.properties || []) {
           if (
             !hotel?._id ||
-            hotel.isDemo ||
+            (hotel.isDemo && !import.meta.env.DEV) ||
             hotel.active === false ||
             (hotel.approvalStatus && hotel.approvalStatus !== "approved")
           ) continue;
@@ -219,7 +220,7 @@ const HotelCarousel = () => {
                 return (
                   <article
                     key={id}
-                    className="flex h-[390px] min-w-0 basis-[85%] snap-start flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-md transition-shadow hover:shadow-xl sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-3.75rem)/4)]"
+                    className="flex h-[480px] min-w-0 basis-[85%] snap-start flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-md transition-shadow hover:shadow-xl sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-3.75rem)/4)]"
                   >
                     <div className="relative h-52 shrink-0 overflow-hidden bg-slate-100">
                       {image ? (
@@ -252,6 +253,11 @@ const HotelCarousel = () => {
                       >
                         <Heart size={19} fill={favorites.includes(id) ? "currentColor" : "none"} className={favorites.includes(id) ? "text-rose-600" : ""} />
                       </button>
+                      {hotel.isDemo && (
+                        <span className="absolute bottom-3 left-3 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-950">
+                          Demo · Not a real hotel
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-1 flex-col p-4">
@@ -265,6 +271,9 @@ const HotelCarousel = () => {
                         <MapPin size={15} className="shrink-0 text-[#C58A18]" />
                         <span className="truncate">{location || "Location not provided"}</span>
                       </p>
+                      {hotel.isDemo && (
+                        <p className="mt-1 text-xs font-semibold text-amber-800">Sample listing · bookings disabled</p>
+                      )}
 
                       {hasRating ? (
                         <div className="mt-4 flex items-center gap-2">
@@ -291,6 +300,31 @@ const HotelCarousel = () => {
                           {formatPrice(hotel.price, hotel.currency || "INR")}
                           <span className="ml-1 text-xs font-normal text-slate-500">/ night</span>
                         </p>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Link
+                          to={`/hotels/${encodeURIComponent(id)}`}
+                          className="rounded-lg border border-[#082B5C] px-3 py-2 text-center text-sm font-bold text-[#082B5C] transition hover:bg-blue-50"
+                        >
+                          View details
+                        </Link>
+                        {hotel.isDemo ? (
+                          <button
+                            type="button"
+                            disabled
+                            title="Demo listings cannot be booked."
+                            className="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold text-slate-500"
+                          >
+                            Book now
+                          </button>
+                        ) : (
+                          <Link
+                            to={`/hotels/${encodeURIComponent(id)}`}
+                            className="rounded-lg bg-[#082B5C] px-3 py-2 text-center text-sm font-bold text-white transition hover:bg-[#123f77]"
+                          >
+                            Book now
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </article>
