@@ -62,6 +62,10 @@ demo listings across India, then verifies their count in MongoDB. These records
 are for local development only and cannot be booked. Production excludes demo
 records; import authorized, verified hotel data for real bookable listings.
 
+Start the local backend with `npm run dev` so it uses development mode and can
+show the demo listings. `npm start` is intended for a production-style start and
+does not enable demo listings.
+
 After copying and editing `Backend/.env`, run:
 ```powershell
 Set-Location .\Backend

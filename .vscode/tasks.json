@@ -13,6 +13,18 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Run Backend Tests",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--prefix",
+				"Backend"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

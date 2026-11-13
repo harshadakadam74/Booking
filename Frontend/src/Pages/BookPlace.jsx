@@ -380,6 +380,7 @@ const BookPlace = () => {
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-7 text-center">
             <h2 className="text-lg font-bold text-blue-950">{destination.length < 2 ? 'No hotels are currently available' : `No approved stays found for ${destination}`}</h2>
             <p className="mt-2 text-sm text-slate-700">There are no approved, active hotel listings matching this search in the database yet. Try another destination or adjust filters. An administrator can add and approve listings to make them appear here.</p>
+            {IS_LOCAL_DEVELOPMENT && <p className="mt-3 text-sm text-slate-700">For local demo listings, stop the backend and restart it from the project folder with <code className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold">npm run dev --prefix Backend</code>. Demo listings are examples only and cannot be booked.</p>}
             {results.alternatives?.length > 0 && <ul className="mt-3 space-y-1 text-sm text-slate-600">{results.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}</ul>}
           </div>
         )}
