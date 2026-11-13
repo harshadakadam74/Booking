@@ -55,26 +55,20 @@ npm run dev
 ```
 Frontend runs on `http://localhost:5173`
 
-### Hotel listings for local development
-The homepage reads active, approved hotel records from MongoDB. The included
-`npm run seed:hotels` command creates or updates 50 clearly marked synthetic
-demo listings across India, then verifies their count in MongoDB. These records
-are for local development only and cannot be booked. Production excludes demo
-records; import authorized, verified hotel data for real bookable listings.
+### Hotel listings
+Customer-facing hotel pages show active, approved, non-demo listings from
+MongoDB. Do not seed synthetic demo inventory into a database used by customers.
+Real listings must come from hotel inventory that you own or are authorized to
+use, with current prices and room availability.
 
-Start the local backend with `npm run dev` so it uses development mode and can
-show the demo listings. `npm start` is intended for a production-style start and
-does not enable demo listings.
-
-After copying and editing `Backend/.env`, run:
+After configuring `Backend/.env`, inspect the current database inventory with:
 ```powershell
-Set-Location .\Backend
-npm run seed:hotels
-npm run inventory:inspect
+npm run inventory:inspect --prefix Backend
 ```
-The seed reports `verifiedListings: 50` only after confirming the records were
-saved. If that confirmation does not appear, the listings were not verified in
-MongoDB.
+Import authorized hotel data using the JSON importer documented in
+[`docs/india-discovery.md`](./docs/india-discovery.md). The importer does not
+independently verify provider permissions, data accuracy, or real-time
+availability.
 
 ## 📖 Documentation
 

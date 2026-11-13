@@ -25,6 +25,47 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Remove Demo Hotel Records",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"remove:demo-hotels",
+				"--prefix",
+				"Backend",
+				"--",
+				"--confirm"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Recheck Hotel Inventory",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"inventory:inspect",
+				"--prefix",
+				"Backend"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--prefix",
+				"Frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

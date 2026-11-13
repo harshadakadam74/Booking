@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Heart, MapPin, Search, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
-import { IS_LOCAL_DEVELOPMENT } from "../services/apiClient";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -71,7 +70,6 @@ const HotelCarousel = () => {
           sortBy: "recommended",
           page: 1,
           limit: 30,
-          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         });
         if (!Array.isArray(response?.properties)) {
           throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
@@ -80,7 +78,7 @@ const HotelCarousel = () => {
         for (const hotel of response.properties) {
           if (
             !hotel?._id ||
-            (hotel.isDemo && !IS_LOCAL_DEVELOPMENT) ||
+            hotel.isDemo ||
             hotel.active === false ||
             (hotel.approvalStatus && hotel.approvalStatus !== "approved")
           ) continue;
@@ -244,12 +242,7 @@ const HotelCarousel = () => {
         ) : hotels.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
             <h3 className="text-lg font-bold text-[#082B5C]">No approved hotels are available</h3>
-            <p className="mt-2 text-sm text-slate-600">This section shows active, approved hotels saved in MongoDB. Listings still awaiting approval and demonstration listings in production are hidden.</p>
-            {IS_LOCAL_DEVELOPMENT && (
-              <p className="mt-2 text-sm text-slate-600">
-                To create local demonstration listings, configure MongoDB and run <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[#082B5C]">npm run seed:hotels</code> from the Backend folder. Demo listings cannot be booked.
-              </p>
-            )}
+            <p className="mt-2 text-sm text-slate-600">This section shows active, approved, non-demo hotel listings saved in MongoDB.</p>
           </div>
         ) : filteredHotels.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">

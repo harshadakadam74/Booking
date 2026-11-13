@@ -16,7 +16,6 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../services/api";
 import { listHotels } from "../../services/destinationService";
-import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -76,7 +75,7 @@ const Hotels = () => {
               hotel?._id &&
               hotel.active !== false &&
               (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
-              (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
+              !hotel.isDemo
             ))
             .map((hotel) => ({
               ...hotel,
@@ -109,7 +108,6 @@ const Hotels = () => {
       propertyType: "Hotel",
       page: 1,
       limit: 30,
-      ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
     })
       .then((result) => {
         if (!Array.isArray(result?.properties)) {
@@ -120,7 +118,7 @@ const Hotels = () => {
             hotel?._id &&
             hotel.active !== false &&
             (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
-            (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
+            !hotel.isDemo
           ))
           .map((hotel) => ({
             ...hotel,

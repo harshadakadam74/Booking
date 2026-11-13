@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, MapPin, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
-import { IS_LOCAL_DEVELOPMENT } from "../services/apiClient";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -175,7 +174,6 @@ const ProductSlider = () => {
           country: "India",
           page: 1,
           limit: 24,
-          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         };
         const [featured, popular, recent, ...cityResults] = await Promise.all([
           listHotels({ ...options, sortBy: "rating", minRating: 4 }),
@@ -245,9 +243,7 @@ const ProductSlider = () => {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">FastBooking stays</p>
           <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Book your next stay directly</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
-            {IS_LOCAL_DEVELOPMENT
-              ? "Explore approved hotel listings and clearly labeled development samples. Demo listings are for display only and cannot be booked."
-              : "Explore real, approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout."}
+            Explore approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout.
           </p>
         </div>
 
@@ -262,10 +258,10 @@ const ProductSlider = () => {
           </div>
         ) : (
           <>
-            <HotelSection title="Featured hotels" subtitle={IS_LOCAL_DEVELOPMENT ? "Highly rated listings and clearly labeled synthetic demo scores" : "Highly rated approved stays; when none are rated, current approved listings are shown"} hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection title="Featured hotels" subtitle="Highly rated approved stays; when none are rated, current approved listings are shown" hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
             <HotelSection
               title="Popular hotels"
-              subtitle={IS_LOCAL_DEVELOPMENT ? "Current listings and clearly labeled development samples" : "Stays ranked by confirmed FastBooking reservations"}
+              subtitle="Stays ranked by confirmed FastBooking reservations"
               hotels={sections.popular}
               favorites={favorites}
               toggleFavorite={toggleFavorite}

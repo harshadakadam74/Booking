@@ -39,8 +39,6 @@ ranking. Keep both `.env` files private and out of source control.
 Set-Location Backend
 npm install
 npm run seed:destinations
-# Optional development-only sample inventory; do not run in production.
-npm run seed:demo-hotels
 npm run dev
 ```
 
@@ -62,10 +60,8 @@ package is needed.
 - `npm run seed:destinations` inserts missing curated destination records and
   leaves existing destination records untouched. Re-run it after catalog
   additions; configure Google Places to search outside the curated set.
-- `npm run seed:demo-hotels` inserts clearly labeled synthetic demo listings
-  for search-interface testing. Their names and descriptions say they are
-  demos, the UI labels them, and booking endpoints reject them. Never use these
-  values as advertised or verified supply.
+- Synthetic demo listings are excluded from customer-facing hotel pages and
+  booking. Do not seed demo listings into a database used by customers.
 - Owners can submit listings at `/list-property` after an administrator assigns
   the `OWNER` role. Submissions are pending approval; edits return the listing
   to pending review.

@@ -10,6 +10,7 @@
     "seed:destinations": "node scripts/seedDestinations.js",
     "seed:hotels": "node scripts/seedHotels.js",
     "seed:demo-hotels": "node scripts/seedDemoHotels.js",
+    "remove:demo-hotels": "node scripts/removeDemoHotels.js",
     "import:verified-hotels": "node scripts/importVerifiedHotels.js",
     "inventory:inspect": "node scripts/inspectHotelInventory.js"
   },
