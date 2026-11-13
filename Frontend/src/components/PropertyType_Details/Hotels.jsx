@@ -16,6 +16,8 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../services/api";
 import { listHotels } from "../../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
+import HotelCardImage from "../HotelCardImage";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -75,7 +77,7 @@ const Hotels = () => {
               hotel?._id &&
               hotel.active !== false &&
               (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
-              !hotel.isDemo
+              (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
             ))
             .map((hotel) => ({
               ...hotel,
@@ -108,6 +110,7 @@ const Hotels = () => {
       propertyType: "Hotel",
       page: 1,
       limit: 30,
+      ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
     })
       .then((result) => {
         if (!Array.isArray(result?.properties)) {
@@ -118,7 +121,7 @@ const Hotels = () => {
             hotel?._id &&
             hotel.active !== false &&
             (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
-            !hotel.isDemo
+            (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
           ))
           .map((hotel) => ({
             ...hotel,
@@ -396,34 +399,11 @@ const Hotels = () => {
                     Image
                 ========================= */}
                 <div className="relative overflow-hidden">
-                  {hotel.image || hotel.images?.[0] ? (
-                    <div className="relative">
-                      <img
-                        src={hotel.image || hotel.images[0]}
-                        alt={hotel.name}
-                        loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.style.display = "none";
-                          event.currentTarget.nextElementSibling?.classList.remove("hidden");
-                        }}
-                        className="
-                      h-56
-                      w-full
-                      object-cover
-                      transition-transform
-                      duration-500
-                      group-hover:scale-105
-                    "
-                      />
-                      <div className="hidden h-56 flex items-center justify-center bg-gradient-to-br from-[#082B5C] to-[#E3AE32] text-sm font-semibold text-white">
-                        Hotel image unavailable
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex h-56 items-center justify-center bg-gradient-to-br from-[#082B5C] to-[#E3AE32] text-sm font-semibold text-white" aria-label="No hotel image available">
-                      No hotel image available
-                    </div>
-                  )}
+                  <HotelCardImage
+                    src={hotel.image || hotel.images?.[0]}
+                    alt={hotel.name}
+                    className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
 
                   {/* Dark image overlay */}
                   <div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent" />

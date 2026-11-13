@@ -61,7 +61,13 @@ package is needed.
   leaves existing destination records untouched. Re-run it after catalog
   additions; configure Google Places to search outside the curated set.
 - Synthetic demo listings are excluded from customer-facing hotel pages and
-  booking. Do not seed demo listings into a database used by customers.
+  booking. The supplied 150-hotel sample JSON may be loaded only into a local
+  development MongoDB with `npm run seed:fastbooking-demo -- --confirm-demo`
+  from `Backend/`. It has placeholder addresses/policies; the seed assigns
+  illustrative stock photos so demo cards are not blank.
+  These photos are not verified images of the named demo properties. This
+  remains unverified, non-bookable sample data. The seed requires development
+  mode and a loopback MongoDB connection.
 - Owners can submit listings at `/list-property` after an administrator assigns
   the `OWNER` role. Submissions are pending approval; edits return the listing
   to pending review.

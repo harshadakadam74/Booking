@@ -61,6 +61,17 @@ MongoDB. Do not seed synthetic demo inventory into a database used by customers.
 Real listings must come from hotel inventory that you own or are authorized to
 use, with current prices and room availability.
 
+For local screen testing only, the attached sample data can be loaded into a
+local MongoDB. It contains demo names, placeholder addresses/policies, and no
+hotel photos; it is not real, verified, or bookable inventory. From the project
+folder run:
+```powershell
+npm run seed:fastbooking-demo --prefix Backend -- --confirm-demo
+```
+The seed refuses non-development mode and MongoDB hosts other than localhost.
+Start the backend with `npm run dev --prefix Backend` and refresh the frontend.
+Demo listings stay disabled for booking and payment.
+
 After configuring `Backend/.env`, inspect the current database inventory with:
 ```powershell
 npm run inventory:inspect --prefix Backend

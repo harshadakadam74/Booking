@@ -1,4 +1,5 @@
 import React from "react";
+import HotelCardImage from "../HotelCardImage";
 import {
   MapPin,
   Star,
@@ -92,20 +93,11 @@ const HotelInformation = ({ booking }) => {
           {/* Hotel Image */}
           <div className="relative shrink-0 overflow-hidden rounded-2xl">
 
-            {booking?.image ? (
-              <img
-                src={booking.image}
-                alt={hotelName}
-                className="h-52 w-full object-cover transition duration-500 hover:scale-105 md:w-60"
-              />
-            ) : (
-              <div className="flex h-52 w-full items-center justify-center bg-blue-50 md:w-60">
-                <Sparkles
-                  size={42}
-                  className="text-[#C58A18]"
-                />
-              </div>
-            )}
+            <HotelCardImage
+              src={booking?.image}
+              alt={hotelName}
+              className="h-52 w-full object-cover transition duration-500 hover:scale-105 md:w-60"
+            />
 
             {/* Rating */}
             <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-[#082B5C] shadow-md">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays, MapPin, Star, Users } from "lucide-react";
+import HotelCardImage from "../components/HotelCardImage";
 import { getHotelAvailability, getHotelById, getHotelReviews } from "../services/destinationService";
 
 const dateValue = (date) => {
@@ -215,11 +216,7 @@ const HotelDetails = () => {
         </Link>
         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
           <div className="grid lg:grid-cols-2">
-            {image ? (
-              <img src={image} alt={hotel.name} className="h-72 w-full object-cover sm:h-96 lg:h-full lg:min-h-[480px]" />
-            ) : (
-              <div className="h-72 bg-gradient-to-br from-[#082B5C] to-[#E3AE32] sm:h-96 lg:h-full lg:min-h-[480px]" aria-label="No hotel image available" />
-            )}
+            <HotelCardImage src={image} alt={hotel.name} className="h-72 w-full object-cover sm:h-96 lg:h-full lg:min-h-[480px]" />
             <div className="p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#E3AE32]">Hotel details</p>
               {hotel.isDemo && (
@@ -244,7 +241,9 @@ const HotelDetails = () => {
               {hotel.breakfastIncluded && <p className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">Breakfast included</p>}
               {images.length > 1 && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  {images.slice(1, 7).map((src) => <img key={src} src={src} alt={`${hotel.name} view`} loading="lazy" className="h-20 w-full rounded-lg object-cover" />)}
+                  {images.slice(1, 7).map((src) => (
+                    <HotelCardImage key={src} src={src} alt={`${hotel.name} view`} className="h-20 w-full rounded-lg object-cover" />
+                  ))}
                 </div>
               )}
               {hotel.geoLocation?.coordinates?.length === 2 && (
@@ -292,6 +291,7 @@ const HotelDetails = () => {
 
               <form onSubmit={checkAvailability} className="mt-6 space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5">
                 <h2 className="font-bold text-[#082B5C]">Choose your stay</h2>
+                {hotel.isDemo && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This is sample data for local display only. Booking and payment are disabled for demo listings.</p>}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-sm font-semibold text-slate-700">
                     Check-in
@@ -333,8 +333,8 @@ const HotelDetails = () => {
                     </select>
                   </label>
                 )}
-                <button type="submit" disabled={checkingAvailability} className="w-full rounded-xl bg-[#082B5C] px-5 py-3 font-bold text-white transition hover:bg-[#123f77] disabled:cursor-wait disabled:opacity-60">
-                  {checkingAvailability ? "Checking availability…" : "Check availability"}
+                <button type="submit" disabled={hotel.isDemo || checkingAvailability} className="w-full rounded-xl bg-[#082B5C] px-5 py-3 font-bold text-white transition hover:bg-[#123f77] disabled:cursor-not-allowed disabled:opacity-60">
+                  {hotel.isDemo ? "Demo only · booking disabled" : checkingAvailability ? "Checking availability…" : "Check availability"}
                 </button>
               </form>
 

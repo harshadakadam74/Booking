@@ -12,6 +12,8 @@ import {
   Heart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import HotelCardImage from "../HotelCardImage";
+import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
 import { apiFetch } from "../../services/api";
 
 // ==================================================
@@ -63,6 +65,7 @@ const NearbyProperties = () => {
         latitude: String(latitude),
         longitude: String(longitude),
         radius: String(selectedRadius),
+        ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: "true" } : {}),
       });
       const response = await apiFetch(`/api/v1/properties/nearby?${query}`);
       setHotels(response.properties || []);
@@ -292,10 +295,9 @@ const NearbyProperties = () => {
 
               <div className="relative h-52 overflow-hidden">
 
-                <img
-                  src={hotel.image}
+                <HotelCardImage
+                  src={hotel.image || hotel.images?.[0]}
                   alt={hotel.name}
-                  loading="lazy"
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
 

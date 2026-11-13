@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { getHotelById } from "../../services/destinationService";
+import HotelCardImage from "../../components/HotelCardImage";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -298,21 +299,11 @@ const AccountFavorites = () => {
 
                   <div className="relative h-56 overflow-hidden">
 
-                    {property.image || property.images?.[0] ? (
-                      <img
-                        src={property.image || property.images[0]}
-                        alt={property.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        onError={(event) => {
-                          event.currentTarget.style.display = "none";
-                          event.currentTarget.nextElementSibling?.classList.remove("hidden");
-                        }}
-                      />
-                    ) : null}
-                    <div className={`${property.image || property.images?.[0] ? "hidden" : "flex"} h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500`}>
-                      Image unavailable
-                    </div>
+                    <HotelCardImage
+                      src={property.image || property.images?.[0]}
+                      alt={property.name}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
 
                     <div className="absolute inset-0 bg-gradient-to-t from-[#082B5C]/70 via-transparent to-transparent" />
 

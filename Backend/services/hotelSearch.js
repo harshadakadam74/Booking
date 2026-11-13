@@ -163,6 +163,10 @@ const parseHotelSearch = (query = {}) => {
   if (query.includeDemo !== undefined && !['true', 'false', true, false].includes(query.includeDemo)) {
     return { error: 'includeDemo must be true or false.' };
   }
+  const includeDemoRequested = query.includeDemo === 'true' || query.includeDemo === true;
+  if (includeDemoRequested && process.env.NODE_ENV !== 'development') {
+    return { error: 'Demo listings are available only when the backend is running in development mode.' };
+  }
 
   return {
     criteria: {
@@ -187,8 +191,7 @@ const parseHotelSearch = (query = {}) => {
       checkOut,
       page,
       limit,
-      includeDemo: process.env.NODE_ENV === 'development' &&
-        (query.includeDemo === 'true' || query.includeDemo === true),
+      includeDemo: includeDemoRequested,
     },
   };
 };

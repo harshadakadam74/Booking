@@ -4,20 +4,34 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Property = require('../models/Property');
 
-const demoFilter = { isDemo: true };
+const demoFilter = {
+  isDemo: true,
+  sourceProvider: 'fastbooking-demo-150',
+};
+const isLoopbackMongoUri = (value) => {
+  try {
+    const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+};
 
 const run = async () => {
   if (process.env.NODE_ENV !== 'development') {
     throw new Error('Demo listings can only be removed from a development database.');
   }
   if (!process.env.MONGO_URI) throw new Error('MONGO_URI must be configured.');
+  if (!isLoopbackMongoUri(process.env.MONGO_URI)) {
+    throw new Error('Demo inventory can only be removed from local MongoDB (localhost/127.0.0.1/::1).');
+  }
   if (!process.argv.includes('--confirm')) {
     throw new Error('Pass --confirm to remove the tagged demo listings from MongoDB.');
   }
 
   await mongoose.connect(process.env.MONGO_URI);
   const listings = await Property.find(demoFilter).select('_id name').lean();
-   if (listings.length === 0) {
+  if (listings.length === 0) {
     console.log(JSON.stringify({
       database: mongoose.connection.name,
       removedDemoListings: 0,
@@ -25,8 +39,8 @@ const run = async () => {
     }, null, 2));
     return;
   }
-  if (listings.length !== 50) {
-    throw new Error(`Expected exactly 50 demo listings or none; found ${listings.length}. No records were removed.`);
+  if (listings.length !== 150) {
+    throw new Error(`Expected exactly 150 FastBooking demo listings or none; found ${listings.length}. No records were removed.`);
   }
 
   const listingIds = listings.map((listing) => listing._id);
@@ -46,7 +60,7 @@ const run = async () => {
     _id: { $in: listingIds },
   });
   const remaining = await Property.countDocuments(demoFilter);
-  if (result.deletedCount !== 50 || remaining !== 0) {
+  if (result.deletedCount !== 150 || remaining !== 0) {
     throw new Error(`Demo removal verification failed: removed ${result.deletedCount}, remaining ${remaining}.`);
   }
 

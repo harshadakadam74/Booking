@@ -165,10 +165,16 @@ test('demo listings are included only in development when explicitly requested',
   const originalEnvironment = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = 'development';
-    assert.equal(parseHotelSearch({ includeDemo: 'true' }).criteria.includeDemo, true);
+    const developmentQuery = parseHotelSearch({ includeDemo: 'true' });
+    assert.equal(developmentQuery.error, undefined);
+    assert.equal(developmentQuery.criteria.includeDemo, true);
 
     process.env.NODE_ENV = 'production';
-    assert.equal(parseHotelSearch({ includeDemo: 'true' }).criteria.includeDemo, false);
+    assert.match(
+      parseHotelSearch({ includeDemo: 'true' }).error,
+      /only when the backend is running in development mode/,
+    );
+    assert.equal(parseHotelSearch({ includeDemo: 'false' }).criteria.includeDemo, false);
   } finally {
     if (originalEnvironment === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalEnvironment;
@@ -215,6 +221,58 @@ test('nearby hotel search excludes demo and inactive listings', async () => {
     assert.deepEqual(pipeline[0].$geoNear.query.active, { $ne: false });
   } finally {
     Property.aggregate = originalAggregate;
+  }
+});
+
+test('nearby hotel search includes demo listings only when explicitly requested in development', async () => {
+  const originalAggregate = Property.aggregate;
+  const originalEnvironment = process.env.NODE_ENV;
+  let pipeline;
+  Property.aggregate = async (aggregationPipeline) => {
+    pipeline = aggregationPipeline;
+    return [];
+  };
+
+  try {
+    process.env.NODE_ENV = 'development';
+    const response = createResponse();
+    await PropertyController.getNearbyProperties({
+      query: {
+        latitude: '19.076',
+        longitude: '72.8777',
+        radius: '10',
+        includeDemo: 'true',
+      },
+    }, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(Object.hasOwn(pipeline[0].$geoNear.query, 'isDemo'), false);
+  } finally {
+    Property.aggregate = originalAggregate;
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
+  }
+});
+
+test('nearby hotel search rejects demo listings outside development', async () => {
+  const originalEnvironment = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'production';
+    const response = createResponse();
+    await PropertyController.getNearbyProperties({
+      query: {
+        latitude: '19.076',
+        longitude: '72.8777',
+        radius: '10',
+        includeDemo: 'true',
+      },
+    }, response);
+
+    assert.equal(response.statusCode, 400);
+    assert.match(response.body.message, /only when the backend is running in development mode/);
+  } finally {
+    if (originalEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnvironment;
   }
 });
 

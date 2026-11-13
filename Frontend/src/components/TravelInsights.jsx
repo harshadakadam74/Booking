@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import HotelCardImage from "./HotelCardImage";
 import {
   Compass,
   Sparkles,
@@ -602,7 +603,7 @@ const TravelInsights = () => {
 
                 <div className="relative h-44 overflow-hidden">
 
-                  <img
+                  <HotelCardImage
                     src={hotel.image}
                     alt={hotel.name}
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"

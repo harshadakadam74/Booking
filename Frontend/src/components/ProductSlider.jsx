@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, MapPin, Star } from "lucide-react";
+import HotelCardImage from "./HotelCardImage";
 import { listHotels } from "../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../services/apiClient";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -30,11 +32,7 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      {image ? (
-        <img src={image} alt={hotel.name} loading="lazy" className="h-52 w-full object-cover" />
-      ) : (
-        <div className="h-52 bg-gradient-to-br from-[#082B5C] to-[#E3AE32]" aria-label="No hotel image available" />
-      )}
+      <HotelCardImage src={image} alt={hotel.name} className="h-52 w-full object-cover" />
       <div className="p-5">
         <div className="mb-3 flex flex-wrap gap-2">
           {hotel.isDemo && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">DEMO · NOT A REAL HOTEL</span>}
@@ -127,7 +125,12 @@ const HotelSection = ({ title, subtitle, hotels, favorites, toggleFavorite }) =>
         ))}
       </div>
     ) : (
-      <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No hotels are currently available in this section.</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+        <p>No hotels are currently available in this section.</p>
+        {IS_LOCAL_DEVELOPMENT && (
+          <p className="mt-2">For local demo hotels, start the backend with <code className="font-semibold">npm run dev --prefix Backend</code> and confirm it uses the MongoDB database you seeded.</p>
+        )}
+      </div>
     )}
   </section>
 );
@@ -174,6 +177,7 @@ const ProductSlider = () => {
           country: "India",
           page: 1,
           limit: 24,
+          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         };
         const [featured, popular, recent, ...cityResults] = await Promise.all([
           listHotels({ ...options, sortBy: "rating", minRating: 4 }),
@@ -243,7 +247,9 @@ const ProductSlider = () => {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">FastBooking stays</p>
           <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Book your next stay directly</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
-            Explore approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout.
+            {IS_LOCAL_DEVELOPMENT
+              ? "Explore approved listings and clearly labeled local demo samples. Demo listings cannot be booked."
+              : "Explore approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout."}
           </p>
         </div>
 
@@ -258,10 +264,10 @@ const ProductSlider = () => {
           </div>
         ) : (
           <>
-            <HotelSection title="Featured hotels" subtitle="Highly rated approved stays; when none are rated, current approved listings are shown" hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection title="Featured hotels" subtitle={IS_LOCAL_DEVELOPMENT ? "Highly rated listings and clearly labeled local demo samples" : "Highly rated approved stays; when none are rated, current approved listings are shown"} hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
             <HotelSection
               title="Popular hotels"
-              subtitle="Stays ranked by confirmed FastBooking reservations"
+              subtitle={IS_LOCAL_DEVELOPMENT ? "Current listings, including local demo samples" : "Stays ranked by confirmed FastBooking reservations"}
               hotels={sections.popular}
               favorites={favorites}
               toggleFavorite={toggleFavorite}

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MapPin, Star } from "lucide-react";
+import HotelCardImage from "../HotelCardImage";
 import { listHotels } from "../../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -31,8 +33,11 @@ const Deals = () => {
           sortBy: "recommended",
           page: 1,
           limit: 12,
+          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         });
-        if (active) setHotels((response.properties || []).filter((hotel) => !hotel.isDemo));
+        if (active) setHotels((response.properties || []).filter((hotel) => (
+          !hotel.isDemo || IS_LOCAL_DEVELOPMENT
+        )));
       } catch (requestError) {
         if (active) {
           setHotels([]);
@@ -95,11 +100,7 @@ const Deals = () => {
 
               return (
                 <article key={hotelId} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-                  {image ? (
-                    <img src={image} alt={hotel.name} loading="lazy" className="h-52 w-full object-cover" />
-                  ) : (
-                    <div className="h-52 bg-gradient-to-br from-[#082B5C] to-[#E3AE32]" aria-label="No hotel image available" />
-                  )}
+                  <HotelCardImage src={image} alt={hotel.name} className="h-52 w-full object-cover" />
                   <div className="p-5">
                     {hotel.isDemo && (
                       <span className="mb-3 inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">

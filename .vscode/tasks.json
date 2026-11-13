@@ -66,6 +66,21 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Seed Local Demo Hotels",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"seed:fastbooking-demo",
+				"--prefix",
+				"Backend",
+				"--",
+				"--confirm-demo"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

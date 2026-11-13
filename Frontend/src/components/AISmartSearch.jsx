@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoaderCircle, MapPin, Search, Sparkles, Star } from 'lucide-react';
+import HotelCardImage from './HotelCardImage';
 import { searchAIHotels } from '../services/aiService';
 
 const AISmartSearch = () => {
@@ -102,7 +103,7 @@ const AISmartSearch = () => {
             <div className="grid gap-4 md:grid-cols-2">
               {results.recommendations.map(({ property, reason }) => (
                 <article key={property._id} className="overflow-hidden rounded-2xl border border-slate-200">
-                  {property.image && <img src={property.image} alt="" className="h-44 w-full object-cover" loading="lazy" />}
+                  <HotelCardImage src={property.image || property.images?.[0]} alt={property.name} className="h-44 w-full object-cover" />
                   <div className="p-5">
                     <p className="text-xs font-bold uppercase tracking-wide text-amber-700">{property.type}</p>
                     <h3 className="mt-1 text-lg font-bold text-slate-900">{property.name}</h3>

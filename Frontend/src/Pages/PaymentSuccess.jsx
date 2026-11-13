@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import HotelCardImage from "../components/HotelCardImage";
 import {
   CheckCircle,
   Download,
@@ -411,15 +412,11 @@ Thank you for booking with FastBooking.`,
 
               <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                  {property.image || property.images?.[0]
-                    ? (
-                      <img
-                        src={property.image || property.images[0]}
-                        alt={property.name}
-                        className="h-36 w-full rounded-2xl object-cover shadow-sm sm:h-28 sm:w-28"
-                      />
-                    )
-                    : <div className="h-36 w-full rounded-2xl bg-slate-200 sm:h-28 sm:w-28" aria-label="No hotel image available" />}
+                  <HotelCardImage
+                    src={property.image || property.images?.[0]}
+                    alt={property.name}
+                    className="h-36 w-full rounded-2xl object-cover shadow-sm sm:h-28 sm:w-28"
+                  />
 
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">

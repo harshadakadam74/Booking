@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Heart, MapPin, Search, Star } from "lucide-react";
+import HotelCardImage from "./HotelCardImage";
 import { listHotels } from "../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../services/apiClient";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -70,6 +72,7 @@ const HotelCarousel = () => {
           sortBy: "recommended",
           page: 1,
           limit: 30,
+          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         });
         if (!Array.isArray(response?.properties)) {
           throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
@@ -78,7 +81,7 @@ const HotelCarousel = () => {
         for (const hotel of response.properties) {
           if (
             !hotel?._id ||
-            hotel.isDemo ||
+            (hotel.isDemo && !IS_LOCAL_DEVELOPMENT) ||
             hotel.active === false ||
             (hotel.approvalStatus && hotel.approvalStatus !== "approved")
           ) continue;
@@ -241,8 +244,14 @@ const HotelCarousel = () => {
           </div>
         ) : hotels.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
-            <h3 className="text-lg font-bold text-[#082B5C]">No approved hotels are available</h3>
-            <p className="mt-2 text-sm text-slate-600">This section shows active, approved, non-demo hotel listings saved in MongoDB.</p>
+            <h3 className="text-lg font-bold text-[#082B5C]">
+              {IS_LOCAL_DEVELOPMENT ? "No local hotel listings were returned" : "No approved hotels are available"}
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              {IS_LOCAL_DEVELOPMENT
+                ? "Restart the backend using npm run dev --prefix Backend. This enables clearly labeled local demo listings; confirm Backend/.env points to the MongoDB database containing them."
+                : "This section shows active, approved, non-demo hotel listings saved in MongoDB."}
+            </p>
           </div>
         ) : filteredHotels.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
@@ -272,27 +281,13 @@ const HotelCarousel = () => {
                     className="flex min-h-[520px] min-w-0 basis-[85%] snap-start flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-md transition-shadow hover:shadow-xl sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-3.75rem)/4)]"
                   >
                     <div className="relative h-52 shrink-0 overflow-hidden bg-slate-100">
-                      {image ? (
-                        <Link to={`/hotels/${encodeURIComponent(id)}`} aria-label={`View ${hotel.name}`}>
-                          <img
-                            src={image}
-                            alt={hotel.name}
-                            loading="lazy"
-                            onError={(event) => {
-                              event.currentTarget.style.display = "none";
-                              event.currentTarget.nextElementSibling?.classList.remove("hidden");
-                            }}
-                            className="h-52 w-full object-cover transition-transform duration-500 hover:scale-105"
-                          />
-                          <div className="hidden h-52 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">
-                            Image unavailable
-                          </div>
-                        </Link>
-                      ) : (
-                        <div className="flex h-52 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">
-                          Image unavailable
-                        </div>
-                      )}
+                      <Link to={`/hotels/${encodeURIComponent(id)}`} aria-label={`View ${hotel.name}`}>
+                        <HotelCardImage
+                          src={image}
+                          alt={hotel.name}
+                          className="h-52 w-full object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                      </Link>
                       <button
                         type="button"
                         onClick={() => toggleFavorite(id)}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import HotelCardImage from "../components/HotelCardImage";
 import {
   CreditCard,
   Lock,
@@ -1182,15 +1183,11 @@ const Payment = () => {
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
 
                   <div className="relative">
-                    {property.image || property.images?.[0]
-                      ? (
-                        <img
-                          src={property.image || property.images[0]}
-                          alt={property.name}
-                          className="h-52 w-full object-cover"
-                        />
-                      )
-                      : <div className="h-52 bg-slate-100" aria-label="No hotel image available" />}
+                    <HotelCardImage
+                      src={property.image || property.images?.[0]}
+                      alt={property.name}
+                      className="h-52 w-full object-cover"
+                    />
 
                     <div className="absolute left-3 top-3 rounded-full bg-blue-950/90 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
                       FastBooking

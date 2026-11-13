@@ -58,6 +58,17 @@ const getProperties = async (req, res) => {
 
 const getNearbyProperties = async (req, res) => {
   try {
+    if (req.query.includeDemo !== undefined &&
+      !['true', 'false', true, false].includes(req.query.includeDemo)) {
+      return res.status(400).json({ message: 'includeDemo must be true or false.' });
+    }
+    const includeDemo = req.query.includeDemo === 'true' || req.query.includeDemo === true;
+    if (includeDemo && process.env.NODE_ENV !== 'development') {
+      return res.status(400).json({
+        message: 'Demo listings are available only when the backend is running in development mode.',
+      });
+    }
+
     const latitude = Number(req.query.latitude);
     const longitude = Number(req.query.longitude);
     const radiusKm = Number(req.query.radius || 10);
@@ -81,7 +92,7 @@ const getNearbyProperties = async (req, res) => {
           spherical: true,
           query: {
             active: { $ne: false },
-            isDemo: { $ne: true },
+            ...(!includeDemo ? { isDemo: { $ne: true } } : {}),
             $and: [
               { $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }] },
               ...(req.query.type ? [{ $or: [{ type: req.query.type }, { propertyType: req.query.type }] }] : []),

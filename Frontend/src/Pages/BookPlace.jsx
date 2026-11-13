@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
+import HotelCardImage from '../components/HotelCardImage';
 import DestinationAutocomplete from '../components/DestinationAutocomplete';
 import { searchHotels } from '../services/destinationService';
+import { IS_LOCAL_DEVELOPMENT } from '../services/apiClient';
 
 const getDateValue = (value) => {
   if (!value) return '';
@@ -70,6 +72,7 @@ const BookPlace = () => {
     ...(filters.breakfastIncluded ? { breakfastIncluded: true } : {}),
     ...(filters.workTrip ? { workTrip: true } : {}),
     ...(filters.hotelName.trim() ? { hotelName: filters.hotelName.trim() } : {}),
+    ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
     sortBy: filters.sortBy,
     page,
     limit: 12,
@@ -308,7 +311,7 @@ const BookPlace = () => {
                 return (
                   <article key={id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md sm:grid sm:grid-cols-[240px_minmax(0,1fr)]">
                     <div className="relative min-h-48 bg-slate-100 sm:min-h-full">
-                      {image ? <img src={image} alt={property.name} loading="lazy" className="h-52 w-full object-cover sm:h-full sm:min-h-64" /> : <div className="h-52 bg-gradient-to-br from-blue-900 to-amber-500 sm:h-full sm:min-h-64" />}
+                      <HotelCardImage src={image} alt={property.name} className="h-52 w-full object-cover sm:h-full sm:min-h-64" />
                       {property.images?.length > 1 && <span className="absolute bottom-3 left-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white">{property.images.length} photos</span>}
                     </div>
                     <div className="p-5">
@@ -378,6 +381,7 @@ const BookPlace = () => {
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-7 text-center">
             <h2 className="text-lg font-bold text-blue-950">{destination.length < 2 ? 'No hotels are currently available' : `No approved stays found for ${destination}`}</h2>
             <p className="mt-2 text-sm text-slate-700">There are no approved, active hotel listings matching this search in the database yet. Try another destination or adjust filters. An administrator can add and approve listings to make them appear here.</p>
+            {IS_LOCAL_DEVELOPMENT && <p className="mt-3 text-sm text-slate-700">For local demo listings, restart the backend with <code className="font-semibold">npm run dev --prefix Backend</code> and verify that <code className="font-semibold">Backend/.env</code> uses the seeded MongoDB database.</p>}
             {results.alternatives?.length > 0 && <ul className="mt-3 space-y-1 text-sm text-slate-600">{results.alternatives.map((alternative) => <li key={alternative}>{alternative}</li>)}</ul>}
           </div>
         )}

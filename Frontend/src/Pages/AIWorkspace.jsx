@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import DestinationAutocomplete from '../components/DestinationAutocomplete';
 import AISmartSearch from '../components/AISmartSearch';
+import HotelCardImage from '../components/HotelCardImage';
 import {
   fetchAIRecommendations,
   fetchAIReviewSummary,
@@ -595,7 +596,7 @@ const AIWorkspace = () => {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         {message.recommendations.map(({ property, reason }) => (
                           <article key={property._id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                            {property.image && <img src={property.image} alt="" className="h-28 w-full object-cover" loading="lazy" />}
+                            <HotelCardImage src={property.image || property.images?.[0]} alt={property.name} className="h-28 w-full object-cover" />
                             <div className="p-3">
                               <h3 className="font-bold text-slate-900">{property.name}</h3>
                               <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} />{property.location}</p>
@@ -683,7 +684,7 @@ const AIWorkspace = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     {hotelResults.recommendations.map(({ property, reason }) => (
                       <article key={property._id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                        {property.image && <img src={property.image} alt="" className="h-44 w-full object-cover" loading="lazy" />}
+                        <HotelCardImage src={property.image || property.images?.[0]} alt={property.name} className="h-44 w-full object-cover" />
                         <div className="p-5">
                           <div className="flex items-start justify-between gap-3">
                             <div><p className="text-xs font-bold uppercase tracking-wide text-amber-700">{property.type}</p><h3 className="mt-1 text-lg font-bold text-slate-900">{property.name}</h3><p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={14} />{property.location}</p></div>

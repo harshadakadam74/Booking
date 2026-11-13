@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import HotelCardImage from "../../components/HotelCardImage";
 import {
   Calendar,
   ArrowLeft,
   MapPin,
   Users,
-  Hotel,
   ArrowRight,
   Clock3,
   CheckCircle2,
@@ -324,24 +324,11 @@ const AccountBookings = () => {
 
                         {/* Image / Icon */}
 
-                        {booking?.image ? (
-                          <img
-                            src={booking.image}
-                            alt={booking.property || "Hotel"}
-                            className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-sm sm:h-24 sm:w-24"
-                            onError={(e) => {
-                              e.currentTarget.style.display =
-                                "none";
-                            }}
-                          />
-                        ) : (
-                          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#082B5C] sm:h-24 sm:w-24">
-                            <Hotel
-                              size={30}
-                              className="text-[#E3AE32]"
-                            />
-                          </div>
-                        )}
+                        <HotelCardImage
+                          src={booking?.image}
+                          alt={booking.property || "Hotel"}
+                          className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-sm sm:h-24 sm:w-24"
+                        />
 
                         <div className="min-w-0">
 
