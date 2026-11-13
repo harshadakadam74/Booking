@@ -28,8 +28,13 @@ export const createAdminHotel = (payload) => request(
   'Unable to create hotel.',
 );
 
-export const importAdminHotels = (records) => request(
-  () => apiClient.post('/api/v1/admin/hotels/import', { records }),
+export const previewAdminHotels = (records) => request(
+  () => apiClient.post('/api/v1/admin/hotels/import', { records, previewOnly: true }),
+  'Unable to validate hotel import.',
+);
+
+export const importAdminHotels = (records, options = {}) => request(
+  () => apiClient.post('/api/v1/admin/hotels/import', { records, ...options }),
   'Unable to import hotel records.',
 );
 

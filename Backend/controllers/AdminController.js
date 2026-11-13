@@ -47,7 +47,7 @@ const validatePropertyInput = (body, existing) => {
     'type', 'propertyType', 'category', 'description', 'image', 'images', 'price', 'totalRooms',
     'availableRooms', 'maxGuestsPerRoom', 'amenities', 'facilities', 'roomTypes', 'policies',
     'checkInTime', 'checkOutTime', 'workTripFriendly', 'breakfastIncluded', 'starRating', 'rating', 'ratingCount',
-    'ratingSource', 'active',
+    'ratingSource', 'active', 'approvalStatus',
   ];
   const values = {};
   fields.forEach((field) => {
@@ -94,6 +94,9 @@ const validatePropertyInput = (body, existing) => {
         values[field].trim().length > (['address', 'streetAddress'].includes(field) ? 250 : field === 'contactPhone' ? 30 : field === 'contactEmail' ? 254 : 100))) {
       return { error: `${field} must be a valid string.` };
     }
+  }
+  if (values.postalCode !== undefined && values.postalCode.trim().length > 12) {
+    return { error: 'Postal code cannot exceed 12 characters.' };
   }
   if (values.contactEmail?.trim() &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail.trim())) {
@@ -176,12 +179,20 @@ const validatePropertyInput = (body, existing) => {
     return { error: 'Rating must be between 0 and 5.' };
   }
   if (values.starRating !== undefined &&
-    (Number(values.starRating) < 1 || Number(values.starRating) > 5)) {
-    return { error: 'Hotel star rating must be between 1 and 5.' };
+    (!Number.isInteger(Number(values.starRating)) || Number(values.starRating) < 1 || Number(values.starRating) > 5)) {
+    return { error: 'Hotel star rating must be a whole number between 1 and 5.' };
   }
   if (values.ratingCount !== undefined &&
     (!Number.isInteger(Number(values.ratingCount)) || Number(values.ratingCount) < 0)) {
     return { error: 'Rating count must be a non-negative whole number.' };
+  }
+  const hasRatingDetails = values.rating !== undefined || Number(values.ratingCount || 0) > 0 ||
+    Boolean(values.ratingSource?.trim());
+  if (hasRatingDetails && (
+    values.rating === undefined || Number(values.ratingCount) < 1 ||
+    typeof values.ratingSource !== 'string' || !values.ratingSource.trim()
+  )) {
+    return { error: 'Ratings require a value, a positive rating count, and a documented source.' };
   }
   for (const field of ['workTripFriendly']) {
     if (values[field] !== undefined && typeof values[field] !== 'boolean') {
@@ -190,6 +201,10 @@ const validatePropertyInput = (body, existing) => {
   }
   if (values.active !== undefined && typeof values.active !== 'boolean') {
     return { error: 'Active status must be true or false.' };
+  }
+  if (values.approvalStatus !== undefined &&
+    !['pending', 'approved', 'rejected'].includes(values.approvalStatus)) {
+    return { error: 'Approval status must be pending, approved, or rejected.' };
   }
   if (values.breakfastIncluded !== undefined && typeof values.breakfastIncluded !== 'boolean') {
     return { error: 'Breakfast included must be true or false.' };
@@ -420,10 +435,141 @@ const createProperty = async (req, res) => {
   }
 };
 
+const prepareBulkHotelRecord = (record) => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    return { error: 'Hotel record must be a JSON object.' };
+  }
+  const { updates, error } = validatePropertyInput(record);
+  if (error) return { error };
+  if (!updates.name || !updates.location || updates.price === undefined ||
+    updates.totalRooms === undefined || updates.availableRooms === undefined) {
+    return { error: 'Name, location, price, total rooms and available rooms are required.' };
+  }
+  if (!(updates.city || updates.location.split(',')[0].trim()) ||
+    !(updates.streetAddress || updates.address)) {
+    return { error: 'City and complete street address are required.' };
+  }
+  const hasLatitude = record.latitude !== undefined && record.latitude !== '';
+  const hasLongitude = record.longitude !== undefined && record.longitude !== '';
+  if (hasLatitude !== hasLongitude) {
+    return { error: 'Latitude and longitude must be supplied together as valid coordinates.' };
+  }
+  const latitude = Number(record.latitude);
+  const longitude = Number(record.longitude);
+  if (hasLatitude && (
+    !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+    !Number.isFinite(longitude) || longitude < -180 || longitude > 180
+  )) {
+    return { error: 'Latitude and longitude must be supplied together as valid coordinates.' };
+  }
+  return {
+    property: {
+      ...updates,
+      city: updates.city || updates.location.split(',')[0].trim(),
+      country: updates.country || 'India',
+      type: updates.type || 'Hotel',
+      propertyType: updates.propertyType || updates.type || 'Hotel',
+      category: updates.category || updates.propertyType || updates.type || 'Hotel',
+      listingSource: 'admin',
+      approvalStatus: updates.approvalStatus || 'approved',
+      isDemo: false,
+      isVerified: false,
+      active: updates.active ?? true,
+      ...(hasLatitude ? {
+        geoLocation: { type: 'Point', coordinates: [longitude, latitude] },
+      } : {}),
+    },
+  };
+};
+
 const importProperties = async (req, res) => {
   const records = Array.isArray(req.body) ? req.body : req.body?.records;
   if (!Array.isArray(records) || records.length < 1 || records.length > 500) {
     return ApiResponse.error(res, 400, 'Provide a JSON array containing between 1 and 500 hotel records.');
+  }
+  const previewOnly = req.body?.previewOnly === true;
+  const continueOnError = req.body?.continueOnError === true;
+  if (previewOnly || continueOnError) {
+    try {
+      const outcomes = records.map((record, index) => {
+        const prepared = prepareBulkHotelRecord(record);
+        return {
+          row: index + 1,
+          name: typeof record?.name === 'string' ? record.name.trim() : '',
+          ...(prepared.error ? { status: 'failed', error: prepared.error } : {
+            status: 'ready',
+            property: prepared.property,
+          }),
+        };
+      });
+      const seen = [];
+      for (const outcome of outcomes) {
+        if (outcome.status !== 'ready') continue;
+        if (seen.some((property) => sameHotelIdentity(property, outcome.property))) {
+          outcome.status = 'failed';
+          outcome.error = 'Duplicates another hotel in this import.';
+          delete outcome.property;
+        } else {
+          seen.push(outcome.property);
+        }
+      }
+
+      const readyOutcomes = outcomes.filter((outcome) => outcome.status === 'ready');
+      if (readyOutcomes.length) {
+        const matchingProperties = await Property.find({
+          $or: readyOutcomes.map((outcome) => hotelIdentityQuery(outcome.property)),
+        }).select('name city normalizedCity location address streetAddress').lean();
+        for (const outcome of readyOutcomes) {
+          if (matchingProperties.some((existing) => sameHotelIdentity(existing, outcome.property))) {
+            outcome.status = 'failed';
+            outcome.error = 'A hotel with the same name and city already exists.';
+            delete outcome.property;
+          }
+        }
+      }
+
+      const ready = outcomes.filter((outcome) => outcome.status === 'ready');
+      if (previewOnly) {
+        return ApiResponse.success(res, {
+          imported: 0,
+          valid: ready.length,
+          failed: outcomes.length - ready.length,
+          results: outcomes.map(({ row, name, status, error }) => ({ row, name, status, error })),
+        }, 'Hotel import preview completed.');
+      }
+
+      const importedProperties = [];
+      for (let offset = 0; offset < ready.length; offset += 20) {
+        const batch = ready.slice(offset, offset + 20);
+        const created = await Promise.allSettled(batch.map((outcome) => Property.create(outcome.property)));
+        created.forEach((result, index) => {
+          const outcome = batch[index];
+          if (result.status === 'fulfilled') {
+            outcome.status = 'imported';
+            importedProperties.push(result.value);
+          } else {
+            if (![11000, 'ValidationError'].includes(result.reason?.code || result.reason?.name)) {
+              console.error(`Admin hotel import failed for row ${outcome.row}:`, result.reason?.message);
+            }
+            outcome.status = 'failed';
+            outcome.error = result.reason?.code === 11000
+              ? 'A hotel with the same external listing identifier already exists.'
+              : result.reason?.message || 'Unable to save this hotel.';
+          }
+          delete outcome.property;
+        });
+      }
+      const imported = importedProperties.length;
+      return ApiResponse.success(res, {
+        imported,
+        failed: outcomes.length - imported,
+        properties: importedProperties,
+        results: outcomes.map(({ row, name, status, error }) => ({ row, name, status, error })),
+      }, `Imported ${imported} hotel record${imported === 1 ? '' : 's'}; ${outcomes.length - imported} failed.`);
+    } catch (error) {
+      console.error('Admin hotel bulk import failed:', error.message);
+      return ApiResponse.error(res, 500, 'Unable to process hotel imports right now.');
+    }
   }
   const properties = [];
   for (const [index, record] of records.entries()) {

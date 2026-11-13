@@ -2,10 +2,11 @@ import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, BedDouble, Building2, CalendarDays, Check, ChevronLeft, ChevronRight,
   CircleDollarSign, DoorOpen, LayoutDashboard, LoaderCircle, LogOut, Pencil,
-  MapPin, Plus, Search, ShieldCheck, Trash2, Users, X,
+  FileSpreadsheet, MapPin, Plus, Search, ShieldCheck, Trash2, Users, X,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AIAnalyticsAssistant from '../components/admin/AIAnalyticsAssistant';
+import BulkHotelManager from '../components/admin/BulkHotelManager';
 import {
   createAdminAccount,
   createAdminHotel,
@@ -21,6 +22,7 @@ import {
   setAdminUserRole,
   exportAdminHotels,
   importAdminHotels,
+  previewAdminHotels,
   uploadAdminHotelImage,
   uploadAdminHotelImages,
   updateAdminHotel,
@@ -348,6 +350,7 @@ const AdminPanel = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [hotelEditor, setHotelEditor] = useState(undefined);
+  const [bulkHotelManager, setBulkHotelManager] = useState(false);
   const [adminForm, setAdminForm] = useState(emptyAdmin);
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
@@ -472,6 +475,29 @@ const AdminPanel = () => {
     } finally {
       setSaving(false);
       event.target.value = '';
+    }
+  };
+
+  const previewBulkHotels = (records) => previewAdminHotels(records);
+
+  const importBulkHotels = async (records) => {
+    setSaving(true);
+    try {
+      const result = await importAdminHotels(records, { continueOnError: true });
+      setNotice(`${result.imported} hotel${result.imported === 1 ? '' : 's'} imported · ${result.failed} failed.`);
+      setError('');
+      setSearch('');
+      setCity('');
+      setHotelStatus('all');
+      setApprovalStatus('all');
+      setPage(1);
+      await loadData();
+      return result;
+    } catch (requestError) {
+      notifyError(requestError);
+      throw requestError;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -657,6 +683,7 @@ const AdminPanel = () => {
                     Import JSON
                     <input type="file" accept=".json,application/json" onChange={importHotelFile} className="sr-only" />
                   </label>
+                  <button type="button" onClick={() => setBulkHotelManager(true)} className="inline-flex items-center gap-2 rounded-xl border border-blue-900 px-4 py-2.5 text-sm font-bold text-blue-950"><FileSpreadsheet size={17} />Bulk add hotels</button>
                   <button type="button" onClick={() => setHotelEditor(null)} className="inline-flex items-center gap-2 rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17} />Add hotel</button>
                 </div>)}
                 <div className="flex flex-wrap gap-3">
@@ -750,6 +777,7 @@ const AdminPanel = () => {
       </div>
 
       {hotelEditor !== undefined && <HotelEditor hotel={hotelEditor} saving={saving} onClose={() => setHotelEditor(undefined)} onSave={saveHotel} onUploadImage={uploadAdminHotelImage} />}
+      {bulkHotelManager && <BulkHotelManager saving={saving} onClose={() => setBulkHotelManager(false)} onPreview={previewBulkHotels} onImport={importBulkHotels} onUploadImages={uploadAdminHotelImages} />}
       {selectedBooking && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedBooking(null); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
