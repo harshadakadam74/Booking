@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Heart, MapPin, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Heart, MapPin, Search, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
 import {
   HOTEL_FAVORITES_EVENT,
@@ -32,6 +32,8 @@ const getHotelImage = (hotel) => hotel.image || hotel.images?.find(Boolean) || "
 const HotelCarousel = () => {
   const carouselRef = useRef(null);
   const [hotels, setHotels] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const [favorites, setFavorites] = useState(readHotelFavoriteIds);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +48,17 @@ const HotelCarousel = () => {
     setCanScrollNext(carousel.scrollLeft + carousel.clientWidth < carousel.scrollWidth - 2);
   }, []);
 
+  const cities = useMemo(() => [...new Set(hotels
+    .map((hotel) => String(hotel.city || hotel.location || "").split(",")[0].trim())
+    .filter(Boolean))].sort((left, right) => left.localeCompare(right)), [hotels]);
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredHotels = useMemo(() => hotels.filter((hotel) => {
+    const city = String(hotel.city || hotel.location || "").split(",")[0].trim();
+    const matchesCity = !selectedCity || city === selectedCity;
+    const searchableText = `${hotel.name || ""} ${hotel.city || ""} ${hotel.location || ""}`.toLowerCase();
+    return matchesCity && (!normalizedSearch || searchableText.includes(normalizedSearch));
+  }), [hotels, normalizedSearch, selectedCity]);
+
   useEffect(() => {
     let active = true;
     const loadHotels = async () => {
@@ -59,8 +72,11 @@ const HotelCarousel = () => {
           limit: 30,
           ...(import.meta.env.DEV ? { includeDemo: true } : {}),
         });
+        if (!Array.isArray(response?.properties)) {
+          throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
+        }
         const uniqueHotels = new Map();
-        for (const hotel of response.properties || []) {
+        for (const hotel of response.properties) {
           if (
             !hotel?._id ||
             (hotel.isDemo && !import.meta.env.DEV) ||
@@ -123,7 +139,11 @@ const HotelCarousel = () => {
       carousel.removeEventListener("scroll", updateNavigation);
       observer.disconnect();
     };
-  }, [hotels, loading, updateNavigation]);
+  }, [filteredHotels, loading, updateNavigation]);
+
+  useEffect(() => {
+    if (carouselRef.current) carouselRef.current.scrollLeft = 0;
+  }, [searchText, selectedCity]);
 
   const toggleFavorite = (hotelId) => {
     const next = favorites.includes(hotelId)
@@ -178,6 +198,31 @@ const HotelCarousel = () => {
           </div>
         </div>
 
+        {hotels.length > 0 && !loading && !error && (
+          <div className="mb-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_15rem]">
+            <label className="relative block">
+              <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Search hotel or destination"
+                aria-label="Search hotels by name or destination"
+                className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-sm outline-none focus:border-[#082B5C] focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <select
+              value={selectedCity}
+              onChange={(event) => setSelectedCity(event.target.value)}
+              aria-label="Filter hotels by city"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-[#082B5C] focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">All cities</option>
+              {cities.map((city) => <option key={city} value={city}>{city}</option>)}
+            </select>
+          </div>
+        )}
+
         {loading ? (
           <div aria-live="polite" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((item) => (
@@ -197,8 +242,18 @@ const HotelCarousel = () => {
           </div>
         ) : hotels.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
-            <h3 className="text-lg font-bold text-[#082B5C]">Hotel listings are on their way</h3>
-            <p className="mt-2 text-sm text-slate-600">Approved properties will appear here as they become available.</p>
+            <h3 className="text-lg font-bold text-[#082B5C]">No approved hotels are available</h3>
+            <p className="mt-2 text-sm text-slate-600">This section shows active, approved hotels saved in MongoDB. Listings still awaiting approval and demonstration listings in production are hidden.</p>
+            {import.meta.env.DEV && (
+              <p className="mt-2 text-sm text-slate-600">
+                To create local demonstration listings, configure MongoDB and run <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[#082B5C]">npm run seed:hotels</code> from the Backend folder. Demo listings cannot be booked.
+              </p>
+            )}
+          </div>
+        ) : filteredHotels.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-10 text-center">
+            <h3 className="text-lg font-bold text-[#082B5C]">No matching hotels</h3>
+            <p className="mt-2 text-sm text-slate-600">Try another hotel name or destination, or choose all cities.</p>
           </div>
         ) : (
           <>
@@ -207,7 +262,7 @@ const HotelCarousel = () => {
               className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               aria-label="Hotel listings carousel"
             >
-              {hotels.map((hotel) => {
+              {filteredHotels.map((hotel) => {
                 const id = String(hotel._id);
                 const image = getHotelImage(hotel);
                 const rating = Number(hotel.rating);
@@ -220,7 +275,7 @@ const HotelCarousel = () => {
                 return (
                   <article
                     key={id}
-                    className="flex h-[480px] min-w-0 basis-[85%] snap-start flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-md transition-shadow hover:shadow-xl sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-3.75rem)/4)]"
+                    className="flex min-h-[520px] min-w-0 basis-[85%] snap-start flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-md transition-shadow hover:shadow-xl sm:basis-[calc((100%-1.25rem)/2)] lg:basis-[calc((100%-3.75rem)/4)]"
                   >
                     <div className="relative h-52 shrink-0 overflow-hidden bg-slate-100">
                       {image ? (
@@ -292,6 +347,14 @@ const HotelCarousel = () => {
                         </div>
                       ) : (
                         <p className="mt-4 text-sm text-slate-500">Not yet rated</p>
+                      )}
+
+                      {!!hotel.amenities?.length && (
+                        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Hotel amenities">
+                          {hotel.amenities.slice(0, 3).map((amenity) => (
+                            <span key={amenity} className="max-w-full truncate rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{amenity}</span>
+                          ))}
+                        </div>
                       )}
 
                       <div className="mt-auto border-t border-slate-100 pt-4">

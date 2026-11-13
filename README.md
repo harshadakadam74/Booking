@@ -36,21 +36,41 @@ This is a production-ready booking platform with:
 - MongoDB (local or cloud instance)
 
 ### Backend Setup
-```bash
-cd Backend
+```powershell
+Set-Location .\Backend
 npm install
-# Configure .env with existing MongoDB/JWT/payment settings and GEMINI_API_KEY
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+# Save the file with your MongoDB MONGO_URI and a private JWT_SECRET.
 npm run dev
 ```
 Backend runs on `http://localhost:4545`
 
-### Frontend Setup
-```bash
-cd Frontend
+### Frontend Setup (open a second terminal at the project folder)
+```powershell
+Set-Location .\Frontend
 npm install
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev
 ```
 Frontend runs on `http://localhost:5173`
+
+### Hotel listings for local development
+The homepage reads active, approved hotel records from MongoDB. The included
+`npm run seed:hotels` command creates or updates 50 clearly marked synthetic
+demo listings across India, then verifies their count in MongoDB. These records
+are for local development only and cannot be booked. Production excludes demo
+records; import authorized, verified hotel data for real bookable listings.
+
+After copying and editing `Backend/.env`, run:
+```powershell
+Set-Location .\Backend
+npm run seed:hotels
+npm run inventory:inspect
+```
+The seed reports `verifiedListings: 50` only after confirming the records were
+saved. If that confirmation does not appear, the listings were not verified in
+MongoDB.
 
 ## 📖 Documentation
 

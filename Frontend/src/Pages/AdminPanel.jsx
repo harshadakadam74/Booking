@@ -480,18 +480,21 @@ const AdminPanel = () => {
 
   const previewBulkHotels = (records) => previewAdminHotels(records);
 
-  const importBulkHotels = async (records) => {
+  const importBulkHotels = async (records, options = {}) => {
     setSaving(true);
     try {
-      const result = await importAdminHotels(records, { continueOnError: true });
-      setNotice(`${result.imported} hotel${result.imported === 1 ? '' : 's'} imported · ${result.failed} failed.`);
-      setError('');
-      setSearch('');
-      setCity('');
-      setHotelStatus('all');
-      setApprovalStatus('all');
-      setPage(1);
-      await loadData();
+      const { refresh, ...importOptions } = options;
+      const result = await importAdminHotels(records, { ...importOptions, continueOnError: true });
+      if (refresh !== false) {
+        setNotice(`${result.imported} hotel${result.imported === 1 ? '' : 's'} imported · ${result.failed} failed.`);
+        setError('');
+        setSearch('');
+        setCity('');
+        setHotelStatus('all');
+        setApprovalStatus('all');
+        setPage(1);
+        await loadData();
+      }
       return result;
     } catch (requestError) {
       notifyError(requestError);
@@ -499,6 +502,18 @@ const AdminPanel = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const completeBulkHotelImport = async () => {
+    const alreadyUnfiltered = !search && !city && hotelStatus === 'all' && approvalStatus === 'all' && page === 1;
+    setNotice('Bulk hotel import finished. Refreshing hotel listings.');
+    setError('');
+    setSearch('');
+    setCity('');
+    setHotelStatus('all');
+    setApprovalStatus('all');
+    setPage(1);
+    if (alreadyUnfiltered) await loadData();
   };
 
   const downloadHotelExport = async () => {
@@ -777,7 +792,7 @@ const AdminPanel = () => {
       </div>
 
       {hotelEditor !== undefined && <HotelEditor hotel={hotelEditor} saving={saving} onClose={() => setHotelEditor(undefined)} onSave={saveHotel} onUploadImage={uploadAdminHotelImage} />}
-      {bulkHotelManager && <BulkHotelManager saving={saving} onClose={() => setBulkHotelManager(false)} onPreview={previewBulkHotels} onImport={importBulkHotels} onUploadImages={uploadAdminHotelImages} />}
+      {bulkHotelManager && <BulkHotelManager saving={saving} onClose={() => setBulkHotelManager(false)} onPreview={previewBulkHotels} onImport={importBulkHotels} onUploadImages={uploadAdminHotelImages} onComplete={completeBulkHotelImport} />}
       {selectedBooking && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedBooking(null); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">

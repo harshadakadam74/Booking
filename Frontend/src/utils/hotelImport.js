@@ -261,6 +261,23 @@ export const parseHotelImportFile = async (file) => {
   return mapRows(rows).map(normalizeRecord);
 };
 
+export const parseHotelJsonFile = async (file) => {
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    throw new Error('The JSON file is not valid JSON.');
+  }
+  const records = Array.isArray(parsed) ? parsed : parsed?.records;
+  if (!Array.isArray(records) || !records.length) {
+    throw new Error('The JSON file must contain a non-empty array of hotel records or a { "records": [] } object.');
+  }
+  if (records.some((record) => !record || typeof record !== 'object' || Array.isArray(record))) {
+    throw new Error('Every JSON hotel record must be an object.');
+  }
+  return records;
+};
+
 export const hotelImportTemplate = () => [
   'name,city,state,address,postalCode,price,totalRooms,availableRooms,images,description,amenities,facilities,roomTypes,checkInTime,checkOutTime,contactPhone,contactEmail,rating,ratingCount,ratingSource,starRating,policies,active,approvalStatus',
   'Sample Hotel,Mumbai,Maharashtra,"123 Example Road, Mumbai",400001,4500,30,24,https://example.com/hotel.jpg|https://example.com/room.jpg,"DEMO ONLY - replace with verified property details","Wi-Fi|Parking","Restaurant|Gym","[{""name"":""Standard"",""price"":4500,""maxGuests"":2,""totalRooms"":20,""availableRooms"":16}]",14:00,11:00,+910000000000,hotel@example.com,,,,,"{""cancellation"":""Sample policy""}",true,pending',
