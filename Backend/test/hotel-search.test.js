@@ -147,6 +147,20 @@ test('hotel listing supports newest sort and excludes demo listings by default',
   assert.deepEqual(pipeline.find((stage) => stage.$sort)?.$sort, { createdAt: -1, _id: -1 });
 });
 
+test('featured hotel rating filter requires a recorded rating and a positive rating count', async () => {
+  const parsed = parseHotelSearch({ minRating: '4' });
+  assert.equal(parsed.error, undefined);
+
+  const pipeline = await buildHotelPipeline(parsed.criteria);
+  const ratingFilter = pipeline[0].$match.$and.find((clause) =>
+    clause.rating?.$gte === 4 && clause.ratingCount?.$gt === 0);
+
+  assert.deepEqual(ratingFilter, {
+    rating: { $gte: 4 },
+    ratingCount: { $gt: 0 },
+  });
+});
+
 test('demo listings are included only in development when explicitly requested', () => {
   const originalEnvironment = process.env.NODE_ENV;
   try {

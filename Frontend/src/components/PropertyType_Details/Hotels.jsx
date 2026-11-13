@@ -16,6 +16,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../services/api";
 import { listHotels } from "../../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -32,9 +33,19 @@ const formatPrice = (price, currency = "INR") => {
 const Hotels = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const latitude = Number(searchParams.get("lat"));
-  const longitude = Number(searchParams.get("lng"));
-  const hasUserLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
+  const latitudeParam = searchParams.get("lat");
+  const longitudeParam = searchParams.get("lng");
+  const latitude = latitudeParam === null ? Number.NaN : Number(latitudeParam);
+  const longitude = longitudeParam === null ? Number.NaN : Number(longitudeParam);
+  const hasUserLocation =
+    latitudeParam !== null &&
+    longitudeParam !== null &&
+    latitudeParam.trim() !== "" &&
+    longitudeParam.trim() !== "" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180;
 
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +57,6 @@ const Hotels = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setLoadError("");
 
     if (hasUserLocation) {
       const query = new URLSearchParams({
@@ -58,13 +68,24 @@ const Hotels = () => {
       apiFetch(`/api/v1/hotels/nearby?${query}`)
         .then((response) => {
           if (cancelled) return;
-          const nearbyHotels = (response.properties || []).map((hotel) => ({
-            ...hotel,
-            id: String(hotel._id),
-            rating: Number(hotel.rating) || 0,
-            reviews: Number(hotel.ratingCount ?? hotel.reviews) || 0,
-            amenities: Array.isArray(hotel.amenities) ? hotel.amenities : [],
-          }));
+          if (!Array.isArray(response?.properties)) {
+            throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
+          }
+          const nearbyHotels = response.properties
+            .filter((hotel) => (
+              hotel?._id &&
+              hotel.active !== false &&
+              (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
+              (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
+            ))
+            .map((hotel) => ({
+              ...hotel,
+              id: String(hotel._id),
+              rating: Number(hotel.rating) || 0,
+              reviews: Number(hotel.ratingCount ?? hotel.reviews) || 0,
+              amenities: Array.isArray(hotel.amenities) ? hotel.amenities : [],
+            }));
+          setLoadError("");
           setHotels(nearbyHotels);
           setLocationStatus(`${nearbyHotels.length} stays found within ${radius} km.`);
         })
@@ -88,17 +109,30 @@ const Hotels = () => {
       propertyType: "Hotel",
       page: 1,
       limit: 30,
-      ...(import.meta.env.DEV ? { includeDemo: true } : {}),
+      ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
     })
       .then((result) => {
-        const formattedHotels = (result.properties || []).map((hotel) => ({
-          ...hotel,
-          id: String(hotel._id),
-          rating: Number(hotel.rating) || 0,
-          reviews: Number(hotel.ratingCount ?? hotel.reviews) || 0,
-          amenities: Array.isArray(hotel.amenities) ? hotel.amenities : [],
-        }));
-        if (!cancelled) setHotels(formattedHotels);
+        if (!Array.isArray(result?.properties)) {
+          throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
+        }
+        const formattedHotels = result.properties
+          .filter((hotel) => (
+            hotel?._id &&
+            hotel.active !== false &&
+            (!hotel.approvalStatus || hotel.approvalStatus === "approved") &&
+            (!hotel.isDemo || IS_LOCAL_DEVELOPMENT)
+          ))
+          .map((hotel) => ({
+            ...hotel,
+            id: String(hotel._id),
+            rating: Number(hotel.rating) || 0,
+            reviews: Number(hotel.ratingCount ?? hotel.reviews) || 0,
+            amenities: Array.isArray(hotel.amenities) ? hotel.amenities : [],
+          }));
+        if (!cancelled) {
+          setLoadError("");
+          setHotels(formattedHotels);
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -365,11 +399,16 @@ const Hotels = () => {
                 ========================= */}
                 <div className="relative overflow-hidden">
                   {hotel.image || hotel.images?.[0] ? (
-                    <img
-                      src={hotel.image || hotel.images[0]}
-                      alt={hotel.name}
-                      loading="lazy"
-                      className="
+                    <div className="relative">
+                      <img
+                        src={hotel.image || hotel.images[0]}
+                        alt={hotel.name}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                          event.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        }}
+                        className="
                       h-56
                       w-full
                       object-cover
@@ -377,9 +416,15 @@ const Hotels = () => {
                       duration-500
                       group-hover:scale-105
                     "
-                    />
+                      />
+                      <div className="hidden h-56 flex items-center justify-center bg-gradient-to-br from-[#082B5C] to-[#E3AE32] text-sm font-semibold text-white">
+                        Hotel image unavailable
+                      </div>
+                    </div>
                   ) : (
-                    <div className="h-56 bg-gradient-to-br from-[#082B5C] to-[#E3AE32]" aria-label="No hotel image available" />
+                    <div className="flex h-56 items-center justify-center bg-gradient-to-br from-[#082B5C] to-[#E3AE32] text-sm font-semibold text-white" aria-label="No hotel image available">
+                      No hotel image available
+                    </div>
                   )}
 
                   {/* Dark image overlay */}
@@ -533,7 +578,7 @@ const Hotels = () => {
                   {/* =========================
                       Price + Book
                   ========================= */}
-                  <div className="flex items-end justify-between gap-3">
+                  <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-end">
                     <div>
                       <div className="flex items-baseline gap-1">
                         <span className="
@@ -551,12 +596,38 @@ const Hotels = () => {
 
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={hotel.availableRooms === 0}
-                      onClick={() => handleBookNow(hotel)}
-                      className="
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleBookNow(hotel)}
+                        className="
+                          inline-flex
+                          flex-1
+                          items-center
+                          justify-center
+                          rounded-xl
+                          border
+                          border-[#082B5C]
+                          px-4
+                          py-2.5
+                          text-sm
+                          font-semibold
+                          text-[#082B5C]
+                          transition-all
+                          duration-300
+                          hover:bg-blue-50
+                        "
+                      >
+                        View Details
+                      </button>
+                      <button
+                        type="button"
+                        disabled={hotel.isDemo || hotel.availableRooms === 0}
+                        title={hotel.isDemo ? "Demo listings cannot be booked." : undefined}
+                        onClick={() => handleBookNow(hotel)}
+                        className="
                         inline-flex
+                        flex-1
                         items-center
                         justify-center
                         rounded-xl
@@ -576,9 +647,10 @@ const Hotels = () => {
                         disabled:bg-slate-300
                         disabled:hover:translate-y-0
                       "
-                    >
-                      Book Now
-                    </button>
+                      >
+                        {hotel.isDemo ? "Demo Only" : "Book Now"}
+                      </button>
+                    </div>
                   </div>
                 </div>
 

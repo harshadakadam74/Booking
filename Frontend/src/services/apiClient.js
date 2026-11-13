@@ -2,22 +2,38 @@ import axios from "axios";
 
 const API_VERSION_PATH = "/api/v1";
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "");
+const isLoopbackHost = (hostname) =>
+  hostname === "localhost" ||
+  hostname.endsWith(".localhost") ||
+  hostname.startsWith("127.") ||
+  hostname === "::1" ||
+  hostname === "[::1]" ||
+  hostname === "0.0.0.0";
+const isPrivateNetworkHost = (hostname) =>
+  hostname.endsWith(".local") ||
+  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+  /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+  /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+const frontendHostname = typeof window === "undefined" ? "" : window.location.hostname;
+const isLoopbackFrontend = isLoopbackHost(frontendHostname);
+export const IS_LOCAL_DEVELOPMENT = import.meta.env.DEV &&
+  (isLoopbackFrontend || isPrivateNetworkHost(frontendHostname));
 const developmentApiUrl = import.meta.env.DEV
   ? "http://localhost:4545/api/v1"
   : "";
 
 const getApiBaseUrl = () => {
-  if (!configuredApiUrl) return developmentApiUrl;
+  if (!configuredApiUrl) return import.meta.env.DEV && isLoopbackFrontend ? developmentApiUrl : "";
 
   try {
     const url = new URL(configuredApiUrl);
-    const isLoopbackHost = url.hostname === "localhost" ||
-      url.hostname.endsWith(".localhost") ||
-      url.hostname.startsWith("127.") ||
-      url.hostname === "::1" ||
-    url.hostname === "[::1]" ||
-      url.hostname === "0.0.0.0";
-    if (import.meta.env.PROD && (url.protocol !== "https:" || isLoopbackHost)) {
+    if (import.meta.env.DEV) {
+      if (!["http:", "https:"].includes(url.protocol) ||
+        (isLoopbackHost(url.hostname) && !isLoopbackFrontend) ||
+        (url.protocol === "http:" && !isLoopbackHost(url.hostname) && !isPrivateNetworkHost(url.hostname))) {
+        return "";
+      }
+    } else if (url.protocol !== "https:" || isLoopbackHost(url.hostname)) {
       return "";
     }
 

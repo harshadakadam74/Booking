@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MapPin, Star } from "lucide-react";
 import { listHotels } from "../../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../../services/apiClient";
 
 const formatPrice = (price, currency = "INR") => {
   try {
@@ -31,7 +32,7 @@ const Deals = () => {
           sortBy: "recommended",
           page: 1,
           limit: 12,
-          ...(import.meta.env.DEV ? { includeDemo: true } : {}),
+          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         });
         if (active) setHotels(response.properties || []);
       } catch (requestError) {

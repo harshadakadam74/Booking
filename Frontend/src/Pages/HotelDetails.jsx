@@ -235,7 +235,7 @@ const HotelDetails = () => {
               {Number(hotel.ratingCount) > 0 && Number(hotel.rating) > 0 && Number.isFinite(Number(hotel.rating)) && (
                 <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-slate-700">
                   <Star size={16} className="fill-[#E3AE32] text-[#E3AE32]" />
-                  Guest rating {Number(hotel.rating).toFixed(1)} ({hotel.ratingCount} {hotel.ratingSource || "recorded"} ratings)
+                  {hotel.isDemo ? "Synthetic demo score" : "Guest rating"} {Number(hotel.rating).toFixed(1)} ({hotel.ratingCount} {hotel.isDemo ? "sample scores" : hotel.ratingSource || "recorded ratings"}{hotel.isDemo ? ` · ${hotel.ratingSource || "not real guest reviews"}` : ""})
                 </p>
               )}
               {Number(hotel.starRating) > 0 && <p className="mt-2 text-sm font-semibold text-[#082B5C]">Hotel category: {hotel.starRating} stars</p>}

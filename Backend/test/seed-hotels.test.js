@@ -30,12 +30,15 @@ test('hotel seeder uses idempotent upserts and guards against non-development ex
   assert.match(script, /bookingEnabled: false/);
 });
 
-test('development seed labels all sample data and includes multiple photos and room types without fabricated ratings', () => {
+test('development seed labels sample ratings as synthetic and includes multiple photos and room types', () => {
   assert.match(script, /DEVELOPMENT DEMO ONLY/);
   assert.match(script, /amenities: \['Wi-Fi \(sample only\)'/);
   assert.match(script, /const hotelImages = \[/);
   assert.match(script, /streetAddress: `Fictional demo address - \$\{city\}/);
   assert.match(script, /images,/);
   assert.match(script, /name: 'Deluxe demo room \(sample only\)'/);
-  assert.doesNotMatch(script, /ratingCount:|rating:/);
+  assert.match(script, /rating: sampleRating/);
+  assert.match(script, /ratingCount: sampleRatingCount/);
+  assert.match(script, /ratingSource: 'Synthetic demo score; not real guest reviews'/);
+  assert.match(script, /isDemo: true/);
 });

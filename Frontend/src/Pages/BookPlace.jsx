@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Search, SlidersHorizontal, Star } from 'lucide-react';
 import DestinationAutocomplete from '../components/DestinationAutocomplete';
 import { searchHotels } from '../services/destinationService';
+import { IS_LOCAL_DEVELOPMENT } from '../services/apiClient';
 
 const getDateValue = (value) => {
   if (!value) return '';
@@ -70,7 +71,7 @@ const BookPlace = () => {
     ...(filters.breakfastIncluded ? { breakfastIncluded: true } : {}),
     ...(filters.workTrip ? { workTrip: true } : {}),
     ...(filters.hotelName.trim() ? { hotelName: filters.hotelName.trim() } : {}),
-    ...(import.meta.env.DEV ? { includeDemo: true } : {}),
+    ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
     sortBy: filters.sortBy,
     page,
     limit: 12,

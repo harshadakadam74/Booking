@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, MapPin, Star } from "lucide-react";
 import { listHotels } from "../services/destinationService";
+import { IS_LOCAL_DEVELOPMENT } from "../services/apiClient";
 import {
   HOTEL_FAVORITES_EVENT,
   readHotelFavoriteIds,
@@ -40,7 +41,7 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
           {hotel.isDemo && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">DEMO · NOT A REAL HOTEL</span>}
           {hotel.breakfastIncluded && <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">Breakfast included</span>}
           {!hotel.isDemo && bestSeller && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best seller</span>}
-          {Number(hotel.ratingCount) > 0 && Number(hotel.rating) >= 4.5 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#082B5C]">Top rated</span>}
+          {!hotel.isDemo && Number(hotel.ratingCount) > 0 && Number(hotel.rating) >= 4.5 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#082B5C]">Top rated</span>}
           {Number(hotel.starRating) > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{hotel.starRating}-star hotel</span>}
         </div>
         <div className="flex items-start justify-between gap-3">
@@ -63,7 +64,7 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
             </button>
           </div>
         </div>
-        {Number(hotel.ratingCount) > 0 && <p className="mt-2 text-xs text-slate-500">Guest rating · {Number(hotel.ratingCount).toLocaleString("en-IN")} ratings{hotel.ratingSource ? ` · ${hotel.ratingSource}` : ""}</p>}
+        {Number(hotel.ratingCount) > 0 && <p className="mt-2 text-xs text-slate-500">{hotel.isDemo ? "Synthetic demo score" : "Guest rating"} · {Number(hotel.ratingCount).toLocaleString("en-IN")} {hotel.isDemo ? "sample scores" : "ratings"}{hotel.ratingSource ? ` · ${hotel.ratingSource}` : ""}</p>}
         <p className="mt-3 min-h-10 text-sm text-slate-500">
           {hotel.amenities?.length ? hotel.amenities.slice(0, 3).join(" · ") : hotel.propertyType || hotel.type || "Hotel stay"}
         </p>
@@ -79,12 +80,23 @@ const HotelCard = ({ hotel, favorites, toggleFavorite, bestSeller }) => {
             >
               View details
             </Link>
-            <Link
-              to={`/hotels/${encodeURIComponent(hotelId)}`}
-              className="rounded-lg bg-[#082B5C] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#123f77]"
-            >
-              Book now
-            </Link>
+            {hotel.isDemo ? (
+              <button
+                type="button"
+                disabled
+                title="Demo listings cannot be booked."
+                className="cursor-not-allowed rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold text-slate-500"
+              >
+                Demo only
+              </button>
+            ) : (
+              <Link
+                to={`/hotels/${encodeURIComponent(hotelId)}`}
+                className="rounded-lg bg-[#082B5C] px-3 py-2 text-sm font-bold text-white transition hover:bg-[#123f77]"
+              >
+                Book now
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -163,7 +175,7 @@ const ProductSlider = () => {
           country: "India",
           page: 1,
           limit: 24,
-          ...(import.meta.env.DEV ? { includeDemo: true } : {}),
+          ...(IS_LOCAL_DEVELOPMENT ? { includeDemo: true } : {}),
         };
         const [featured, popular, recent, ...cityResults] = await Promise.all([
           listHotels({ ...options, sortBy: "rating", minRating: 4 }),
@@ -176,15 +188,23 @@ const ProductSlider = () => {
             limit: 8,
           })),
         ]);
+        if ([featured, popular, recent, ...cityResults].some(
+          (result) => !Array.isArray(result?.properties)
+        )) {
+          throw new Error("The hotel API returned an unexpected response. Check that the backend is running the current project version.");
+        }
         if (active) {
+          const featuredHotels = featured.properties;
+          const popularHotels = popular.properties;
+          const recentHotels = recent.properties;
           setSections({
-            featured: featured.properties || [],
-            popular: popular.properties || [],
-            recent: recent.properties || [],
+            featured: featuredHotels.length ? featuredHotels : popularHotels,
+            popular: popularHotels,
+            recent: recentHotels,
           });
           setCitySections(["Jaipur", "Mumbai", "Goa"].map((city, index) => ({
             city,
-            hotels: cityResults[index].properties || [],
+            hotels: cityResults[index].properties,
           })));
         }
       } catch (requestError) {
@@ -225,8 +245,8 @@ const ProductSlider = () => {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E3AE32]">FastBooking stays</p>
           <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Book your next stay directly</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
-            {import.meta.env.DEV
-              ? "Explore approved hotel listings and clearly labeled development samples. Choose a real hotel, confirm its availability, then continue to secure checkout."
+            {IS_LOCAL_DEVELOPMENT
+              ? "Explore approved hotel listings and clearly labeled development samples. Demo listings are for display only and cannot be booked."
               : "Explore real, approved hotel listings from our database. Choose a hotel, confirm your dates and room, then continue to secure checkout."}
           </p>
         </div>
@@ -242,10 +262,10 @@ const ProductSlider = () => {
           </div>
         ) : (
           <>
-            <HotelSection title="Featured hotels" subtitle="Highly rated stays from real guest ratings" hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
+            <HotelSection title="Featured hotels" subtitle={IS_LOCAL_DEVELOPMENT ? "Highly rated listings and clearly labeled synthetic demo scores" : "Highly rated approved stays; when none are rated, current approved listings are shown"} hotels={sections.featured} favorites={favorites} toggleFavorite={toggleFavorite} />
             <HotelSection
               title="Popular hotels"
-              subtitle={import.meta.env.DEV ? "Current listings and clearly labeled development samples" : "Stays ranked by verified FastBooking reservations"}
+              subtitle={IS_LOCAL_DEVELOPMENT ? "Current listings and clearly labeled development samples" : "Stays ranked by confirmed FastBooking reservations"}
               hotels={sections.popular}
               favorites={favorites}
               toggleFavorite={toggleFavorite}

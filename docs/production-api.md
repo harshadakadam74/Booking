@@ -17,9 +17,13 @@
 - The repository has a Vercel static-frontend configuration, but no backend
   hosting configuration or deployed backend domain. Do not substitute a guessed
   production URL.
-- The frontend URL reported in production (`localhost:4545`) is the development
-  fallback. Vite embeds `VITE_API_URL` at build time; Vercel must have the
-  production variable set and the frontend must be redeployed.
+- The production site was inspected on 2026-11-13. Its hotel requests targeted
+  `http://localhost:4545` and included `includeDemo=true`. That is a development
+  frontend build/configuration, not a usable production API connection. Visitors'
+  browsers would request their own computer's localhost.
+- Vite embeds `VITE_API_URL` and development/production flags into the built
+  frontend. Vercel must run the production build and have the actual deployed
+  backend URL configured before the frontend is redeployed.
 
 ## Deploy the backend first
 
@@ -57,12 +61,17 @@ JWT bearer-token and idempotent booking flows.
 
 In the Vercel project for `booking-l2vm`:
 
-1. Open **Settings → Environment Variables**.
-2. Add `VITE_API_URL` with the actual backend URL and version prefix, for example
+1. Set the project **Root Directory** to `Frontend` so Vercel uses
+   `Frontend/vercel.json`.
+2. Set the build command to `npm run build` and output directory to `dist`
+   (also declared in `Frontend/vercel.json`).
+3. Open **Settings → Environment Variables**.
+4. Add `VITE_API_URL` with the actual backend URL and version prefix, for example
    `https://YOUR-DEPLOYED-BACKEND-DOMAIN/api/v1`. Do not use the example domain
    literally.
-3. Apply it to **Production** (and Preview/Development if needed).
-4. Redeploy the frontend. `VITE_API_URL` is a public build-time URL, not a
+5. Apply it to **Production**. Do not set `NODE_ENV=development` for the
+   frontend's production build.
+6. Redeploy the frontend. `VITE_API_URL` is a public build-time URL, not a
    secret. Never put MongoDB, JWT, Razorpay secret, Gemini, SMTP, or Cloudinary
    secrets in a `VITE_` variable.
 
@@ -91,6 +100,10 @@ source, then approved and activated in the existing admin hotel manager.
 
 The homepage loads featured, popular, and recently added hotels from
 `GET /hotels?country=India`; it does not use seeded or hardcoded hotel-card data.
+Featured listings prefer a rating of at least four, and fall back to current
+approved listings if no hotels have ratings. The schema has no separate
+`featured` or `popular` flags: popularity is based on confirmed bookings, while
+recent listings are sorted by creation time.
 `GET /hotels` also supports the same paginated filters as the search route.
 Hotel cards open `/hotels/:id` (the legacy `/hotel/:id` URL remains supported),
 which reloads the listing by MongoDB `_id` and
@@ -226,9 +239,8 @@ Create a Postman environment with:
 
 Run the same sequence locally and against the deployed URL. In the production
 browser's Network tab, verify every API request uses the HTTPS backend domain
-and that no request targets `localhost`. The deployed page was inspected during
-this fix and its requests currently target `http://localhost:4545/api/v1`;
-configure `VITE_API_URL` in Vercel Production and redeploy before expecting
-production hotel search or checkout to work. A production API request without
-an API URL is rejected by the current frontend client rather than silently
-falling back to localhost.
+and that no request targets `localhost`. The frontend now rejects a localhost
+API URL when opened from a non-localhost site, and demo listings are enabled
+only when the app is running on localhost in development. Production still
+requires the correct Vercel `VITE_API_URL`, a deployed backend connected to
+MongoDB, and real approved hotel records in that production database.

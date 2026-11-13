@@ -45,6 +45,8 @@ const demoListings = destinations.flatMap(([city, state, samplePrice], destinati
     const price = samplePrice + (number - 1) * 500;
     const rooms = number === 1 ? 12 : 8;
     const propertyType = number === 1 ? 'Hotel' : 'Guest house';
+    const sampleRating = Number((4.1 + ((destinationIndex + number) % 9) / 10).toFixed(1));
+    const sampleRatingCount = 25 + destinationIndex * 5 + number * 11;
     const imageStart = (destinationIndex * 2 + number - 1) % hotelImages.length;
     const images = [0, 1, 2].map((offset) => hotelImages[(imageStart + offset) % hotelImages.length]);
 
@@ -64,6 +66,9 @@ const demoListings = destinations.flatMap(([city, state, samplePrice], destinati
       category: propertyType,
       description: 'DEVELOPMENT DEMO ONLY. This synthetic listing, its address, photos, sample price, room inventory, amenities, and room types are fictional and not bookable.',
       price,
+      rating: sampleRating,
+      ratingCount: sampleRatingCount,
+      ratingSource: 'Synthetic demo score; not real guest reviews',
       totalRooms: rooms,
       availableRooms: rooms,
       maxGuestsPerRoom: number === 1 ? 3 : 2,
