@@ -245,12 +245,13 @@ const BulkHotelManager = ({ saving, onClose, onPreview, onImport, onUploadImages
   };
 
   const toggleAllRows = () => {
-    setSelectedRows((current) => {
-      if (allSelected) return new Set();
-      return new Set(results
+    if (allSelected) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(results
         .map((result, index) => ['ready', 'retryable'].includes(result.status) ? index : -1)
-        .filter((index) => index >= 0));
-    });
+        .filter((index) => index >= 0)));
+    }
   };
 
   const removeInvalidRows = () => {
